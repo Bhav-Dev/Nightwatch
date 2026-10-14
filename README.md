@@ -1,34 +1,89 @@
 # Nightwatch
 
-Record your snoring, see it against your watch's data, and find out which remedies helped people like you. The full product brief and development spec live outside the repo; this README covers what is built and how to work on it.
+Record your snoring, see it against your watch's data, and find out which remedies helped people like you. The product brief and development spec live outside the repo; this README covers what is built, how to run it, and the decisions taken where the spec was open.
 
-## Status: Phase 0 (foundations)
+## Status
 
-| Piece | State |
+Phases 0 to 3 are built. Nothing has run on a phone yet: everything below is checked by unit and integration tests, typechecks, lint, JS bundle builds for both platforms and `expo prebuild`, but not on a device.
+
+| Phase | What is in the repo |
 | --- | --- |
-| Expo app (React Native, TypeScript, Expo Router) with Tonight, This Morning, Remedies, Trends tabs | Scaffolded. Tonight and a basic This Morning work; Remedies and Trends are placeholders |
-| Local SQLite schema (every table in the spec) with versioned migrations | Done, `src/data/schema.ts` |
-| Catalogue of 42 remedies and factors, with draft one-paragraph articles | Done, `catalogue/catalogue.json`; seeded on first launch, refreshed from `GET /v1/catalogue?since=` when an API base URL is set |
-| Scoring: events, intensity labels, 5-minute bins, 0 to 100 score, partial-night rule | Done and unit tested, `src/domain/scoring` |
-| Detection v0: energy, spectral centroid and breathing-rhythm heuristic | Done and tested on synthetic audio, `src/domain/detection/heuristic.ts`; a labelling aid, not for release |
-| Audio capture | expo-audio's PCM stream (16 kHz mono) with a local Android foreground-service module; features saved to SQLite every 30 s; interruptions detected and shown on This Morning. **Not yet run on a device** |
-| CI: typecheck, lint, tests, JS bundle per platform | `.github/workflows/ci.yml` |
+| 0 Foundations | Expo app, local SQLite schema, 42-entry catalogue, scoring, detection v0, overnight capture (expo-audio stream plus an Android foreground service), interruption handling, labelling and evaluation tools (`tools/`) |
+| 1 Parity | Clips of the loudest moments (WAV, with groundwork for Opus), full This Morning screen (score, timeline, clips, editable log, typical-night prompt, interrupted banner), Trends (7/30/90 nights, moving average, snapshots), onboarding, Settings (export, delete, sensitivity, auto-stop, reminders), automatic stop in the morning |
+| 2 Personal insight | Apple Health and Health Connect import, aligned overlay and nightly summary, template morning summary, 14-night remedy tests with a verdict and confidence, doctor's report PDF on the phone, RevenueCat paywall and locks |
+| 3 Community | Required sign-in (Apple, Google, email link), two-way sync, contribution opt-in, community dashboard (Everyone, People like you, early and hidden states, combinations), remedy detail with your result against the crowd, Amazon links with disclosures, the backend (`server/`, runs on a VPS or Supabase), nightly aggregation job, methods page (`site/methods.html`) |
+
+Partner mode (Household) is not built: the brief holds it for the first update after launch.
+
+## Layout
+
+```
+shared/                    code used by both app and server
+  api.ts                   the /v1 API contract
+  remedyEffect.ts          the remedy-effect algorithm (eligibility, within-person deltas, community figures)
+  profile.ts, amazon.ts, stats.ts
+catalogue/catalogue.json   launch catalogue (app seed and server seed)
+src/                       the app
+  app/                     routes (Expo Router)
+  domain/                  pure logic: scoring, detection, audio features, health, summary, experiments
+  data/                    SQLite schema and repositories (behind the Db interface)
+  recording/               RecordingSession: capture → features → SQLite → scored night; launch recovery
+  clips/                   clip collection, codec registry, transcoding
+  native/                  capture: expo-audio stream, simulator
+  health/                  Apple Health and Health Connect readers
+  sync/, api/, community/  server client, sync engine, cached community snapshot
+  billing/, auth/, state/  RevenueCat, session storage, app-wide state
+  report/                  doctor's report
+  screens/, ui/            shared screen components, UI kit and charts
+modules/nightwatch-recording-service/   Android foreground service (Kotlin)
+server/                    API (Hono) and nightly job; see server/README.md
+supabase/                  Supabase function wrappers and migrations (same server code)
+tools/                     labelling and detector evaluation; see tools/README.md
+site/methods.html          public methods page
+__tests__/                 app tests (Jest); data-layer tests run on node:sqlite
+```
 
 ## Running it
 
-The app contains a local native module, so it needs a development build rather than Expo Go.
+The app has native modules, so it needs a development build rather than Expo Go.
 
 ```bash
 npm install
-npm run ios        # or: npm run android  (local Xcode / Android Studio)
-# or build in the cloud: npx eas-cli@latest build --profile development
-npm start          # dev server for an installed development build
-npm test
-npm run typecheck
-npm run lint
+npm run ios                # or: npm run android (local Xcode / Android Studio)
+                           # or in the cloud: npx eas-cli@latest build --profile development
+npm start                  # dev server for an installed development build
+npm run start:simulated    # same, with the simulated microphone (30 s of night per real second)
+npm test && npm run typecheck && npm run lint
+
+cd server && npm install && npm test        # API and aggregation (PGlite, no database needed)
 ```
 
-Set `EXPO_PUBLIC_SIMULATE_CAPTURE=1` (or `npm run start:simulated`, or the `simulated` EAS profile) to swap the microphone for `SimulatedCapture`, which plays 30 seconds of synthetic night (background noise plus a snoring stretch every 10 minutes) for every real second. Hold Stop for one second to analyse it and land on This Morning.
+In development builds, with no server configured, sign-in offers a development account, and Settings has a switch to unlock paid features.
+
+### App configuration (EXPO_PUBLIC_* at build time)
+
+| Variable | What |
+| --- | --- |
+| `EXPO_PUBLIC_API_URL` | Server base URL without `/v1`. VPS: `https://api.example.com`. Supabase: `https://<ref>.supabase.co/functions/v1/api` |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `_ANDROID_CLIENT_ID`, `_WEB_CLIENT_ID` | Google sign-in (the button is hidden when unset) |
+| `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `_ANDROID_KEY` | RevenueCat public SDK keys. Entitlement id `insight`; offering with annual and monthly packages |
+| `EXPO_PUBLIC_SITE_URL` | Website for methods, privacy, terms, affiliate disclosure (default `https://nightwatch.app`) |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` | Support address |
+| `EXPO_PUBLIC_SIMULATE_CAPTURE` | `1` swaps the microphone for the simulator |
+
+Server configuration (secrets, Amazon tracking ids, Apple and Google audiences, RevenueCat webhook secret) is in `server/README.md`.
+
+## Backend: VPS or Supabase, undecided
+
+One server codebase runs on either, with only configuration changing:
+
+- Plain Postgres migrations (no Supabase-only features), applied by our own runner or copied into `supabase/migrations` by `npm run supabase:sync-migrations`.
+- A Hono app that runs on Node (`server/src/node.ts`) and on Supabase Edge Functions (`supabase/functions/api`).
+- Our own sign-in (Apple and Google token checks, email links) issuing our own session tokens, so it does not depend on Supabase Auth.
+- Rate limits stored in Postgres, so they work on stateless Edge functions.
+- The nightly job as a CLI (cron on a VPS) or an HTTP function (pg_cron on Supabase).
+
+The app only knows `EXPO_PUBLIC_API_URL`. `server/README.md` has deployment steps for both, and a section on switching later. **The Supabase (Deno) entry points have never been run**; Deno was not available. Check them on the first `supabase functions serve`.
 
 ## How overnight capture works
 
@@ -36,48 +91,43 @@ Set `EXPO_PUBLIC_SIMULATE_CAPTURE=1` (or `npm run start:simulated`, or the `simu
 expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
   → ExpoAudioCapture        session clock = wall clock at stream start + stream timestamp
   → FrameAssembler          whole 1-second frames; clock jumps and all-zero seconds become gaps
-  → RecordingSession        per-second features (level, centroid, 10 Hz envelope); audio dropped
+  → RecordingSession        per-second features (level, centroid, 10 Hz envelope) and an optional model score;
+                            loud seconds feed the clip collector; audio is then dropped
   → SQLite session_frame    written every 30 s, so a killed app loses at most 30 s
-  → at Stop: heuristic → analyseNight → night + events + bins + tonight's log
+  → at Stop or auto-stop    detector → analyseNight → night, events, bins, clips, tonight's log
 ```
 
-- **iOS:** the expo-audio config plugin adds the `audio` background mode, which keeps the stream running with the screen locked.
-- **Android:** a backgrounded app only gets real microphone audio while it runs a foreground service of type `microphone` started while visible. `modules/nightwatch-recording-service` is that service (ongoing notification, partial wake lock, no audio of its own). Without it Android delivers silence, which the assembler would report as `microphone_taken`.
-- **Interruptions.** Streams are not told when they are interrupted. A jump in the session clock is a `stalled` gap; two or more all-zero seconds are `microphone_taken` (Android silences a call-preempted app); a watchdog restarts a stream that has delivered nothing for 10 s. A recording the app never stopped (killed overnight) is turned into a partial night at next launch, marked `app_closed`. This Morning then shows "Recording stopped at 03:12" with the probable cause and how to prevent it.
+- **iOS:** the expo-audio plugin adds the `audio` background mode.
+- **Android:** `modules/nightwatch-recording-service` runs a microphone foreground service (notification, partial wake lock). Without it Android hands a backgrounded app silence.
+- **Interruptions:** a jump in the session clock is a `stalled` gap; two or more all-zero seconds are `microphone_taken`; a watchdog restarts a silent stream. A recording the app never stopped becomes a partial night at next launch (`app_closed`). This Morning shows "Recording stopped at 03:12" with the cause and how to prevent it.
+- **Auto-stop:** at 11:00 by default (Settings: 9 to 12), or after 12 hours, followed by a "your night is ready" notification.
 
-## Layout
+## Clips, WAV now, Opus later
 
-```
-catalogue/catalogue.json   launch catalogue, shared with the server later
-src/app/                   routes (Expo Router); each file is a screen
-src/domain/                pure logic, no React Native imports
-  scoring/                 frames → events → bins → score
-  audio/                   FFT, A-weighted level, centroid, envelope per 1-second frame
-  detection/               v0 heuristic
-src/data/                  SQLite schema, repositories, catalogue client
-src/native/                capture interface, expo-audio capture, simulator
-src/recording/             RecordingSession: capture → features → SQLite → scored night; launch recovery
-modules/nightwatch-recording-service/   Android foreground service (Kotlin), no-op on iOS
-src/ui/                    theme and shared components
-__tests__/                 Jest; data-layer tests run on node:sqlite through the same Db interface
-```
+Clips are 15-second 16 kHz WAV (about 480 KB each; five a night is well under the 5 MB budget). Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. "Keep full-night audio" is shown but disabled until compressed audio exists.
 
-## Decisions made while scaffolding
+## Detection
 
-- **Pipeline.** Capture hands JS 30-second PCM windows; JS reduces each second to a few features (level, centroid, a 10 Hz loudness envelope) and drops the audio. The noise floor (5th percentile of frame levels) needs the whole night, so detection and scoring run once at Stop over those features. Clips around events will be cut by the native module, which keeps a short ring buffer.
-- **Event rule order.** Bridge gaps of up to 5 s, drop runs under 10 s, then merge events less than 20 s apart. The spec does not say whether merging happens before the 10-second filter; doing it after stops short blips from joining into an event.
-- **Partial nights.** Following the scoring section literally: a night is kept out of averages only when it is partial *and* under 3 hours in bed. The aggregation job excludes all partial nights separately.
-- **Column names.** `bin.index` is `bin.idx` and `snapshot.from/to` are `from_date/to_date`, to avoid SQL keywords. `night` also stores `time_in_bed_s`, `floor_db`, `score_version` and `updated_at`, which the scoring and sync sections rely on.
-- **Tonight pre-fill.** Tonight's ticks live in `pending_log` and are copied from last night once per local date, so clearing a chip sticks. At Stop they are written to the night's `remedy_log` and `factor_log`.
-- **Alcohol band.** Tapping the chip cycles 1-2, 3-4, 5+ units, then off. A proper picker comes with the Phase 1 screen work.
+The heuristic (v0) labels nights at Stop. The trained model will plug in through `OnlineSnoreScorer` (`src/domain/detection/classifier.ts`): it scores each second during capture, its output is stored per second, and a night fully covered by the model uses it instead of the heuristic. Each night records which detector produced it. `tools/` has the labelling page and the evaluator for the Phase 1 gate (event agreement of at least 85% and frame F1 of at least 0.80).
 
-## Next
+## Decisions taken where the spec was open
 
-1. Run the Phase 0 gate on real devices: an 8-hour screen-off recording under 8% battery on an iPhone 11 and a 2020 mid-range Android, plus a phone call mid-recording producing the interrupted state. The Kotlin module has not been compiled yet (no Android SDK in the environment it was written in), so the first Android build may need small fixes.
-2. Clips: keep a short rolling PCM buffer in JS and write the five loudest moments as audio files.
-3. Record the 30-night test dataset and a small labelling tool driven by the v0 heuristic.
-4. Onboarding (microphone, notifications, profile bands, Health, contribution opt-in).
-5. Manrope font and icons to match the mockups.
-6. EAS project and signing credentials, so CI can produce signed native builds.
+- **Account required, always** (product decision), so the brief's "works with no account" no longer applies. Recording and the morning screen still work offline after sign-in.
+- **Amazon only, global.** Links are built per marketplace from a search phrase or a marketplace ASIN, with tracking ids served by the server. Links appear only on remedies with full community results ("ok"), never untagged, never with prices; both disclosures are shown.
+- **Co-introduced remedies.** The spec's 14-day rule would stop anything logged from a user's first night (an everyday pillow) from ever letting a later remedy be measured. A remedy logged on at least 80% of nights on both sides now counts as background and excludes nothing (`BACKGROUND_SHARE` in `shared/remedyEffect.ts`). The server's independent Python reference implements the same rule.
+- **Experiment confidence** uses a seeded permutation test on the difference in means. With 7 nights a side, a test on medians reads "low confidence" even for a perfectly clean result. The verdict text still reports medians.
+- **"Was this your typical night?"** is asked for each night (dismissable by answering), not only on the first morning, because the aggregation excludes atypical nights.
+- **Events:** bridge gaps of up to 5 s, drop runs under 10 s, then merge events less than 20 s apart.
+- **Partial nights** are left out of averages only when partial and under 3 hours in bed; the aggregation leaves out every partial night.
+- **Sync versions:** a night's `updated_at` always increases, even within one second, and sync records the version it sent, so an edit made during a sync is never lost.
+- **Free-text "Other" remedies** are logged as `other:<text>` and sent to the review queue; they are never ranked.
+- **Paid vs free** follows the brief's table: free has 7 nights of history, the first sentence of the summary and the top-level ranking; paid unlocks 30/90-night trends, snapshots, the full summary and watch overlay, tests, people-like-you, profile breakdowns, your result against the crowd, and the report.
+- **Column names:** `bin.idx`, `snapshot.from_date/to_date` (app); `app_user`, `time_window` (server), to avoid SQL keywords.
 
-Catalogue articles are drafts: they need the full 150 to 250 word versions and clinician review before release.
+## Not verified, or still to do
+
+- **Devices:** nothing has run on a phone. Also untested: the Kotlin module (no Android SDK here), the Health and RevenueCat libraries, Sign in with Apple and Google, and the Deno functions.
+- **Phase gates that need people:** the 8-hour battery test, the labelled test set, 5 then 20 testers, a clinician review of the report wording, and the 100-person beta.
+- **Content:** catalogue articles are short drafts that need the 150 to 250 word versions and clinician review. The privacy policy, terms and affiliate disclosure pages are Phase 4.
+- **Smaller gaps:** the Recording view has no battery estimate. Clip sharing does not yet make a card image. Analytics events are defined and wired but go to no vendor (`setAnalyticsSink`).
+- **Retention of held-out audio (needs a decision):** the spec deletes recordings after labelling but also keeps the held-out set fixed so later models are compared on it. A future model cannot run on deleted audio. Either the consent form covers keeping the held-out nights' audio (encrypted, restricted), or each model gets a new held-out set. See `tools/README.md`.

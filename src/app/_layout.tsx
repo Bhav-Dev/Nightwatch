@@ -3,34 +3,44 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 
+import { ExpoClipFiles } from '../clips/expoClipFiles';
 import type { Db } from '../data/db';
 import { initDatabase } from '../data/init';
 import { recoverAbandonedSessions } from '../recording/recordingSession';
+import { AppProvider } from '../state/AppContext';
 import { colors } from '../ui/theme';
 
 async function onInit(db: Db) {
   await initDatabase(db);
   // A recording the app never got to stop (killed overnight) becomes a partial night.
-  await recoverAbandonedSessions(db, randomUUID);
+  await recoverAbandonedSessions(db, randomUUID, new ExpoClipFiles());
 }
+
+const header = {
+  headerShown: true,
+  headerStyle: { backgroundColor: colors.bg },
+  headerTintColor: colors.text,
+  headerShadowVisible: false,
+} as const;
 
 export default function RootLayout() {
   return (
     <SQLiteProvider databaseName="nightwatch.db" onInit={onInit}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="recording" options={{ gestureEnabled: false, animation: 'fade' }} />
-        <Stack.Screen
-          name="settings"
-          options={{
-            headerShown: true,
-            title: 'Settings',
-            headerStyle: { backgroundColor: colors.bg },
-            headerTintColor: colors.text,
-          }}
-        />
-      </Stack>
+      <AppProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="recording" options={{ gestureEnabled: false, animation: 'fade' }} />
+          <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="night/[id]" options={{ ...header, title: '' }} />
+          <Stack.Screen name="remedy/[id]" options={{ ...header, title: '' }} />
+          <Stack.Screen name="experiment/[remedyId]" options={{ ...header, title: 'Remedy test', presentation: 'modal' }} />
+          <Stack.Screen name="report" options={{ ...header, title: "Doctor's report" }} />
+          <Stack.Screen name="auth" />
+        </Stack>
+      </AppProvider>
     </SQLiteProvider>
   );
 }

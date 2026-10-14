@@ -174,6 +174,54 @@ const MIGRATIONS: string[] = [
   ALTER TABLE night ADD COLUMN interrupted_at_s INTEGER;
   ALTER TABLE night ADD COLUMN interrupt_cause TEXT;
   `,
+  // v3: clips, the on-device model's per-second output, Health import state, sync bookkeeping.
+  `
+  -- Audio clips around loud moments. The codec is stored per clip so WAV clips can be
+  -- transcoded to Opus later without guessing (see src/clips/codec.ts).
+  CREATE TABLE clip (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT,
+    night_id TEXT REFERENCES night(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    peak_s INTEGER NOT NULL,
+    peak_db REAL NOT NULL,
+    codec TEXT NOT NULL,
+    sample_rate INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    bytes INTEGER NOT NULL,
+    saved INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX clip_night ON clip(night_id);
+  CREATE INDEX clip_session ON clip(session_id);
+
+  -- Filled by an on-device model when one runs during capture; null means use the heuristic.
+  ALTER TABLE session_frame ADD COLUMN snore_prob REAL;
+  ALTER TABLE recording_session ADD COLUMN detector TEXT;
+
+  -- 'local' nights were recorded here; 'remote' nights were pulled from another device and
+  -- have no bins, events or clips.
+  ALTER TABLE night ADD COLUMN source TEXT NOT NULL DEFAULT 'local';
+  ALTER TABLE night ADD COLUMN health_imported_at INTEGER;
+  ALTER TABLE night ADD COLUMN detector TEXT;
+
+  -- Amazon product info for shop links (search phrase and per-marketplace ASINs), JSON.
+  ALTER TABLE catalogue ADD COLUMN amazon TEXT;
+
+  -- Night ids deleted on this phone that the server still has.
+  CREATE TABLE sync_tombstone (
+    night_id TEXT PRIMARY KEY NOT NULL
+  );
+
+  -- Cached server responses (community snapshot with its ETag, catalogue tags, subscription).
+  CREATE TABLE cache (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL,
+    etag TEXT,
+    fetched_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

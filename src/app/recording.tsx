@@ -1,10 +1,15 @@
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ExpoClipFiles } from '../clips/expoClipFiles';
+import { getNight } from '../data/nightRepo';
 import { getSetting } from '../data/settingsRepo';
+import { durationBand, track } from '../analytics';
+import { notifyNightReady } from '../notifications';
+import { useApp } from '../state/AppContext';
 import type { Sensitivity } from '../domain/scoring';
 import { getAudioCapture } from '../native';
 import { RecordingSession } from '../recording/recordingSession';
@@ -13,8 +18,21 @@ import { colors, radius, space } from '../ui/theme';
 const formatElapsed = (s: number) =>
   `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+/** Recording stops by itself at this hour (local) the next morning, or after 12 hours. */
+export const DEFAULT_AUTO_STOP_HOUR = 11;
+const MAX_RECORDING_MS = 12 * 3600_000;
+
+function autoStopAt(start: Date, hour: number): number {
+  const t = new Date(start);
+  t.setHours(hour, 0, 0, 0);
+  if (t.getTime() <= start.getTime() + 3600_000) t.setDate(t.getDate() + 1);
+  return Math.min(t.getTime(), start.getTime() + MAX_RECORDING_MS);
+}
+
 export default function Recording() {
   const db = useSQLiteContext();
+  const { sync } = useApp();
+  const stopAt = useRef<number>(Number.MAX_SAFE_INTEGER);
   const session = useRef<RecordingSession | null>(null);
   const finishing = useRef(false);
   const [elapsedS, setElapsedS] = useState(0);
@@ -26,12 +44,21 @@ export default function Recording() {
     (async () => {
       try {
         const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
-        const s = await RecordingSession.begin({ db, capture: getAudioCapture(), sensitivity, newId: randomUUID });
+        const hour = Number((await getSetting(db, 'auto_stop_hour')) ?? DEFAULT_AUTO_STOP_HOUR);
+        stopAt.current = autoStopAt(new Date(), hour);
+        const s = await RecordingSession.begin({
+          db,
+          capture: getAudioCapture(),
+          sensitivity,
+          newId: randomUUID,
+          files: new ExpoClipFiles(),
+        });
         if (cancelled) {
           await s.discard();
           return;
         }
         session.current = s;
+        track({ name: 'recording_start' });
       } catch (e) {
         Alert.alert('Recording could not start', e instanceof Error ? e.message : String(e));
         router.back();
@@ -55,12 +82,17 @@ export default function Recording() {
     };
   }, [db]);
 
-  const stop = async () => {
+  const stop = useCallback(async (automatic = false) => {
     if (!session.current || finishing.current) return;
     finishing.current = true;
     setAnalysing(true);
     try {
       const night = await session.current.finish();
+      const row = night ? await getNight(db, night.nightId) : null;
+      if (night) track({ name: 'log_saved', remedies: night.logged.remedies, factors: night.logged.factors });
+      if (row) track({ name: 'recording_complete', duration_band: durationBand(row.time_in_bed_s), partial: row.partial === 1 });
+      if (row && automatic) await notifyNightReady(row.score).catch(() => undefined);
+      void sync();
       if (night) router.replace('/morning');
       else router.back();
     } catch (e) {
@@ -68,7 +100,16 @@ export default function Recording() {
       finishing.current = false;
       setAnalysing(false);
     }
-  };
+  }, [db, sync]);
+
+  // Automatic stop in the morning. Runs in the background too: the audio session keeps JS alive.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (Date.now() >= stopAt.current) void stop(true);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [stop]);
+
 
   if (analysing) {
     return (
@@ -97,7 +138,7 @@ export default function Recording() {
         accessibilityRole="button"
         accessibilityHint="Hold for one second to stop"
         delayLongPress={1000}
-        onLongPress={stop}
+        onLongPress={() => stop()}
         style={styles.stop}
       >
         <Text style={styles.stopLabel}>Hold to stop</Text>

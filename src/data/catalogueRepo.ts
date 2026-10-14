@@ -11,6 +11,7 @@ interface CatalogueRow {
   link_url: string | null;
   shop: number;
   value_options: string | null;
+  amazon: string | null;
   active: number;
   version: number;
 }
@@ -25,6 +26,7 @@ const fromRow = (r: CatalogueRow): CatalogueItem => ({
   link_url: r.link_url,
   shop: r.shop === 1,
   value_options: r.value_options ? (JSON.parse(r.value_options) as string[]) : undefined,
+  amazon: r.amazon ? (JSON.parse(r.amazon) as CatalogueItem['amazon']) : null,
   active: r.active === 1,
   version: r.version,
 });
@@ -33,12 +35,12 @@ export async function upsertCatalogue(db: Db, items: CatalogueItem[]): Promise<v
   await db.withTransactionAsync(async () => {
     for (const it of items) {
       await db.runAsync(
-        `INSERT INTO catalogue (id, type, kind, category, name, article_md, link_url, shop, value_options, active, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO catalogue (id, type, kind, category, name, article_md, link_url, shop, value_options, amazon, active, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            type = excluded.type, kind = excluded.kind, category = excluded.category, name = excluded.name,
            article_md = excluded.article_md, link_url = excluded.link_url, shop = excluded.shop,
-           value_options = excluded.value_options, active = excluded.active, version = excluded.version
+           value_options = excluded.value_options, amazon = excluded.amazon, active = excluded.active, version = excluded.version
          WHERE excluded.version >= catalogue.version`,
         [
           it.id,
@@ -50,6 +52,7 @@ export async function upsertCatalogue(db: Db, items: CatalogueItem[]): Promise<v
           it.link_url,
           it.shop ? 1 : 0,
           it.value_options ? JSON.stringify(it.value_options) : null,
+          it.amazon ? JSON.stringify(it.amazon) : null,
           it.active ? 1 : 0,
           it.version,
         ],
@@ -67,6 +70,11 @@ export async function seedCatalogueIfEmpty(db: Db): Promise<void> {
 export async function catalogueVersion(db: Db): Promise<number> {
   const row = await db.getFirstAsync<{ v: number | null }>('SELECT MAX(version) AS v FROM catalogue', []);
   return row?.v ?? 0;
+}
+
+export async function getCatalogueItem(db: Db, id: string): Promise<CatalogueItem | null> {
+  const r = await db.getFirstAsync<CatalogueRow>('SELECT * FROM catalogue WHERE id = ?', [id]);
+  return r ? fromRow(r) : null;
 }
 
 export async function listActiveCatalogue(db: Db): Promise<CatalogueItem[]> {

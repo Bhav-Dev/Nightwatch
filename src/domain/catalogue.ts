@@ -1,4 +1,5 @@
 import bundled from '../../catalogue/catalogue.json';
+import type { AmazonProduct } from '../../shared/amazon';
 
 export type CatalogueType = 'remedy' | 'factor';
 export type CatalogueKind = 'device' | 'habit' | 'factor';
@@ -16,6 +17,8 @@ export interface CatalogueItem {
   shop: boolean;
   /** Allowed values for factors that carry a band (alcohol units). */
   value_options?: string[];
+  /** Amazon product info for the shop link; null for habits and prescribed items. */
+  amazon: AmazonProduct | null;
   active: boolean;
   version: number;
 }
@@ -44,6 +47,8 @@ export const bundledCatalogue: CatalogueItem[] = (bundled.items as BundledItem[]
   link_url: null,
   shop: item.shop,
   value_options: item.value_options,
+  // Same default the server seeds: search Amazon for the product's name.
+  amazon: item.shop ? { search: item.name.toLowerCase() } : null,
   active: true,
   version: bundled.version,
 }));

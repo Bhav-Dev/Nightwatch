@@ -5,7 +5,21 @@ export type SettingKey =
   | 'keep_full_night'
   | 'landing_tab'
   | 'contribution'
-  | 'pending_prefilled_for';
+  | 'pending_prefilled_for'
+  | 'onboarding_complete'
+  | 'device_id'
+  | 'sync_cursor'
+  | 'profile_synced_version'
+  | 'bedtime_reminder'
+  | 'health_prompted_after'
+  | 'paywall_seen_for'
+  | 'region'
+  | 'catalogue_amazon_tags'
+  | 'dev_paid'
+  | 'contribution_seen'
+  | 'health_enabled'
+  | 'auto_stop_hour'
+  | 'contribution_opted_in';
 
 export async function getSetting(db: Db, key: SettingKey): Promise<string | null> {
   const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);

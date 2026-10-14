@@ -1,8 +1,12 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 
+import { useApp } from '../../state/AppContext';
 import { colors } from '../../ui/theme';
 
 export default function TabsLayout() {
+  const { session } = useApp();
+  // An account is always required; signing out (or a revoked session) lands back here.
+  if (session === null) return <Redirect href="/onboarding" />;
   return (
     <Tabs
       screenOptions={{

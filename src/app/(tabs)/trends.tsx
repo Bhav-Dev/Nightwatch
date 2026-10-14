@@ -1,5 +1,135 @@
-import { Placeholder } from '../../ui/Placeholder';
+import { randomUUID } from 'expo-crypto';
+import { router, useFocusEffect } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { movingAverage, trendPoints, type TrendPoint } from '../../data/historyRepo';
+import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
+import { scoreLabel } from '../../domain/scoring';
+import { useApp } from '../../state/AppContext';
+import { TrendChart } from '../../ui/charts';
+import { Body, Button, Card, GearLink, H2, Locked, Screen, Segmented, Small } from '../../ui/kit';
+import { colors, space } from '../../ui/theme';
+
+type Range = '7' | '30' | '90';
+type Series = 'score' | 'pct';
 
 export default function Trends() {
-  return <Placeholder title="Trends" body="7, 30 and 90-night charts, snapshots and the doctor's report arrive in Phases 1 and 2." />;
+  const db = useSQLiteContext();
+  const { paid } = useApp();
+  const [range, setRange] = useState<Range>('7');
+  const [series, setSeries] = useState<Series>('score');
+  const [points, setPoints] = useState<TrendPoint[]>([]);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
+
+  // Free plan: 7 nights of history.
+  const effectiveRange: Range = paid ? range : '7';
+
+  const load = useCallback(async () => {
+    setPoints(await trendPoints(db, Number(effectiveRange)));
+    setSnapshots(await listSnapshots(db));
+    setSelected(null);
+  }, [db, effectiveRange]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const values = points.map((p) => (series === 'score' ? p.score : p.pctSnoring * 100));
+  const avg = movingAverage(points, 7, series === 'score' ? 'score' : 'pctSnoring').map((v) => (v === null ? null : series === 'score' ? v : v * 100));
+  const counted = points.filter((p) => p.counts);
+  const mean = counted.length ? counted.reduce((s, p) => s + p.score, 0) / counted.length : null;
+  const sel = selected !== null ? points[selected] : null;
+
+  const snapshot = async () => {
+    if (!paid) return router.push({ pathname: '/paywall', params: { trigger: 'snapshot' } });
+    if (points.length === 0) return;
+    const from = points[0].date.slice(0, 10);
+    const to = points[points.length - 1].date.slice(0, 10);
+    const s = await saveSnapshot(db, { id: randomUUID(), name: `${effectiveRange}-night baseline to ${to}`, from, to });
+    if (!s) Alert.alert('Nothing to save', 'There are no full nights in this range yet.');
+    await load();
+  };
+
+  const latestAvg = mean;
+
+  return (
+    <Screen eyebrow="Trends" title="Your nights" right={<GearLink />}>
+      <Segmented<Range>
+        value={effectiveRange}
+        onChange={(r) => (paid || r === '7' ? setRange(r) : router.push({ pathname: '/paywall', params: { trigger: 'history' } }))}
+        options={[
+          { value: '7', label: '7 nights' },
+          { value: '30', label: '30', locked: !paid },
+          { value: '90', label: '90', locked: !paid },
+        ]}
+      />
+      <Card>
+        <H2 right={<Segmented<Series> value={series} onChange={setSeries} options={[{ value: 'score', label: 'Score' }, { value: 'pct', label: '% snoring' }]} />}>{''}</H2>
+        {points.length === 0 ? (
+          <Body muted>No nights in this range yet.</Body>
+        ) : (
+          <>
+            <TrendChart values={values} average={avg} max={100} format={(v) => (series === 'score' ? String(Math.round(v)) : `${Math.round(v)}%`)} onSelect={setSelected} selected={selected} />
+            <View style={styles.legend}>
+              <View style={[styles.key, { backgroundColor: colors.info }]} />
+              <Text style={styles.legendText}>Each night</Text>
+              <View style={[styles.key, { backgroundColor: colors.accent }]} />
+              <Text style={styles.legendText}>7-night average</Text>
+            </View>
+            {sel ? (
+              <Pressable onPress={() => router.push(`/night/${sel.id}`)} accessibilityRole="button">
+                <Small style={{ marginTop: space(2) }}>
+                  {sel.date.slice(0, 10)}: score {sel.score} ({scoreLabel(sel.score)}), {Math.round(sel.pctSnoring * 100)}% snoring{sel.counts ? '' : ', not counted'}. Open night ›
+                </Small>
+              </Pressable>
+            ) : (
+              <Small style={{ marginTop: space(2) }}>{mean !== null ? `Average score ${Math.round(mean)} over ${counted.length} nights.` : ''} Tap a point to see that night.</Small>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card>
+        <H2>Snapshots</H2>
+        <Small>Lock a baseline, then compare later periods against it.</Small>
+        {paid ? (
+          <>
+            {snapshots.map((s) => (
+              <View key={s.id} style={styles.snapshot}>
+                <View style={{ flex: 1 }}>
+                  <Body>{s.name}</Body>
+                  <Small>
+                    {s.from_date} to {s.to_date} · average {Math.round(s.avg_score)}
+                    {latestAvg !== null ? ` · now ${Math.round(latestAvg)} (${latestAvg - s.avg_score > 0 ? '+' : ''}${Math.round(latestAvg - s.avg_score)})` : ''}
+                  </Small>
+                </View>
+                <Button kind="link" label="Delete" onPress={async () => { await deleteSnapshot(db, s.id); await load(); }} />
+              </View>
+            ))}
+            <Button kind="secondary" label="Save this range as a snapshot" onPress={snapshot} style={{ marginTop: space(3) }} />
+          </>
+        ) : (
+          <Locked label="Save snapshots" trigger="snapshot" />
+        )}
+      </Card>
+
+      <Card>
+        <H2>Doctor’s report</H2>
+        <Small>A summary of 14 to 30 nights to take to your GP. It is a consumer app summary, not a clinical test.</Small>
+        <Button kind="secondary" label={paid ? 'Create a report' : 'Create a report 🔒'} onPress={() => router.push(paid ? '/report' : { pathname: '/paywall', params: { trigger: 'report' } })} style={{ marginTop: space(3) }} />
+      </Card>
+    </Screen>
+  );
 }
+
+const styles = StyleSheet.create({
+  legend: { flexDirection: 'row', alignItems: 'center', gap: space(2), marginTop: space(2) },
+  key: { width: 12, height: 3, borderRadius: 2 },
+  legendText: { color: colors.textMuted, fontSize: 12, marginRight: space(3) },
+  snapshot: { flexDirection: 'row', alignItems: 'center', paddingVertical: space(2), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+});

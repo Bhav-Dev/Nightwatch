@@ -73,8 +73,12 @@ export async function prefillPendingLog(db: Db, today: string): Promise<LogTick[
   return getPendingLog(db);
 }
 
-/** At Stop: tonight's ticks become the night's log. Nights with no ticks count as "nothing tried". */
-export async function commitPendingLog(db: Db, nightId: string): Promise<void> {
+/**
+ * At Stop: tonight's ticks become the night's log. Nights with no ticks count as "nothing
+ * tried". Returns how many remedies and factors were logged.
+ */
+export async function commitPendingLog(db: Db, nightId: string): Promise<{ remedies: number; factors: number }> {
+  const pending = await getPendingLog(db);
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT OR IGNORE INTO remedy_log (night_id, remedy_id)
@@ -89,4 +93,5 @@ export async function commitPendingLog(db: Db, nightId: string): Promise<void> {
     await db.runAsync('DELETE FROM pending_log', []);
   });
   await setSetting(db, 'pending_prefilled_for', null);
+  return { remedies: pending.filter((p) => p.type === 'remedy').length, factors: pending.filter((p) => p.type === 'factor').length };
 }

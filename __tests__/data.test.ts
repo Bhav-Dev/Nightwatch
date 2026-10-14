@@ -1,3 +1,4 @@
+import { getCached } from '../src/data/cacheRepo';
 import { refreshCatalogue } from '../src/data/catalogueClient';
 import { catalogueVersion, listActiveCatalogue, seedCatalogueIfEmpty } from '../src/data/catalogueRepo';
 import { commitPendingLog, getPendingLog, prefillPendingLog, setPendingTick } from '../src/data/logRepo';
@@ -53,29 +54,29 @@ describe('catalogue store', () => {
   it('applies newer server rows and deactivates retired ones', async () => {
     const db = await freshDb();
     await seedCatalogueIfEmpty(db);
-    const fakeFetch = jest.fn(async (url: string) => {
-      expect(url).toBe('https://api.example.test/v1/catalogue?since=1');
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
+    const api = {
+      catalogue: jest.fn(async (since: number) => {
+        expect(since).toBe(1);
+        return {
           version: 2,
+          amazon_tags: { GB: 'nightwatch-21' },
           items: [
-            { id: 'mouth_tape', type: 'remedy', category: 'Mouth and jaw', name: 'Mouth tape', article_md: 'Updated.', link_url: 'https://shop.example/tape', active: true },
-            { id: 'tennis_ball', type: 'remedy', category: 'Position', name: 'Tennis ball or backpack method', article_md: '', link_url: null, active: false },
-            { id: 'jaw_exercises', type: 'remedy', category: 'Throat', name: 'Jaw exercises', article_md: 'New.', link_url: null, active: true },
+            { id: 'mouth_tape', type: 'remedy' as const, kind: 'device' as const, category: 'Mouth and jaw', name: 'Mouth tape', article_md: 'Updated.', link_url: null, amazon: { search: 'mouth tape', asin: { GB: 'B0TEST' } }, active: true },
+            { id: 'tennis_ball', type: 'remedy' as const, kind: 'device' as const, category: 'Position', name: 'Tennis ball or backpack method', article_md: '', link_url: null, amazon: null, active: false },
+            { id: 'jaw_exercises', type: 'remedy' as const, kind: 'habit' as const, category: 'Throat', name: 'Jaw exercises', article_md: 'New.', link_url: null, amazon: null, active: true },
           ],
-        }),
-      };
-    });
-    const applied = await refreshCatalogue(db, 'https://api.example.test/', fakeFetch as unknown as typeof fetch);
+        };
+      }),
+    };
+    const applied = await refreshCatalogue(db, api);
     expect(applied).toBe(3);
     const items = await listActiveCatalogue(db);
     expect(items).toHaveLength(42);
-    expect(items.find((i) => i.id === 'mouth_tape')).toMatchObject({ link_url: 'https://shop.example/tape', version: 2, kind: 'device' });
+    expect(items.find((i) => i.id === 'mouth_tape')).toMatchObject({ amazon: { asin: { GB: 'B0TEST' } }, version: 2, shop: true });
     expect(items.find((i) => i.id === 'jaw_exercises')).toMatchObject({ kind: 'habit', shop: false });
     expect(items.find((i) => i.id === 'tennis_ball')).toBeUndefined();
     expect(await catalogueVersion(db)).toBe(2);
+    expect(await getCached(db, 'amazon_tags')).toMatchObject({ value: { GB: 'nightwatch-21' } });
   });
 });
 
