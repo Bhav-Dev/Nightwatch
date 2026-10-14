@@ -64,7 +64,7 @@ In development builds, with no server configured, sign-in offers a development a
 
 | Variable | What |
 | --- | --- |
-| `EXPO_PUBLIC_API_URL` | Server base URL without `/v1`. VPS: `https://api.example.com`. Supabase: `https://<ref>.supabase.co/functions/v1/api` |
+| `EXPO_PUBLIC_API_URL` | Server base URL without `/v1`. VPS: `https://api.example.com`. Supabase: `https://<ref>.supabase.co/functions/v1/nightwatch-api` |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `_ANDROID_CLIENT_ID`, `_WEB_CLIENT_ID` | Google sign-in (the button is hidden when unset) |
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `_ANDROID_KEY` | RevenueCat public SDK keys. Entitlement id `insight`; offering with annual and monthly packages |
 | `EXPO_PUBLIC_SITE_URL` | Website for methods, privacy, terms, affiliate disclosure (default `https://nightwatch.app`) |
@@ -73,17 +73,19 @@ In development builds, with no server configured, sign-in offers a development a
 
 Server configuration (secrets, Amazon tracking ids, Apple and Google audiences, RevenueCat webhook secret) is in `server/README.md`.
 
-## Backend: VPS or Supabase, undecided
+## Backend: Supabase, in a shared project
 
-One server codebase runs on either, with only configuration changing:
+The backend runs on Supabase, inside an existing project used by other apps. Nightwatch is kept to itself there:
 
-- Plain Postgres migrations (no Supabase-only features), applied by our own runner or copied into `supabase/migrations` by `npm run supabase:sync-migrations`.
-- A Hono app that runs on Node (`server/src/node.ts`) and on Supabase Edge Functions (`supabase/functions/api`).
-- Our own sign-in (Apple and Google token checks, email links) issuing our own session tokens, so it does not depend on Supabase Auth.
-- Rate limits stored in Postgres, so they work on stateless Edge functions.
-- The nightly job as a CLI (cron on a VPS) or an HTTP function (pg_cron on Supabase).
+- **Database:** every table is in a `nightwatch` schema owned by a `nightwatch_app` role, which cannot touch `public` or other apps' tables. `server/sql/setup.sql` creates both, once. The server refuses to start on a connection that would resolve tables outside that schema.
+- **Migrations:** applied by the server's own runner (`npm run migrate` as `nightwatch_app`), not `supabase db push`, so the project's migration history stays the other app's.
+- **Functions:** `nightwatch-api` and `nightwatch-aggregate` (the nightly job, run by pg_cron).
+- **Secrets:** all `NIGHTWATCH_`-prefixed, since function secrets are project-wide. Supabase's own owner connection is never used.
+- **Not used:** Supabase Auth, the REST API and storage. Nightwatch has its own sign-in and session tokens.
 
-The app only knows `EXPO_PUBLIC_API_URL`. `server/README.md` has deployment steps for both, and a section on switching later. **The Supabase (Deno) entry points have never been run**; Deno was not available. Check them on the first `supabase functions serve`.
+The app's `EXPO_PUBLIC_API_URL` is `https://<ref>.supabase.co/functions/v1/nightwatch-api`. Step-by-step setup is in `server/README.md`, "Deploy to Supabase". The same code still runs on a VPS, and moving is a dump and restore of the `nightwatch` schema.
+
+**The Supabase (Deno) entry points have never been run**, because Deno was not available. The schema, role, migrations, API and nightly job were run against a real Postgres 16 database that already held another app's tables, connecting as `nightwatch_app`.
 
 ## How overnight capture works
 

@@ -4,7 +4,7 @@
  * EXPO_PUBLIC_API_URL is the server's base URL without /v1, so the same app works against
  * either backend:
  *   VPS:      https://api.nightwatch.app
- *   Supabase: https://<project-ref>.supabase.co/functions/v1/api
+ *   Supabase: https://<project-ref>.supabase.co/functions/v1/nightwatch-api
  */
 export const config = {
   apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, ''),

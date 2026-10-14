@@ -7,6 +7,7 @@
  */
 import { systemClock } from '../clock.ts';
 import { postgresSql } from '../db/postgres.ts';
+import { assertSchema, schemaFromEnv } from '../db/schema.ts';
 import { runAggregation } from './aggregateJob.ts';
 
 export function parseArgs(argv: string[]): { excludeDates: string[] } {
@@ -30,6 +31,7 @@ if (!url) {
 }
 const sql = postgresSql(url, { max: 1, prepare: process.env.DATABASE_PREPARE !== 'false' });
 try {
+  await assertSchema(sql, schemaFromEnv(process.env));
   const result = await runAggregation(sql, systemClock, parseArgs(process.argv.slice(2)));
   console.log(JSON.stringify(result));
   if (!result.ok) process.exitCode = 1;

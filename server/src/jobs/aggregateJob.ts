@@ -401,8 +401,6 @@ const STACK_COLUMNS = `remedy_a text, remedy_b text, users integer, nights integ
   p25 double precision, p75 double precision`;
 const SNAPSHOT_COLUMNS = `segment text, time_window text, body jsonb, etag text, computed_at timestamptz`;
 
-/** Arbitrary constant for pg_advisory_xact_lock, so two runs never publish at once. */
-const JOB_LOCK = 7_241_001;
 
 /**
  * Runs the job once. Re-runnable: each run recomputes everything from the synced data and
@@ -480,7 +478,9 @@ export async function runAggregation(sql: Sql, clock: Clock, opts: AggregateJobO
     // Fill the staging tables, then swap them in, all in one transaction: readers see either
     // last night's figures or tonight's, never a mix.
     await sql.transaction(async (tx) => {
-      await tx.query('SELECT pg_advisory_xact_lock($1::bigint)', [JOB_LOCK]);
+      // Two runs never publish at once. Advisory locks are database-wide, so the key comes from
+      // the schema name rather than a constant another app sharing the database might also use.
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext(current_schema() || '.aggregate'))");
       await tx.exec('DELETE FROM aggregate_next; DELETE FROM aggregate_stack_next; DELETE FROM aggregate_snapshot_next;');
       await tx.query(
         `INSERT INTO aggregate_next SELECT * FROM jsonb_to_recordset($1::text::jsonb) AS x(${AGGREGATE_COLUMNS})`,

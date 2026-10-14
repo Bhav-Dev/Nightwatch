@@ -114,6 +114,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   const sql = postgresSql(url, { max: 1, prepare: process.env.DATABASE_PREPARE !== 'false' });
   try {
+    const { assertSchema, schemaFromEnv } = await import('./schema.ts');
+    await assertSchema(sql, schemaFromEnv(process.env));
     console.log(`Catalogue rows inserted or changed: ${await seedCatalogue(sql)}`);
   } finally {
     await sql.close();

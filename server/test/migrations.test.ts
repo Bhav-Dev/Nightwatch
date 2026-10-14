@@ -1,7 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 import { createPglite } from '../src/db/pglite.ts';
@@ -24,7 +20,7 @@ describe('migrations', () => {
     await migrate(sql);
     const tables = await sql.query<{ relname: string; relrowsecurity: boolean }>(
       `SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY 1`,
+       WHERE n.nspname = 'nightwatch' AND c.relkind = 'r' ORDER BY 1`,
     );
     const names = tables.map((t) => t.relname);
     for (const t of [
@@ -38,19 +34,9 @@ describe('migrations', () => {
     // Published tables never carry a user or contributor id.
     const cols = await sql.query<{ table_name: string; column_name: string }>(
       `SELECT table_name, column_name FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name LIKE 'aggregate%' AND table_name <> 'aggregate_job_log'`,
+       WHERE table_schema = 'nightwatch' AND table_name LIKE 'aggregate%' AND table_name <> 'aggregate_job_log'`,
     );
     expect(cols.filter((c) => /user_id|contributor/.test(c.column_name))).toEqual([]);
-  });
-
-  it('have Supabase copies that apply the same schema and record themselves', async () => {
-    const dir = fileURLToPath(new URL('../../supabase/migrations/', import.meta.url));
-    const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-    expect(files).toEqual(loadMigrations().map((m) => `2026010100${String(m.version).padStart(4, '0')}_${m.name}.sql`));
-    const sql = await createPglite();
-    for (const f of files) await sql.exec(readFileSync(join(dir, f), 'utf8'));
-    // The server's runner then treats them as applied (moving from Supabase to a VPS).
-    expect(await migrate(sql)).toEqual([]);
   });
 
   it('seed the catalogue idempotently, with Amazon searches for shop items', async () => {

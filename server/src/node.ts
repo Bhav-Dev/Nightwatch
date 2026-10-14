@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server';
 
 import { createApp } from './app.ts';
 import { postgresSql } from './db/postgres.ts';
+import { assertSchema, schemaFromEnv } from './db/schema.ts';
 import { depsFromEnv } from './env.ts';
 
 const url = process.env.DATABASE_URL;
@@ -17,6 +18,7 @@ const sql = postgresSql(url, {
   max: Number(process.env.DATABASE_POOL_SIZE ?? 10),
   prepare: process.env.DATABASE_PREPARE !== 'false',
 });
+await assertSchema(sql, schemaFromEnv(process.env));
 const app = createApp(depsFromEnv(process.env, sql));
 const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '127.0.0.1';

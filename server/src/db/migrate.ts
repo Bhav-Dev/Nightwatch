@@ -1,14 +1,16 @@
 /**
  * Minimal migration runner: applies server/migrations/NNN_name.sql in order, each in its own
- * transaction, and records it in schema_migrations. Usage: `npm run migrate` (DATABASE_URL).
+ * transaction, and records it in schema_migrations, all inside the Nightwatch schema.
+ * Usage: `npm run migrate` (DATABASE_URL, connecting as nightwatch_app).
  *
- * On Supabase the same files are applied by the Supabase CLI instead (see
- * scripts/sync-supabase-migrations.mjs); the copies insert their own schema_migrations row,
- * so this runner sees them as applied if the project later moves to a VPS.
+ * This runner is used on Supabase too, rather than `supabase db push`: in a shared project the
+ * Supabase migration history belongs to the other app, and pushing Nightwatch's migrations
+ * through it would tangle the two.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { assertSchema, DEFAULT_SCHEMA, schemaFromEnv } from './schema.ts';
 import type { Sql } from './sql.ts';
 
 export interface Migration {
@@ -37,7 +39,9 @@ export function loadMigrations(dir = migrationsDir()): Migration[] {
 }
 
 /** Applies pending migrations; returns the versions applied. */
-export async function migrate(sql: Sql, migrations: Migration[] = loadMigrations()): Promise<number[]> {
+export async function migrate(sql: Sql, migrations: Migration[] = loadMigrations(), schema = DEFAULT_SCHEMA): Promise<number[]> {
+  // Refuse to create anything unless it lands in the Nightwatch schema.
+  await assertSchema(sql, schema);
   await sql.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version integer PRIMARY KEY, name text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())`);
   const done = new Set(
@@ -67,7 +71,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   const sql = postgresSql(url, { max: 1 });
   try {
-    const applied = await migrate(sql);
+    const applied = await migrate(sql, loadMigrations(), schemaFromEnv(process.env));
     console.log(applied.length ? `Applied migrations: ${applied.join(', ')}` : 'Database is up to date');
   } finally {
     await sql.close();

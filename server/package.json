@@ -13,7 +13,6 @@
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/seed.ts",
     "aggregate": "tsx src/jobs/aggregate.ts",
-    "supabase:sync-migrations": "node scripts/sync-supabase-migrations.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

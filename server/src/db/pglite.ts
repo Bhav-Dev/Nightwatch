@@ -1,5 +1,6 @@
 import { PGlite, type Transaction } from '@electric-sql/pglite';
 
+import { DEFAULT_SCHEMA } from './schema.ts';
 import type { Sql } from './sql.ts';
 
 /**
@@ -10,8 +11,15 @@ export function pgliteSql(db: PGlite): Sql & { db: PGlite } {
   return { ...wrap(db, false), db };
 }
 
-export async function createPglite(): Promise<Sql & { db: PGlite }> {
-  return pgliteSql(await PGlite.create());
+/**
+ * A fresh in-process database with the Nightwatch schema created and on the search_path, the
+ * way the nightwatch_app role sees it in production. Pass `schema: null` for a bare database.
+ */
+export async function createPglite(opts: { schema?: string | null } = {}): Promise<Sql & { db: PGlite }> {
+  const db = await PGlite.create();
+  const schema = opts.schema === undefined ? DEFAULT_SCHEMA : opts.schema;
+  if (schema) await db.exec(`CREATE SCHEMA ${schema}; SET search_path TO ${schema};`);
+  return pgliteSql(db);
 }
 
 function wrap(db: PGlite | Transaction, inTransaction: boolean): Sql {
