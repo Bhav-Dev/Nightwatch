@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the community figures are made · Nightwatch</title>
+<meta name="description" content="How Nightwatch turns self-reported nights into remedy results: within-person comparisons, medians with ranges, sample-size rules and privacy safeguards.">
+<style>
+  :root { --bg: #faf9f5; --text: #1f1e1d; --muted: #5b5a57; --rule: #e4e1d8; --accent: #8a5a00; --code: #f1eee6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1629; --text: #f4f1ea; --muted: #9aa3b8; --rule: #27314a; --accent: #f2b544; --code: #161e33; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 40px 0 8px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  p, li { color: var(--text); }
+  .lede { color: var(--muted); font-size: 19px; }
+  .note { background: var(--code); border-left: 3px solid var(--accent); padding: 12px 16px; margin: 24px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 15px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>How the community figures are made</h1>
+<p class="lede">Nightwatch users can choose to add a summary of each night to a shared dataset. This page explains, step by step, how those nights become the remedy results shown in the app, and what the numbers can and cannot tell you.</p>
+
+<div class="note"><strong>These are self-reported, uncontrolled results from app users, not medical evidence.</strong> They describe what happened when people tried things at home. They are not a clinical trial and do not diagnose or treat any condition. If someone has seen you stop breathing at night, talk to your GP.</div>
+
+<h2>What goes in</h2>
+<p>Only people who turn on “Contribute” are included, and only from that point on. For each night we receive:</p>
+<ul>
+  <li>the snore score (0 to 100), the share of the night spent snoring, the number of snoring episodes and the loudest level, all worked out on the phone;</li>
+  <li>which remedies and lifestyle factors were ticked that evening, and the alcohol band (1–2, 3–4, 5+ units);</li>
+  <li>the person’s profile in broad bands: age, sex, height, weight and BMI bands, usual sleep position, whether anyone has seen them stop breathing, and whether they have diagnosed sleep apnoea or use CPAP;</li>
+  <li>a nightly summary of watch data, if they connected one.</li>
+</ul>
+<p>Audio never leaves the phone. Nor do names, exact measurements, raw watch readings or times finer than the date.</p>
+
+<h2>How the snore score works</h2>
+<p>Each second of audio is checked on the phone for snoring. Snoring seconds are grouped into episodes (short pauses within an episode are allowed). Loudness is measured relative to each room’s own background level, not as an absolute sound level, so a quiet bedroom and a noisy one are comparable. The score combines the share of the night spent snoring (60%) with how loud the snoring was (40%). The formula is versioned; nights are only ever compared within the same version.</p>
+
+<h2>Step 1: which nights count</h2>
+<ul>
+  <li>Nights that were interrupted, or shorter than 3 hours in bed, are left out.</li>
+  <li>Nights the person marked as not typical (ill, travelling, a party) are left out.</li>
+  <li>Each person’s first two nights are left out, because people often sleep differently while getting used to recording.</li>
+  <li>People with fewer than 7 remaining nights are left out.</li>
+</ul>
+
+<h2>Step 2: each person against themselves</h2>
+<p>Heavy snorers try more remedies, so comparing people who use a remedy with people who don’t would mostly measure who chose to try it. Instead, for every person and every remedy, we compare that person’s nights <em>with</em> the remedy against their own nights <em>without</em> it.</p>
+<ul>
+  <li>At least 5 nights are needed on each side.</li>
+  <li>If someone started several remedies within the same two weeks, nights with those other new remedies are not used as “without” nights, so one remedy is not credited with another’s effect. Something used almost every night on both sides (an everyday pillow, say) is treated as background and does not block the comparison.</li>
+  <li>Where possible, each night with the remedy is paired with the nearest night without it that had the same alcohol band and the same blocked-nose status. If at least 5 such pairs exist, the comparison uses the pairs (“matched”); otherwise it uses all nights (“unmatched”).</li>
+  <li>The person’s result is the median score with the remedy minus the median score without it. Negative means less snoring.</li>
+</ul>
+
+<h2>Step 3: combining people</h2>
+<p>Each person counts once, however many nights they recorded, so a few very keen users cannot dominate. For each remedy we report:</p>
+<ul>
+  <li>the <strong>median</strong> of everyone’s individual results;</li>
+  <li>the <strong>middle half</strong> of results (25th to 75th percentile), drawn as a band, because people respond very differently;</li>
+  <li>how many <strong>people</strong> and how many <strong>nights</strong> are behind the figure;</li>
+  <li>whether the effect <strong>holds without alcohol nights</strong>: we recompute the median using only matched comparisons, and say it holds if it points the same way and is at least half as large.</li>
+</ul>
+<p>Quantiles use linear interpolation between ranks (the method R and NumPy use by default), so anyone can reproduce them.</p>
+
+<h2>Sample-size rules</h2>
+<table>
+  <thead><tr><th>People who tested it</th><th>What the app shows</th></tr></thead>
+  <tbody>
+    <tr><td>30 or more, with 300 or more nights</td><td>The figure, ranked</td></tr>
+    <tr><td>10 to 29 (or fewer than 300 nights)</td><td>“Early data”, shown muted and not ranked</td></tr>
+    <tr><td>Fewer than 10</td><td>No figure: only “being tested by N people”</td></tr>
+  </tbody>
+</table>
+<p>The same rules apply to every group (age band, BMI band, sleep position and so on). Groups with fewer than 10 people are never stored or shown, so no group is small enough to point at an individual.</p>
+
+<h2>Combinations and trends</h2>
+<p>For pairs of remedies used together, we compare nights with both against nights with neither, in the same way, and only show pairs that meet the full sample-size rule. Each remedy also shows whether its last 90 days look better or worse than its all-time figure.</p>
+
+<h2>Checks before anything is published</h2>
+<p>The figures are rebuilt from scratch every night. Before publishing, the job checks two things the published research agrees on: alcohol should make snoring worse, and side sleeping should make it better. If either check fails on enough data, nothing is published that night and we investigate, because it means something upstream is broken. Bad data can be excluded and the figures rebuilt.</p>
+
+<h2>Withdrawal and deletion</h2>
+<p>Anyone can turn contribution off in Settings, or delete their account. Their nights are removed from the figures at the next nightly rebuild. Contributed nights are stored against a random contributor number that is not shown with any account, and the data is never sold or licensed.</p>
+
+<h2>Shop links</h2>
+<p>Some product remedies have an Amazon link. Links only appear on remedies with full community results behind them, and the ranking is decided by the data alone; nobody can pay for a position. As an Amazon Associate we earn from qualifying purchases.</p>
+
+<h2>What these figures cannot tell you</h2>
+<ul>
+  <li>People choose what to try and log it themselves, so the results can be affected by expectation, inconsistent logging and other changes in their lives.</li>
+  <li>Phone microphones and rooms differ; scores are best compared within one person.</li>
+  <li>A remedy that helps most people may not help you, and the reverse. The app’s 14-night tests are the best way to check for yourself.</li>
+</ul>
+</main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Supabase CLI configuration for the Nightwatch API. Only what differs from the defaults is
+# set here; `supabase link --project-ref <ref>` connects it to a hosted project.
+# See server/README.md, "Deploy to Supabase".
+project_id = "nightwatch"
+
+[functions.api]
+# The app sends our own session token, not a Supabase Auth JWT, so the gateway must not check it.
+verify_jwt = false
+
+[functions.aggregate]
+# Protected by the x-aggregate-secret header instead (called by pg_cron + pg_net).
+verify_jwt = false
