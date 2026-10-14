@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snore labelling</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1b1d21;
+    --muted: #5d6470;
+    --line: #d5d9e0;
+    --panel: #f4f6f9;
+    --accent: #2457c5;
+    --wave: #47607f;
+    --pending: #c77700;
+    --confirmed: #1d8a4e;
+    --rejected: #8a8f98;
+    --selection: rgba(36, 87, 197, 0.18);
+    --cursor: #c42b2b;
+    --focus: #2457c5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171b;
+      --fg: #e7e9ee;
+      --muted: #a2a9b5;
+      --line: #343842;
+      --panel: #1e2127;
+      --accent: #7aa2ff;
+      --wave: #8fa8c8;
+      --pending: #f0a640;
+      --confirmed: #4cc485;
+      --rejected: #7d828c;
+      --selection: rgba(122, 162, 255, 0.22);
+      --cursor: #ff6b6b;
+      --focus: #7aa2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 8px; }
+  p { margin: 0 0 8px; }
+  .muted { color: var(--muted); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 12px 0; }
+  .load { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; }
+  input[type=text], input[type=number], select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  input[type=number] { width: 8em; }
+  input[type=file] { max-width: 100%; }
+  button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  kbd { font: 0.85em ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+  canvas { display: block; width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; touch-action: none; }
+  #overview { height: 110px; cursor: pointer; }
+  #zoom { height: 200px; cursor: crosshair; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+  .toolbar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  #regionList { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  #regionList li button { display: grid; grid-template-columns: 2.5em 1fr 4.5em 6.5em; gap: 6px; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 6px 8px; background: transparent; }
+  #regionList li button[aria-current=true] { background: var(--selection); }
+  .status { font-weight: 600; }
+  .status-pending { color: var(--pending); }
+  .status-confirmed { color: var(--confirmed); }
+  .status-rejected { color: var(--rejected); text-decoration: line-through; }
+  .detail { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.9em; margin-top: 6px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+  table.keys { border-collapse: collapse; font-size: 0.92em; }
+  table.keys td { padding: 2px 10px 2px 0; vertical-align: top; }
+  #statusLine { min-height: 1.45em; }
+  .warn { color: var(--pending); }
+  .counts { font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Snore labelling</h1>
+  <p class="muted">Confirm, correct or reject each proposed region, add any snoring the detector missed, then export the labels. Everything stays on this computer; progress is saved in this browser as you go.</p>
+
+  <section aria-labelledby="loadHeading">
+    <h2 id="loadHeading">Files</h2>
+    <div class="load">
+      <div>
+        <label for="wavInput">Night recording (WAV)</label>
+        <input id="wavInput" type="file" accept=".wav,audio/wav,audio/x-wav">
+      </div>
+      <div>
+        <label for="proposalsInput">Proposals (JSON)</label>
+        <input id="proposalsInput" type="file" accept=".json,application/json">
+      </div>
+      <div>
+        <label for="labelsInput">Existing labels to review (optional)</label>
+        <input id="labelsInput" type="file" accept=".json,application/json">
+      </div>
+      <div>
+        <label for="labellerInput">Your name or initials</label>
+        <input id="labellerInput" type="text" autocomplete="name" placeholder="e.g. AB">
+      </div>
+    </div>
+    <p id="statusLine" role="status" aria-live="polite" class="muted"></p>
+    <p id="restoreLine" hidden>
+      <span id="restoreText"></span>
+      <button id="discardBtn" type="button">Start over from proposals</button>
+    </p>
+  </section>
+
+  <div id="workspace" hidden>
+    <section aria-labelledby="overviewHeading">
+      <h2 id="overviewHeading">Whole night</h2>
+      <canvas id="overview" role="img" aria-label="Loudness over the whole night with regions marked. Click to move the detail view."></canvas>
+      <div class="legend" aria-hidden="true">
+        <span><span class="swatch" style="background: var(--pending)"></span>Pending</span>
+        <span><span class="swatch" style="background: var(--confirmed)"></span>Snoring</span>
+        <span><span class="swatch" style="background: var(--rejected)"></span>Rejected</span>
+        <span><span class="swatch" style="background: var(--selection); border: 1px solid var(--accent)"></span>Detail view</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <div>
+        <section aria-labelledby="zoomHeading">
+          <h2 id="zoomHeading">Detail <span id="viewRange" class="muted"></span></h2>
+          <canvas id="zoom" role="img" aria-label="Waveform of the detail view"></canvas>
+          <div class="toolbar">
+            <button id="playBtn" type="button">Play <kbd>Space</kbd></button>
+            <button id="playContextBtn" type="button">Play with context <kbd>Shift</kbd>+<kbd>Space</kbd></button>
+            <label for="levelSelect" style="display:inline; font-weight: normal;">Playback</label>
+            <select id="levelSelect">
+              <option value="normalise" selected>Normalised loudness</option>
+              <option value="original">Original level</option>
+            </select>
+            <span class="sep"></span>
+            <button id="zoomInBtn" type="button" aria-label="Zoom in">Zoom in <kbd>+</kbd></button>
+            <button id="zoomOutBtn" type="button" aria-label="Zoom out">Zoom out <kbd>-</kbd></button>
+            <button id="panLeftBtn" type="button" aria-label="Pan earlier"><kbd>←</kbd></button>
+            <button id="panRightBtn" type="button" aria-label="Pan later"><kbd>→</kbd></button>
+          </div>
+          <p class="muted">Drag on the waveform to select a span, then press <kbd>N</kbd> to add it as a region. Drag the edge of the selected region to move it. Click to set the play cursor.</p>
+        </section>
+
+        <section aria-labelledby="regionHeading">
+          <h2 id="regionHeading">Selected region</h2>
+          <div id="noRegion" class="muted">No region selected.</div>
+          <div id="regionDetail" hidden>
+            <div class="detail">
+              <span>Region</span><span id="detailIndex"></span>
+              <span>Status</span><span id="detailStatus" class="status"></span>
+              <label for="startInput" style="margin:0">Start (s)</label>
+              <span><input id="startInput" type="number" min="0" step="1"> <span id="startClock" class="muted"></span></span>
+              <label for="endInput" style="margin:0">End (s)</label>
+              <span><input id="endInput" type="number" min="0" step="1"> <span id="endClock" class="muted"></span></span>
+              <span>Length</span><span id="detailLength"></span>
+              <span>From</span><span id="detailOrigin"></span>
+            </div>
+            <div class="toolbar">
+              <button id="confirmBtn" type="button">Snoring <kbd>Y</kbd></button>
+              <button id="rejectBtn" type="button">Not snoring <kbd>X</kbd></button>
+              <button id="pendingBtn" type="button">Undecided <kbd>U</kbd></button>
+              <button id="deleteBtn" type="button">Delete <kbd>Del</kbd></button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button id="prevBtn" type="button">Previous <kbd>K</kbd></button>
+            <button id="nextBtn" type="button">Next <kbd>J</kbd></button>
+            <button id="addBtn" type="button">Add region <kbd>N</kbd></button>
+          </div>
+        </section>
+      </div>
+
+      <div>
+        <section aria-labelledby="listHeading">
+          <h2 id="listHeading">Regions</h2>
+          <p id="counts" class="counts muted"></p>
+          <ul id="regionList" aria-label="Regions in time order"></ul>
+        </section>
+        <section aria-labelledby="exportHeading">
+          <h2 id="exportHeading">Export</h2>
+          <p class="muted">Exports the regions marked as snoring. Every second outside them counts as not snoring, so check the whole night for anything the detector missed.</p>
+          <button id="exportBtn" type="button" class="primary">Export labels</button>
+          <p id="exportNote" class="muted"></p>
+        </section>
+      </div>
+    </div>
+
+    <section aria-labelledby="keysHeading">
+      <h2 id="keysHeading">Keyboard shortcuts</h2>
+      <p class="muted">Shortcuts work unless you are typing in a field.</p>
+      <table class="keys">
+        <tr><td><kbd>J</kbd> or <kbd>↓</kbd> / <kbd>K</kbd> or <kbd>↑</kbd></td><td>Next / previous region</td></tr>
+        <tr><td><kbd>Space</kbd></td><td>Play or stop the selection, the selected region, or 30 s from the cursor</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>Space</kbd></td><td>Play the selected region with 5 s either side</td></tr>
+        <tr><td><kbd>Y</kbd> / <kbd>X</kbd> / <kbd>U</kbd></td><td>Mark snoring (and go to the next region) / not snoring (and go to the next) / undecided</td></tr>
+        <tr><td><kbd>A</kbd> / <kbd>S</kbd></td><td>Start 1 s earlier / later (with <kbd>Shift</kbd>: 5 s)</td></tr>
+        <tr><td><kbd>D</kbd> / <kbd>F</kbd></td><td>End 1 s earlier / later (with <kbd>Shift</kbd>: 5 s)</td></tr>
+        <tr><td><kbd>N</kbd></td><td>Add a region from the selection, or 20 s from the cursor</td></tr>
+        <tr><td><kbd>Del</kbd></td><td>Delete an added region (proposed regions are marked not snoring instead)</td></tr>
+        <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Pan the detail view</td></tr>
+        <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Zoom the detail view in / out</td></tr>
+      </table>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const STORAGE_PREFIX = 'nightwatch-labelling:';
+  const LABELLER_KEY = 'nightwatch-labelling-labeller';
+  // Above this span the detail view draws per-second levels instead of reading samples.
+  const MAX_WAVEFORM_VIEW_S = 600;
+  const MIN_VIEW_S = 10;
+  const NEW_REGION_S = 20;
+
+  const state = {
+    file: null,          // File for the WAV
+    wav: null,           // header info
+    proposals: null,     // parsed proposals JSON
+    importedLabels: null,
+    source: '',
+    durationS: 0,
+    levels: null,        // Float32Array, dB per second, for the overview
+    regions: [],         // {id, startS, endS, origin: 'proposed'|'added'|'imported', status: 'pending'|'confirmed'|'rejected', peakDb?}
+    selectedId: null,
+    nextId: 1,
+    view: { startS: 0, endS: 60 },
+    cursorS: 0,
+    selection: null,     // {startS, endS}
+    peaks: null,         // {startS, endS, width, min: Float32Array, max: Float32Array}
+    playing: null,       // {source, ctxStart, startS, endS}
+    audioCtx: null,
+    scanToken: 0,
+    // Nothing is saved until the labeller acts, so choosing the WAV before the proposals
+    // cannot store an empty night that would later be "restored" over the proposals.
+    edited: false,
+  };
+
+  // ---------- small helpers ----------
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+  function clock(s) {
+    const t = Math.max(0, Math.round(s));
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+  function setStatus(msg, warn) {
+    const el = $('statusLine');
+    el.textContent = msg;
+    el.className = warn ? 'warn' : 'muted';
+  }
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function sortedRegions() { return state.regions.slice().sort((a, b) => a.startS - b.startS || a.endS - b.endS || a.id - b.id); }
+  function selected() { return state.regions.find((r) => r.id === state.selectedId) || null; }
+  function isTyping(el) {
+    return el && (el.tagName === 'INPUT' && el.type !== 'file' && el.type !== 'button' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  }
+
+  // ---------- WAV access, read in slices so a 900 MB night never sits in memory ----------
+  async function readView(file, start, length) {
+    return new DataView(await file.slice(start, start + length).arrayBuffer());
+  }
+  const tag = (v, off) => String.fromCharCode(v.getUint8(off), v.getUint8(off + 1), v.getUint8(off + 2), v.getUint8(off + 3));
+
+  async function parseWavHeader(file) {
+    const head = await readView(file, 0, 12);
+    if (head.byteLength < 12) throw new Error('This file is too short to be a WAV.');
+    if (tag(head, 0) === 'RF64') throw new Error('RF64 WAV files (over 4 GB) are not supported.');
+    if (tag(head, 0) !== 'RIFF' || tag(head, 8) !== 'WAVE') throw new Error('This file is not a WAV.');
+    let off = 12, fmt = null;
+    while (off + 8 <= file.size) {
+      const c = await readView(file, off, 8);
+      const id = tag(c, 0), size = c.getUint32(4, true), body = off + 8;
+      if (id === 'fmt ') {
+        const f = await readView(file, body, Math.min(size, 40));
+        let format = f.getUint16(0, true);
+        const channels = f.getUint16(2, true), sampleRate = f.getUint32(4, true);
+        const blockAlign = f.getUint16(12, true), bits = f.getUint16(14, true);
+        if (format === 0xfffe && f.byteLength >= 26) format = f.getUint16(24, true);
+        const ok = (format === 1 && [8, 16, 24, 32].includes(bits)) || (format === 3 && [32, 64].includes(bits));
+        if (!ok) throw new Error(`Unsupported WAV encoding (format ${format}, ${bits}-bit).`);
+        fmt = { format, channels, sampleRate, blockAlign, bits };
+      } else if (id === 'data') {
+        if (!fmt) throw new Error('The WAV has no format chunk before its data.');
+        const available = file.size - body;
+        const bytes = size === 0 || size === 0xffffffff || size > available ? available : size;
+        return Object.assign(fmt, { dataOffset: body, frames: Math.floor(bytes / fmt.blockAlign) });
+      }
+      off = body + size + (size % 2);
+    }
+    throw new Error('The WAV has no audio data.');
+  }
+
+  function toMono(v, wav, frames) {
+    const out = new Float32Array(frames);
+    const bps = wav.bits / 8, ch = wav.channels;
+    for (let f = 0; f < frames; f++) {
+      let sum = 0;
+      for (let c = 0; c < ch; c++) {
+        const p = f * wav.blockAlign + c * bps;
+        if (wav.format === 3) sum += wav.bits === 32 ? v.getFloat32(p, true) : v.getFloat64(p, true);
+        else if (wav.bits === 16) sum += v.getInt16(p, true) / 32768;
+        else if (wav.bits === 24) sum += (v.getUint8(p) | (v.getUint8(p + 1) << 8) | (v.getInt8(p + 2) << 16)) / 8388608;
+        else if (wav.bits === 32) sum += v.getInt32(p, true) / 2147483648;
+        else sum += (v.getUint8(p) - 128) / 128;
+      }
+      out[f] = sum / ch;
+    }
+    return out;
+  }
+
+  async function readSamples(startS, endS) {
+    const wav = state.wav;
+    const a = clamp(Math.floor(startS * wav.sampleRate), 0, wav.frames);
+    const b = clamp(Math.ceil(endS * wav.sampleRate), a, wav.frames);
+    const v = await readView(state.file, wav.dataOffset + a * wav.blockAlign, (b - a) * wav.blockAlign);
+    return toMono(v, wav, Math.floor(v.byteLength / wav.blockAlign));
+  }
+
+  // Fallback when the proposals carry no per-second levels: one pass over the file in 5-minute slices.
+  async function scanLevels() {
+    const token = ++state.scanToken;
+    const wav = state.wav;
+    const seconds = Math.floor(wav.frames / wav.sampleRate);
+    const levels = new Float32Array(seconds).fill(NaN);
+    state.levels = levels;
+    const sliceS = 300;
+    for (let s = 0; s < seconds; s += sliceS) {
+      if (token !== state.scanToken) return;
+      const n = Math.min(sliceS, seconds - s);
+      const x = await readSamples(s, s + n);
+      for (let k = 0; k < n; k++) {
+        let ms = 0;
+        const from = k * wav.sampleRate, to = Math.min(x.length, from + wav.sampleRate);
+        for (let i = from; i < to; i++) ms += x[i] * x[i];
+        levels[s + k] = 10 * Math.log10(ms / Math.max(1, to - from) + 1e-12);
+      }
+      setStatus(`Measuring loudness: ${Math.round((100 * (s + n)) / seconds)}%`);
+      drawOverview();
+    }
+    setStatus('Loudness overview ready.');
+  }
+
+  // ---------- persistence ----------
+  function storageKey() { return STORAGE_PREFIX + state.source; }
+  let saveTimer = null;
+  function save() {
+    if (!state.edited) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify({
+          version: 1, source: state.source, durationS: state.durationS,
+          regions: state.regions, nextId: state.nextId, selectedId: state.selectedId,
+          view: state.view, cursorS: state.cursorS, savedAt: new Date().toISOString(),
+        }));
+      } catch (e) {
+        setStatus('Could not save progress in this browser. Export regularly so you do not lose work.', true);
+      }
+    }, 200);
+  }
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(storageKey());
+      const saved = raw && JSON.parse(raw);
+      return saved && saved.version === 1 && Array.isArray(saved.regions) ? saved : null;
+    } catch (e) { return null; }
+  }
+
+  // ---------- loading ----------
+  async function readJsonFile(file) {
+    try { return JSON.parse(await file.text()); } catch (e) { throw new Error(`${file.name} is not valid JSON.`); }
+  }
+
+  function regionsFromSources() {
+    state.nextId = 1;
+    const mk = (r, origin, status) => ({
+      id: state.nextId++, startS: r.startS, endS: r.endS, origin, status,
+      ...(typeof r.peakDb === 'number' ? { peakDb: r.peakDb } : {}),
+    });
+    if (state.importedLabels) return state.importedLabels.events.map((e) => mk(e, 'imported', 'confirmed'));
+    if (state.proposals) return state.proposals.regions.map((r) => mk(r, 'proposed', 'pending'));
+    return [];
+  }
+
+  async function onFilesChanged() {
+    if (!state.file) {
+      setStatus(state.proposals ? 'Now choose the night recording.' : 'Choose the night recording and its proposals file.');
+      return;
+    }
+    try {
+      state.wav = await parseWavHeader(state.file);
+    } catch (e) {
+      state.wav = null;
+      setStatus(e.message, true);
+      return;
+    }
+    state.durationS = state.wav.frames / state.wav.sampleRate;
+    state.source = (state.proposals && state.proposals.source) || state.file.name;
+    const warnings = [];
+    if (state.proposals && state.proposals.source && state.proposals.source !== state.file.name) {
+      warnings.push(`Proposals are for "${state.proposals.source}" but the recording is "${state.file.name}".`);
+    }
+    if (state.proposals && Math.abs((state.proposals.durationS || 0) - state.durationS) > 1) {
+      warnings.push('Proposals and recording differ in length.');
+    }
+    if (state.importedLabels && state.importedLabels.source && state.importedLabels.source !== state.source) {
+      warnings.push(`Labels are for "${state.importedLabels.source}".`);
+    }
+
+    state.selection = null;
+    state.peaks = null;
+    state.edited = false;
+    const saved = state.importedLabels ? null : loadSaved();
+    if (saved) {
+      state.regions = saved.regions;
+      state.nextId = saved.nextId || state.regions.reduce((m, r) => Math.max(m, r.id), 0) + 1;
+      state.selectedId = saved.selectedId;
+      state.view = saved.view || state.view;
+      state.cursorS = saved.cursorS || 0;
+      $('restoreText').textContent = `Restored your progress from ${new Date(saved.savedAt).toLocaleString()}.`;
+      $('restoreLine').hidden = !state.proposals;
+      state.edited = true;
+    } else {
+      state.regions = regionsFromSources();
+      state.selectedId = null;
+      state.cursorS = 0;
+      $('restoreLine').hidden = true;
+      const first = sortedRegions()[0];
+      if (first) selectRegion(first.id, true);
+      else setView(0, Math.min(state.durationS, 120));
+    }
+
+    $('workspace').hidden = false;
+    const lv = state.proposals && Array.isArray(state.proposals.levelDb) ? state.proposals.levelDb : null;
+    if (lv && Math.abs(lv.length - Math.floor(state.durationS)) <= 1) {
+      state.levels = Float32Array.from(lv);
+      setStatus(`${state.source}: ${(state.durationS / 3600).toFixed(2)} hours, ${plural(state.regions.length, 'region', 'regions')}. ${warnings.join(' ')}`, warnings.length > 0);
+    } else {
+      setStatus(warnings.join(' '), warnings.length > 0);
+      scanLevels().catch((e) => setStatus(`Could not read the recording: ${e.message}`, true));
+    }
+    resizeCanvases();
+    renderAll();
+    loadPeaks();
+  }
+
+  $('wavInput').addEventListener('change', (e) => {
+    stop();
+    state.file = e.target.files[0] || null;
+    state.levels = null;
+    state.scanToken++;
+    onFilesChanged();
+  });
+  $('proposalsInput').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const p = await readJsonFile(f);
+      if (!p || p.version !== 1 || !Array.isArray(p.regions)) throw new Error(`${f.name} is not a proposals file.`);
+      state.proposals = p;
+      onFilesChanged();
+    } catch (err) { setStatus(err.message, true); }
+  });
+  $('labelsInput').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const l = await readJsonFile(f);
+      if (!l || l.version !== 1 || !Array.isArray(l.events)) throw new Error(`${f.name} is not a labels file.`);
+      state.importedLabels = l;
+      if (l.labeller && !$('labellerInput').value) $('labellerInput').value = l.labeller;
+      onFilesChanged();
+    } catch (err) { setStatus(err.message, true); }
+  });
+  $('discardBtn').addEventListener('click', () => {
+    if (!confirm('Discard your saved decisions for this night and start again from the proposals?')) return;
+    try { localStorage.removeItem(storageKey()); } catch (e) { /* storage unavailable */ }
+    onFilesChanged();
+  });
+  try { $('labellerInput').value = localStorage.getItem(LABELLER_KEY) || ''; } catch (e) { /* storage unavailable */ }
+  $('labellerInput').addEventListener('input', () => {
+    try { localStorage.setItem(LABELLER_KEY, $('labellerInput').value); } catch (e) { /* storage unavailable */ }
+  });
+
+  // ---------- view ----------
+  function setView(startS, endS) {
+    const span = clamp(endS - startS, MIN_VIEW_S, Math.max(MIN_VIEW_S, state.durationS));
+    const s = clamp(startS, 0, Math.max(0, state.durationS - span));
+    state.view = { startS: s, endS: s + span };
+    loadPeaks();
+  }
+  function viewRegion(r) {
+    const pad = Math.max(10, 0.25 * (r.endS - r.startS));
+    setView(r.startS - pad, r.endS + pad);
+  }
+  function zoom(factor) {
+    const mid = (state.view.startS + state.view.endS) / 2;
+    const half = ((state.view.endS - state.view.startS) * factor) / 2;
+    setView(mid - half, mid + half);
+    renderAll();
+  }
+  function pan(fraction) {
+    const span = state.view.endS - state.view.startS;
+    setView(state.view.startS + span * fraction, state.view.endS + span * fraction);
+    renderAll();
+  }
+
+  let peaksToken = 0;
+  async function loadPeaks() {
+    if (!state.wav) return;
+    const token = ++peaksToken;
+    const { startS, endS } = state.view;
+    const width = $('zoom').width;
+    if (endS - startS > MAX_WAVEFORM_VIEW_S || width === 0) { state.peaks = null; drawZoom(); return; }
+    await new Promise((r) => setTimeout(r, 60)); // let rapid key presses settle before reading
+    if (token !== peaksToken) return;
+    const x = await readSamples(startS, endS);
+    if (token !== peaksToken) return;
+    const min = new Float32Array(width), max = new Float32Array(width);
+    const per = x.length / width;
+    for (let px = 0; px < width; px++) {
+      let lo = 0, hi = 0;
+      const a = Math.floor(px * per), b = Math.max(a + 1, Math.floor((px + 1) * per));
+      for (let i = a; i < b && i < x.length; i++) { if (x[i] < lo) lo = x[i]; if (x[i] > hi) hi = x[i]; }
+      min[px] = lo; max[px] = hi;
+    }
+    state.peaks = { startS, endS, width, min, max };
+    drawZoom();
+  }
+
+  // ---------- drawing ----------
+  function resizeCanvases() {
+    for (const c of [$('overview'), $('zoom')]) {
+      const w = Math.round(c.clientWidth * devicePixelRatio), h = Math.round(c.clientHeight * devicePixelRatio);
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    }
+  }
+  const statusColour = (r) => cssVar(r.status === 'confirmed' ? '--confirmed' : r.status === 'rejected' ? '--rejected' : '--pending');
+
+  function levelRange() {
+    const vals = Array.from(state.levels || []).filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+    if (vals.length === 0) return { lo: -90, hi: 0 };
+    const lo = vals[Math.floor(0.02 * (vals.length - 1))], hi = vals[Math.floor(0.999 * (vals.length - 1))];
+    return { lo, hi: Math.max(hi, lo + 10) };
+  }
+  let cachedRange = null;
+
+  function drawOverview() {
+    const c = $('overview'), g = c.getContext('2d');
+    const W = c.width, H = c.height, dpr = devicePixelRatio;
+    g.clearRect(0, 0, W, H);
+    if (!state.durationS) return;
+    const band = 14 * dpr, plotH = H - band - 2 * dpr;
+    const xOf = (s) => (s / state.durationS) * W;
+    if (state.levels) {
+      cachedRange = levelRange();
+      const { lo, hi } = cachedRange;
+      g.fillStyle = cssVar('--wave');
+      const n = state.levels.length;
+      for (let px = 0; px < W; px++) {
+        const a = Math.floor((px / W) * n), b = Math.max(a + 1, Math.floor(((px + 1) / W) * n));
+        let m = -Infinity;
+        for (let i = a; i < b && i < n; i++) if (state.levels[i] > m) m = state.levels[i];
+        if (!Number.isFinite(m)) continue;
+        const h = clamp((m - lo) / (hi - lo), 0, 1) * plotH;
+        g.fillRect(px, plotH - h, 1, h);
+      }
+    }
+    for (const r of state.regions) {
+      g.fillStyle = statusColour(r);
+      const x = xOf(r.startS), w = Math.max(2 * dpr, xOf(r.endS) - x);
+      g.fillRect(x, H - band, w, band);
+      if (r.id === state.selectedId) { g.fillRect(x, H - band - 4 * dpr, w, 3 * dpr); }
+    }
+    g.fillStyle = cssVar('--selection');
+    g.strokeStyle = cssVar('--accent');
+    g.lineWidth = dpr;
+    const vx = xOf(state.view.startS), vw = Math.max(2 * dpr, xOf(state.view.endS) - vx);
+    g.fillRect(vx, 0, vw, H);
+    g.strokeRect(vx + 0.5, 0.5, vw - 1, H - 1);
+    g.fillStyle = cssVar('--muted');
+    g.font = `${11 * dpr}px system-ui, sans-serif`;
+    const stepH = state.durationS > 6 * 3600 ? 3600 : state.durationS > 3600 ? 1800 : 600;
+    for (let t = stepH; t < state.durationS; t += stepH) g.fillText(clock(t).slice(0, 5), xOf(t) + 2 * dpr, 11 * dpr);
+  }
+
+  function drawZoom() {
+    const c = $('zoom'), g = c.getContext('2d');
+    const W = c.width, H = c.height, dpr = devicePixelRatio;
+    g.clearRect(0, 0, W, H);
+    if (!state.durationS) return;
+    const { startS, endS } = state.view, span = endS - startS;
+    const xOf = (s) => ((s - startS) / span) * W;
+    const band = 12 * dpr, axis = 16 * dpr, top = band + 2 * dpr, plotH = H - top - axis, mid = top + plotH / 2;
+
+    if (state.selection) {
+      g.fillStyle = cssVar('--selection');
+      const a = xOf(state.selection.startS), b = xOf(state.selection.endS);
+      g.fillRect(a, top, b - a, plotH);
+    }
+    for (const r of state.regions) {
+      if (r.endS < startS || r.startS > endS) continue;
+      const a = xOf(r.startS), b = xOf(r.endS), col = statusColour(r);
+      g.fillStyle = col;
+      g.fillRect(a, 0, b - a, band);
+      g.globalAlpha = r.id === state.selectedId ? 0.18 : 0.08;
+      g.fillRect(a, top, b - a, plotH);
+      g.globalAlpha = 1;
+      if (r.id === state.selectedId) {
+        g.fillRect(a - dpr, top, 2 * dpr, plotH);
+        g.fillRect(b - dpr, top, 2 * dpr, plotH);
+      }
+    }
+
+    g.fillStyle = cssVar('--wave');
+    const p = state.peaks;
+    if (p && p.startS === startS && p.endS === endS && p.width === W) {
+      let peak = 1e-6;
+      for (let i = 0; i < W; i++) peak = Math.max(peak, -p.min[i], p.max[i]);
+      // Night audio is far below full scale, so scale to the night's loud seconds rather than
+      // full scale; but never to the view alone, or a quiet stretch would look as loud as snoring.
+      const nightPeak = state.levels ? 2 * Math.pow(10, (cachedRange || levelRange()).hi / 20) : peak;
+      const k = (plotH / 2) / Math.max(peak, nightPeak);
+      for (let px = 0; px < W; px++) {
+        const y0 = mid - p.max[px] * k, y1 = mid - p.min[px] * k;
+        g.fillRect(px, y0, 1, Math.max(1, y1 - y0));
+      }
+    } else if (state.levels) {
+      const { lo, hi } = cachedRange || levelRange();
+      const a = Math.max(0, Math.floor(startS)), b = Math.min(state.levels.length, Math.ceil(endS));
+      for (let t = a; t < b; t++) {
+        const v = state.levels[t];
+        if (!Number.isFinite(v)) continue;
+        const h = clamp((v - lo) / (hi - lo), 0, 1) * plotH;
+        const x0 = xOf(t), x1 = xOf(t + 1);
+        g.fillRect(x0, top + plotH - h, Math.max(1, x1 - x0 - (x1 - x0 > 3 ? 1 : 0)), h);
+      }
+    }
+
+    g.fillStyle = cssVar('--cursor');
+    const cx = xOf(state.cursorS);
+    if (cx >= 0 && cx <= W) g.fillRect(cx - dpr / 2, top, dpr, plotH);
+    if (state.playing && state.audioCtx) {
+      const t = state.playing.startS + (state.audioCtx.currentTime - state.playing.ctxStart);
+      const px = xOf(Math.min(t, state.playing.endS));
+      g.fillRect(px - dpr, top, 2 * dpr, plotH);
+    }
+
+    g.fillStyle = cssVar('--muted');
+    g.font = `${11 * dpr}px system-ui, sans-serif`;
+    const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+    const maxTicks = Math.max(2, Math.floor(W / (70 * dpr)));
+    const step = steps.find((s) => span / s <= maxTicks) || 3600;
+    for (let t = Math.ceil(startS / step) * step; t <= endS; t += step) {
+      const x = xOf(t);
+      g.fillRect(x, H - axis, dpr, 4 * dpr);
+      g.fillText(clock(t), x + 2 * dpr, H - 3 * dpr);
+    }
+    $('viewRange').textContent = `${clock(startS)} to ${clock(endS)}`;
+  }
+
+  function renderList() {
+    const list = $('regionList');
+    const rows = sortedRegions();
+    list.replaceChildren(...rows.map((r, i) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.id = String(r.id);
+      b.setAttribute('aria-current', String(r.id === state.selectedId));
+      const label = r.status === 'confirmed' ? 'Snoring' : r.status === 'rejected' ? 'Not snoring' : 'Undecided';
+      b.innerHTML = '';
+      for (const [text, cls] of [[String(i + 1), ''], [`${clock(r.startS)} to ${clock(r.endS)}`, ''], [`${Math.round(r.endS - r.startS)} s`, 'muted'], [label, `status status-${r.status}`]]) {
+        const span = document.createElement('span');
+        span.textContent = text;
+        if (cls) span.className = cls;
+        b.appendChild(span);
+      }
+      b.setAttribute('aria-label', `Region ${i + 1}, ${clock(r.startS)} to ${clock(r.endS)}, ${label}`);
+      li.appendChild(b);
+      return li;
+    }));
+    const n = (s) => state.regions.filter((r) => r.status === s).length;
+    $('counts').textContent = `${plural(state.regions.length, 'region', 'regions')}: ${n('confirmed')} snoring, ${n('rejected')} not snoring, ${n('pending')} undecided.`;
+    const cur = list.querySelector('[aria-current=true]');
+    if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+  }
+
+  function renderDetail() {
+    const r = selected();
+    $('noRegion').hidden = !!r;
+    $('regionDetail').hidden = !r;
+    if (!r) return;
+    const idx = sortedRegions().findIndex((x) => x.id === r.id);
+    $('detailIndex').textContent = `${idx + 1} of ${state.regions.length}`;
+    const st = $('detailStatus');
+    st.textContent = r.status === 'confirmed' ? 'Snoring' : r.status === 'rejected' ? 'Not snoring' : 'Undecided';
+    st.className = `status status-${r.status}`;
+    if (document.activeElement !== $('startInput')) $('startInput').value = String(Math.round(r.startS * 10) / 10);
+    if (document.activeElement !== $('endInput')) $('endInput').value = String(Math.round(r.endS * 10) / 10);
+    $('startClock').textContent = clock(r.startS);
+    $('endClock').textContent = clock(r.endS);
+    $('detailLength').textContent = `${Math.round(r.endS - r.startS)} s`;
+    const origin = { proposed: 'Detector proposal', added: 'Added by you', imported: 'Imported labels' }[r.origin] || r.origin;
+    $('detailOrigin').textContent = origin + (typeof r.peakDb === 'number' ? `, peak ${r.peakDb.toFixed(1)} dB above floor` : '');
+    $('deleteBtn').disabled = r.origin === 'proposed';
+  }
+
+  function renderAll() {
+    drawOverview();
+    drawZoom();
+    renderList();
+    renderDetail();
+    $('playBtn').firstChild.textContent = state.playing ? 'Stop ' : 'Play ';
+  }
+
+  // ---------- editing ----------
+  function selectRegion(id, moveView) {
+    state.selectedId = id;
+    state.selection = null;
+    const r = selected();
+    if (r) {
+      state.cursorS = r.startS;
+      const visible = r.startS >= state.view.startS && r.endS <= state.view.endS;
+      if (moveView || !visible) viewRegion(r);
+    }
+    save();
+    renderAll();
+  }
+  function step(dir) {
+    const rows = sortedRegions();
+    if (rows.length === 0) return;
+    const i = rows.findIndex((r) => r.id === state.selectedId);
+    const next = i < 0 ? (dir > 0 ? 0 : rows.length - 1) : clamp(i + dir, 0, rows.length - 1);
+    stop();
+    selectRegion(rows[next].id, true);
+  }
+  function setStatusOf(status, advance) {
+    const r = selected();
+    if (!r) return;
+    r.status = status;
+    save();
+    if (advance) {
+      const rows = sortedRegions();
+      const i = rows.findIndex((x) => x.id === r.id);
+      // Prefer the next undecided region so a pass through the night does not revisit decisions.
+      const nextPending = rows.slice(i + 1).find((x) => x.status === 'pending') || rows.find((x) => x.status === 'pending');
+      if (nextPending) { stop(); selectRegion(nextPending.id, true); return; }
+    }
+    renderAll();
+  }
+  function adjust(edge, deltaS) {
+    const r = selected();
+    if (!r) return;
+    if (edge === 'start') r.startS = clamp(r.startS + deltaS, 0, r.endS - 1);
+    else r.endS = clamp(r.endS + deltaS, r.startS + 1, state.durationS);
+    const visible = r.startS >= state.view.startS && r.endS <= state.view.endS;
+    if (!visible) viewRegion(r);
+    save();
+    renderAll();
+  }
+  function addRegion() {
+    if (!state.durationS) return;
+    let a, b;
+    if (state.selection && state.selection.endS - state.selection.startS >= 1) {
+      a = state.selection.startS; b = state.selection.endS;
+    } else {
+      a = state.cursorS; b = state.cursorS + NEW_REGION_S;
+    }
+    a = clamp(Math.round(a), 0, state.durationS - 1);
+    b = clamp(Math.round(b), a + 1, state.durationS);
+    const r = { id: state.nextId++, startS: a, endS: b, origin: 'added', status: 'confirmed' };
+    state.regions.push(r);
+    state.selection = null;
+    selectRegion(r.id, false);
+    setStatus(`Added a region from ${clock(a)} to ${clock(b)}, marked as snoring.`);
+  }
+  function deleteRegion() {
+    const r = selected();
+    if (!r) return;
+    if (r.origin === 'proposed') { setStatusOf('rejected', false); return; }
+    const rows = sortedRegions();
+    const i = rows.findIndex((x) => x.id === r.id);
+    state.regions = state.regions.filter((x) => x.id !== r.id);
+    const next = rows[i + 1] || rows[i - 1];
+    state.selectedId = next ? next.id : null;
+    save();
+    renderAll();
+  }
+
+  // ---------- playback ----------
+  function stop() {
+    if (state.playing) {
+      try { state.playing.source.stop(); } catch (e) { /* already stopped */ }
+      state.playing = null;
+      renderAll();
+    }
+  }
+  async function play(startS, endS) {
+    stop();
+    if (!state.wav) return;
+    startS = clamp(startS, 0, state.durationS);
+    endS = clamp(endS, startS, state.durationS);
+    if (endS - startS < 0.05) return;
+    if (!state.audioCtx) state.audioCtx = new AudioContext();
+    const ctx = state.audioCtx;
+    if (ctx.state === 'suspended') await ctx.resume();
+    const x = await readSamples(startS, endS);
+    if (x.length === 0) return;
+    let peak = 1e-6;
+    for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
+    const buf = ctx.createBuffer(1, x.length, state.wav.sampleRate);
+    buf.copyToChannel(x, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    // Bedroom recordings sit far below full scale; normalising makes quiet snoring audible without a volume hunt.
+    gain.gain.value = $('levelSelect').value === 'normalise' ? Math.min(100, 0.7 / peak) : 1;
+    src.connect(gain).connect(ctx.destination);
+    const playing = { source: src, ctxStart: ctx.currentTime, startS, endS };
+    src.onended = () => { if (state.playing === playing) { state.playing = null; renderAll(); } };
+    state.playing = playing;
+    src.start();
+    renderAll();
+    const tick = () => { if (state.playing === playing) { drawZoom(); requestAnimationFrame(tick); } };
+    requestAnimationFrame(tick);
+  }
+  function playDefault(withContext) {
+    if (state.playing) { stop(); return; }
+    const r = selected();
+    if (withContext && r) play(r.startS - 5, r.endS + 5);
+    else if (state.selection) play(state.selection.startS, state.selection.endS);
+    else if (r) play(r.startS, r.endS);
+    else play(state.cursorS, state.cursorS + 30);
+  }
+
+  // ---------- export ----------
+  function exportLabels() {
+    const labeller = $('labellerInput').value.trim();
+    if (!labeller) {
+      setStatus('Enter your name or initials before exporting.', true);
+      $('labellerInput').focus();
+      return;
+    }
+    const pending = state.regions.filter((r) => r.status === 'pending').length;
+    if (pending > 0 && !confirm(`${plural(pending, 'region is', 'regions are')} still undecided and will be left out as not snoring. Export anyway?`)) return;
+    // Overlapping or touching snore regions become one event, so per-second labels are unambiguous.
+    const events = [];
+    for (const r of sortedRegions().filter((x) => x.status === 'confirmed')) {
+      const last = events[events.length - 1];
+      if (last && r.startS <= last.endS) last.endS = Math.max(last.endS, r.endS);
+      else events.push({ startS: r.startS, endS: r.endS });
+    }
+    const out = { version: 1, source: state.source, durationS: state.durationS, labeller, events, labelledAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = state.source.replace(/\.wav$/i, '') + '.labels.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    $('exportNote').textContent = `Exported ${plural(events.length, 'snoring event', 'snoring events')} as ${a.download}.`;
+  }
+
+  // ---------- wiring ----------
+  const markEdited = () => { if (state.durationS) state.edited = true; };
+  $('workspace').addEventListener('pointerdown', markEdited, true);
+  $('workspace').addEventListener('click', markEdited, true);
+  $('workspace').addEventListener('change', markEdited, true);
+  $('playBtn').addEventListener('click', () => playDefault(false));
+  $('playContextBtn').addEventListener('click', () => playDefault(true));
+  $('zoomInBtn').addEventListener('click', () => zoom(0.5));
+  $('zoomOutBtn').addEventListener('click', () => zoom(2));
+  $('panLeftBtn').addEventListener('click', () => pan(-0.25));
+  $('panRightBtn').addEventListener('click', () => pan(0.25));
+  $('confirmBtn').addEventListener('click', () => setStatusOf('confirmed', true));
+  $('rejectBtn').addEventListener('click', () => setStatusOf('rejected', true));
+  $('pendingBtn').addEventListener('click', () => setStatusOf('pending', false));
+  $('deleteBtn').addEventListener('click', deleteRegion);
+  $('prevBtn').addEventListener('click', () => step(-1));
+  $('nextBtn').addEventListener('click', () => step(1));
+  $('addBtn').addEventListener('click', addRegion);
+  $('exportBtn').addEventListener('click', exportLabels);
+  $('regionList').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-id]');
+    if (b) { stop(); selectRegion(Number(b.dataset.id), true); }
+  });
+  for (const [id, edge] of [['startInput', 'start'], ['endInput', 'end']]) {
+    $(id).addEventListener('change', () => {
+      const r = selected();
+      const v = Number($(id).value);
+      if (!r || !Number.isFinite(v)) return;
+      adjust(edge, v - (edge === 'start' ? r.startS : r.endS));
+    });
+  }
+
+  $('overview').addEventListener('click', (e) => {
+    if (!state.durationS) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const t = ((e.clientX - rect.left) / rect.width) * state.durationS;
+    const span = state.view.endS - state.view.startS;
+    const hit = state.regions.find((r) => t >= r.startS - span * 0.01 && t <= r.endS + span * 0.01);
+    state.cursorS = t;
+    setView(t - span / 2, t + span / 2);
+    if (hit && (e.clientY - rect.top) > rect.height - 18) selectRegion(hit.id, true);
+    else { save(); renderAll(); }
+  });
+
+  // Detail view mouse: drag an edge of the selected region, or drag out a selection.
+  let drag = null;
+  const zoomTime = (e) => {
+    const rect = $('zoom').getBoundingClientRect();
+    return state.view.startS + ((e.clientX - rect.left) / rect.width) * (state.view.endS - state.view.startS);
+  };
+  $('zoom').addEventListener('pointerdown', (e) => {
+    if (!state.durationS) return;
+    const rect = $('zoom').getBoundingClientRect();
+    const t = zoomTime(e);
+    const sPerPx = (state.view.endS - state.view.startS) / rect.width;
+    const r = selected();
+    if (r && Math.abs(t - r.startS) < 6 * sPerPx) drag = { kind: 'start' };
+    else if (r && Math.abs(t - r.endS) < 6 * sPerPx) drag = { kind: 'end' };
+    else drag = { kind: 'select', from: t, x: e.clientX };
+    $('zoom').setPointerCapture(e.pointerId);
+  });
+  $('zoom').addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const t = clamp(zoomTime(e), 0, state.durationS);
+    const r = selected();
+    if (drag.kind === 'start' && r) r.startS = clamp(Math.round(t), 0, r.endS - 1);
+    else if (drag.kind === 'end' && r) r.endS = clamp(Math.round(t), r.startS + 1, state.durationS);
+    else if (drag.kind === 'select' && Math.abs(e.clientX - drag.x) > 3) {
+      state.selection = { startS: Math.min(drag.from, t), endS: Math.max(drag.from, t) };
+    }
+    drawZoom();
+    if (drag.kind !== 'select') renderDetail();
+  });
+  $('zoom').addEventListener('pointerup', (e) => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    if (d.kind === 'select' && Math.abs(e.clientX - d.x) <= 3) {
+      const t = clamp(zoomTime(e), 0, state.durationS);
+      state.selection = null;
+      state.cursorS = t;
+      const hit = sortedRegions().find((r) => t >= r.startS && t < r.endS);
+      if (hit && hit.id !== state.selectedId) { selectRegion(hit.id, false); return; }
+    }
+    save();
+    renderAll();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!state.durationS || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+    state.edited = true;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const big = e.shiftKey ? 5 : 1;
+    const actions = {
+      ' ': () => playDefault(e.shiftKey),
+      j: () => step(1), ArrowDown: () => step(1),
+      k: () => step(-1), ArrowUp: () => step(-1),
+      y: () => setStatusOf('confirmed', true),
+      x: () => setStatusOf('rejected', true),
+      u: () => setStatusOf('pending', false),
+      a: () => adjust('start', -big), s: () => adjust('start', big),
+      d: () => adjust('end', -big), f: () => adjust('end', big),
+      n: addRegion,
+      Delete: deleteRegion, Backspace: deleteRegion,
+      ArrowLeft: () => pan(-0.25), ArrowRight: () => pan(0.25),
+      '+': () => zoom(0.5), '=': () => zoom(0.5),
+      '-': () => zoom(2), '_': () => zoom(2),
+      Escape: () => { state.selection = null; stop(); renderAll(); },
+    };
+    const fn = actions[k];
+    if (!fn) return;
+    e.preventDefault();
+    fn();
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { resizeCanvases(); renderAll(); loadPeaks(); }, 100);
+  });
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+
+  setStatus('Choose the night recording and its proposals file.');
+  // Exposed for automated checks of the page; not used by the page itself.
+  window.__labelling = { state, exportLabels, sortedRegions };
+})();
+</script>
+</body>
+</html>

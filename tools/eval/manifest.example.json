@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "nights": [
+    {
+      "id": "v01-n1",
+      "volunteer": "v01",
+      "labels": "labels/v01-n1.labels.json",
+      "wav": "recordings/v01-n1.wav",
+      "split": "heldout"
+    },
+    {
+      "id": "v01-n2",
+      "volunteer": "v01",
+      "labels": "labels/v01-n2.labels.json",
+      "predictions": "predictions/v01-n2.proposals.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v01-n3",
+      "volunteer": "v01",
+      "labels": "labels/v01-n3.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v01-n4",
+      "volunteer": "v01",
+      "labels": "labels/v01-n4.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v02-n1",
+      "volunteer": "v02",
+      "labels": "labels/v02-n1.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v02-n2",
+      "volunteer": "v02",
+      "labels": "labels/v02-n2.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v02-n3",
+      "volunteer": "v02",
+      "labels": "labels/v02-n3.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v02-n4",
+      "volunteer": "v02",
+      "labels": "labels/v02-n4.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v03-n1",
+      "volunteer": "v03",
+      "labels": "labels/v03-n1.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v03-n2",
+      "volunteer": "v03",
+      "labels": "labels/v03-n2.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v03-n3",
+      "volunteer": "v03",
+      "labels": "labels/v03-n3.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v04-n1",
+      "volunteer": "v04",
+      "labels": "labels/v04-n1.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v04-n2",
+      "volunteer": "v04",
+      "labels": "labels/v04-n2.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v04-n3",
+      "volunteer": "v04",
+      "labels": "labels/v04-n3.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v04-n4",
+      "volunteer": "v04",
+      "labels": "labels/v04-n4.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v05-n1",
+      "volunteer": "v05",
+      "labels": "labels/v05-n1.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v05-n2",
+      "volunteer": "v05",
+      "labels": "labels/v05-n2.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v05-n3",
+      "volunteer": "v05",
+      "labels": "labels/v05-n3.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v05-n4",
+      "volunteer": "v05",
+      "labels": "labels/v05-n4.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v05-n5",
+      "volunteer": "v05",
+      "labels": "labels/v05-n5.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v06-n1",
+      "volunteer": "v06",
+      "labels": "labels/v06-n1.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v06-n2",
+      "volunteer": "v06",
+      "labels": "labels/v06-n2.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v06-n3",
+      "volunteer": "v06",
+      "labels": "labels/v06-n3.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v06-n4",
+      "volunteer": "v06",
+      "labels": "labels/v06-n4.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v07-n1",
+      "volunteer": "v07",
+      "labels": "labels/v07-n1.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v07-n2",
+      "volunteer": "v07",
+      "labels": "labels/v07-n2.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v07-n3",
+      "volunteer": "v07",
+      "labels": "labels/v07-n3.labels.json",
+      "split": "heldout"
+    },
+    {
+      "id": "v08-n1",
+      "volunteer": "v08",
+      "labels": "labels/v08-n1.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v08-n2",
+      "volunteer": "v08",
+      "labels": "labels/v08-n2.labels.json",
+      "split": "train"
+    },
+    {
+      "id": "v08-n3",
+      "volunteer": "v08",
+      "labels": "labels/v08-n3.labels.json",
+      "split": "train"
+    }
+  ]
+}
