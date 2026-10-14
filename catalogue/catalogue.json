@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "note": "Initial catalogue (42 entries). Ids are stable and never reused. Articles are DRAFT one-paragraph versions pending the 150-250 word versions and clinician review.",
+  "items": [
+    {
+      "id": "nasal_strips",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Nasal",
+      "name": "Nasal strips",
+      "shop": true,
+      "article_md": "Adhesive strips that sit across the bridge of the nose and gently lift the sides of the nostrils, which can make breathing through the nose easier. They tend to help most when snoring starts in the nose, for example with congestion or narrow nostrils. They are cheap and easy to test for a week. See a GP if your nose is blocked most of the time."
+    },
+    {
+      "id": "nasal_dilator",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Nasal",
+      "name": "Internal nasal dilator",
+      "shop": true,
+      "article_md": "Small soft cones or clips that sit just inside the nostrils and hold them open overnight. They do a similar job to nasal strips from the inside, and some people find them more comfortable or longer lasting. Try a few sizes; one that is too small does little and one that is too large is uncomfortable."
+    },
+    {
+      "id": "nasal_spray_saline",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Nasal",
+      "name": "Saline nasal spray",
+      "shop": true,
+      "article_md": "A salt-water spray that rinses and moistens the inside of the nose. It contains no medicine and can be used every night. It may help if dryness or mild congestion makes you breathe through your mouth at night. See a GP if congestion lasts for more than a few weeks."
+    },
+    {
+      "id": "nasal_spray_decongestant",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Nasal",
+      "name": "Decongestant spray (short-term)",
+      "shop": true,
+      "article_md": "Medicated sprays that shrink swollen tissue in the nose. They work quickly but are meant for a few days only; using them for longer can make congestion worse once you stop. Follow the leaflet and ask a pharmacist if you are unsure whether one is suitable for you."
+    },
+    {
+      "id": "mouth_tape",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Mouth and jaw",
+      "name": "Mouth tape",
+      "shop": true,
+      "article_md": "Gentle porous tape placed over the lips to encourage breathing through the nose during sleep. It is only suitable if you can breathe comfortably through your nose. Do not use it if your nose is blocked, if you have been drinking or have taken a sedative, or if you have been told you stop breathing at night. See a GP if you are worried about breathing pauses."
+    },
+    {
+      "id": "chin_strap",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Mouth and jaw",
+      "name": "Chin strap",
+      "shop": true,
+      "article_md": "A soft fabric strap that goes around the head and under the chin to help keep the mouth closed while you sleep. Like mouth tape, it suits people who breathe through the mouth at night but can breathe well through the nose."
+    },
+    {
+      "id": "mad_device",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Mouth and jaw",
+      "name": "Mandibular advancement device",
+      "shop": true,
+      "article_md": "A mouthguard-style device that holds the lower jaw slightly forward, which can keep the airway at the back of the throat more open. Boil-and-bite versions are sold over the counter; custom ones are fitted by a dentist. Jaw or tooth discomfort is common at first. See a dentist if you have jaw problems, loose teeth or dental work."
+    },
+    {
+      "id": "tongue_retainer",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Mouth and jaw",
+      "name": "Tongue retaining device",
+      "shop": true,
+      "article_md": "A soft bulb that holds the tip of the tongue forward by gentle suction so it is less likely to fall back into the throat. It is an alternative for people who cannot use a jaw device. Many people need a few nights to get used to it."
+    },
+    {
+      "id": "anti_snore_pillow",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Position",
+      "name": "Anti-snore pillow",
+      "shop": true,
+      "article_md": "Pillows shaped to support the head and neck in a position that keeps the airway more open, or to make sleeping on your side more comfortable. Designs vary widely, so the data here is especially useful for telling them apart."
+    },
+    {
+      "id": "wedge_pillow",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Position",
+      "name": "Wedge pillow (head elevation)",
+      "shop": true,
+      "article_md": "A firm, sloped pillow that raises the head and upper body by a few inches. Sleeping slightly upright can reduce snoring for some people, and may also help with reflux at night."
+    },
+    {
+      "id": "positional_trainer",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Position",
+      "name": "Positional trainer (vibrating)",
+      "shop": true,
+      "article_md": "A small device worn on the chest or neck that vibrates gently when you roll onto your back, prompting you to turn onto your side without fully waking. It suits people whose snoring is much worse on their back."
+    },
+    {
+      "id": "tennis_ball",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Position",
+      "name": "Tennis ball or backpack method",
+      "shop": true,
+      "article_md": "A low-cost way to stay off your back: a tennis ball sewn into the back of a top, or a small soft backpack worn in bed. It is less comfortable than a positional trainer but costs almost nothing to try."
+    },
+    {
+      "id": "humidifier",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Environment",
+      "name": "Bedroom humidifier",
+      "shop": true,
+      "article_md": "Adds moisture to dry bedroom air, which can ease a dry nose and throat. It may help most in winter with the heating on. Clean it as the maker recommends so it does not grow mould."
+    },
+    {
+      "id": "air_purifier",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Environment",
+      "name": "Air purifier",
+      "shop": true,
+      "article_md": "Filters dust, pollen and pet dander from bedroom air. It is most likely to help if allergies leave you congested at night."
+    },
+    {
+      "id": "throat_spray",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Throat",
+      "name": "Throat spray",
+      "shop": true,
+      "article_md": "Sprays that coat or lubricate the soft tissue at the back of the throat. Evidence for them is limited, which makes them a good candidate for a 14-night test of your own."
+    },
+    {
+      "id": "cpap",
+      "type": "remedy",
+      "kind": "device",
+      "category": "Medical",
+      "name": "CPAP (prescribed)",
+      "shop": false,
+      "article_md": "A machine prescribed by a sleep service that blows air through a mask to keep the airway open during sleep. It is a treatment for diagnosed sleep apnoea, not a general snoring remedy. Logging it helps you see your nights with and without it; talk to your sleep clinic about any problems with your mask or settings."
+    },
+    {
+      "id": "side_sleeping",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Position",
+      "name": "Slept on side",
+      "shop": false,
+      "article_md": "Lying on your back lets the jaw and tongue fall backwards, which narrows the airway. Many people snore less on their side. Tick this on nights when you mostly slept on your side."
+    },
+    {
+      "id": "head_elevated",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Position",
+      "name": "Head elevated (bed or extra pillow)",
+      "shop": false,
+      "article_md": "Raising the head of the bed, or adding a pillow, keeps the upper body slightly upright. Raising the bed itself tends to work better than stacking pillows, which can bend the neck."
+    },
+    {
+      "id": "nasal_rinse",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Nasal",
+      "name": "Nasal rinse (neti pot)",
+      "shop": false,
+      "article_md": "Rinsing the nose with salt water before bed can clear mucus and allergens. Use boiled and cooled or sterile water only, never straight from the tap."
+    },
+    {
+      "id": "throat_exercises",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Throat",
+      "name": "Throat and tongue exercises",
+      "shop": false,
+      "article_md": "Daily exercises for the tongue, soft palate and throat muscles, sometimes called myofunctional therapy. Any effect usually takes weeks of regular practice, so log the days you do them and compare over a month."
+    },
+    {
+      "id": "singing_didgeridoo",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Throat",
+      "name": "Singing or wind instrument practice",
+      "shop": false,
+      "article_md": "Regular singing or playing a wind instrument exercises the muscles of the throat and soft palate. Like throat exercises, it is a long-term habit rather than a one-night fix."
+    },
+    {
+      "id": "no_alcohol_evening",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Lifestyle",
+      "name": "No alcohol after 6pm",
+      "shop": false,
+      "article_md": "Alcohol relaxes the muscles of the throat and is one of the most common reasons for a loud night. Tick this on evenings you chose not to drink."
+    },
+    {
+      "id": "early_dinner",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Lifestyle",
+      "name": "Finished eating 3 hours before bed",
+      "shop": false,
+      "article_md": "A large meal close to bedtime can worsen reflux and leave you sleeping more deeply at first. Finishing dinner earlier is an easy change to test."
+    },
+    {
+      "id": "weight_programme",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Lifestyle",
+      "name": "On a weight-loss programme",
+      "shop": false,
+      "article_md": "Extra weight around the neck can narrow the airway. Changes from weight loss show up over months rather than nights, so look at your 90-night trend. See a GP for support with weight loss."
+    },
+    {
+      "id": "steam_shower",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Environment",
+      "name": "Hot shower or steam before bed",
+      "shop": false,
+      "article_md": "Warm, moist air can loosen mucus and open the nose for a while. It is most likely to help on nights when you are congested."
+    },
+    {
+      "id": "window_open",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Environment",
+      "name": "Window open or cooler room",
+      "shop": false,
+      "article_md": "Some people breathe more easily in a cooler, fresher room. Note that an open window can also let in outside noise, which may show up in your recording."
+    },
+    {
+      "id": "allergen_bedding",
+      "type": "remedy",
+      "kind": "habit",
+      "category": "Environment",
+      "name": "Anti-allergen bedding",
+      "shop": false,
+      "article_md": "Covers and bedding designed to keep dust mites away from your face. Most likely to help if dust allergy leaves you blocked up at night."
+    },
+    { "id": "alcohol", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Alcohol", "shop": false, "value_options": ["1-2", "3-4", "5+"], "article_md": "How many units you drank this evening, as a band." },
+    { "id": "late_meal", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Ate within 2 hours of bed", "shop": false, "article_md": "" },
+    { "id": "caffeine_late", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Caffeine after 2pm", "shop": false, "article_md": "" },
+    { "id": "exercise", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Exercised today", "shop": false, "article_md": "" },
+    { "id": "congestion", "type": "factor", "kind": "factor", "category": "Health", "name": "Blocked nose or cold", "shop": false, "article_md": "" },
+    { "id": "allergies", "type": "factor", "kind": "factor", "category": "Health", "name": "Allergy symptoms today", "shop": false, "article_md": "" },
+    { "id": "smoking", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Smoked today", "shop": false, "article_md": "" },
+    { "id": "sleep_aid", "type": "factor", "kind": "factor", "category": "Health", "name": "Took a sleep aid or sedative", "shop": false, "article_md": "" },
+    { "id": "very_tired", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Unusually tired", "shop": false, "article_md": "" },
+    { "id": "stress", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Stressful day", "shop": false, "article_md": "" },
+    { "id": "travel", "type": "factor", "kind": "factor", "category": "Context", "name": "Away from home", "shop": false, "article_md": "" },
+    { "id": "partner_absent", "type": "factor", "kind": "factor", "category": "Context", "name": "Slept alone", "shop": false, "article_md": "" },
+    { "id": "late_bedtime", "type": "factor", "kind": "factor", "category": "Context", "name": "Bed after 1am", "shop": false, "article_md": "" },
+    { "id": "nap", "type": "factor", "kind": "factor", "category": "Lifestyle", "name": "Napped today", "shop": false, "article_md": "" },
+    { "id": "illness", "type": "factor", "kind": "factor", "category": "Health", "name": "Unwell (other than a cold)", "shop": false, "article_md": "" }
+  ]
+}

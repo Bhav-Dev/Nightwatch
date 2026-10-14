@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Nightwatch",
+    "slug": "nightwatch",
+    "scheme": "nightwatch",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F1629",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.nightwatch",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Nightwatch listens for snoring while you sleep. Audio is processed on this phone and is not uploaded.",
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "package": "app.nightwatch",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1629",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": ["expo-router", "expo-sqlite"],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "apiBaseUrl": null
+    }
+  }
+}
