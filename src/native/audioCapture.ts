@@ -1,30 +1,23 @@
+import type { AssembledGap } from '../domain/audio/frameAssembler';
+
 /**
- * Overnight audio capture. The real implementation is a native module (iOS background
- * audio session, Android foreground service with the microphone type) delivering 16 kHz
- * mono PCM in 30-second windows. JS turns each window into per-second features and drops
- * the audio; only clips around snore events are ever written to disk.
- *
- * Phase 0 status: the interface and a simulated implementation for development and tests.
- * The native module itself is the next piece of work (see README).
+ * Overnight audio capture. Implementations deliver mono PCM aligned to whole seconds and
+ * report stretches where nothing was captured. JS turns each second into a few features
+ * and drops the audio straight away.
  */
 
 export const CAPTURE_SAMPLE_RATE = 16_000;
 export const CAPTURE_WINDOW_S = 30;
 
-export type InterruptionCause = 'phone_call' | 'alarm' | 'battery_saver' | 'os_killed' | 'unknown';
-
 export interface CaptureWindow {
-  /** Offset in seconds of the first sample from the start of the session. */
+  /** Offset in seconds of the first sample from the start of the session; an integer. */
   startS: number;
-  /** Mono PCM in [-1, 1], CAPTURE_SAMPLE_RATE samples per second. */
+  /** Mono PCM in [-1, 1], a whole number of seconds long. */
   samples: Float32Array;
+  sampleRate: number;
 }
 
-export interface CaptureInterruption {
-  atS: number;
-  resumedAtS: number | null;
-  cause: InterruptionCause;
-}
+export type CaptureInterruption = AssembledGap;
 
 export interface CaptureListener {
   onWindow(window: CaptureWindow): void;
@@ -61,7 +54,7 @@ export class SimulatedCapture implements AudioCapture {
     this.timer = setInterval(() => {
       const startS = this.nextStartS;
       this.nextStartS += CAPTURE_WINDOW_S;
-      listener.onWindow({ startS, samples: this.synth(startS, CAPTURE_WINDOW_S) });
+      listener.onWindow({ startS, samples: this.synth(startS, CAPTURE_WINDOW_S), sampleRate: CAPTURE_SAMPLE_RATE });
     }, this.windowEveryMs);
   }
 

@@ -11,20 +11,39 @@ Record your snoring, see it against your watch's data, and find out which remedi
 | Catalogue of 42 remedies and factors, with draft one-paragraph articles | Done, `catalogue/catalogue.json`; seeded on first launch, refreshed from `GET /v1/catalogue?since=` when an API base URL is set |
 | Scoring: events, intensity labels, 5-minute bins, 0 to 100 score, partial-night rule | Done and unit tested, `src/domain/scoring` |
 | Detection v0: energy, spectral centroid and breathing-rhythm heuristic | Done and tested on synthetic audio, `src/domain/detection/heuristic.ts`; a labelling aid, not for release |
-| Audio capture | **Interface plus a simulator only**, `src/native/audioCapture.ts`. The native module is the next task |
+| Audio capture | expo-audio's PCM stream (16 kHz mono) with a local Android foreground-service module; features saved to SQLite every 30 s; interruptions detected and shown on This Morning. **Not yet run on a device** |
 | CI: typecheck, lint, tests, JS bundle per platform | `.github/workflows/ci.yml` |
 
 ## Running it
 
+The app contains a local native module, so it needs a development build rather than Expo Go.
+
 ```bash
 npm install
-npm start          # then press i or a; Expo Go is enough while capture is simulated
+npm run ios        # or: npm run android  (local Xcode / Android Studio)
+# or build in the cloud: npx eas-cli@latest build --profile development
+npm start          # dev server for an installed development build
 npm test
 npm run typecheck
 npm run lint
 ```
 
-In development builds, Start recording uses `SimulatedCapture`, which plays 30 seconds of synthetic night (background noise plus a snoring stretch every 10 minutes) for every real second. Hold Stop for one second to analyse it and land on This Morning. Release builds have no capture until the native module exists, and the button says so.
+Set `EXPO_PUBLIC_SIMULATE_CAPTURE=1` (or `npm run start:simulated`, or the `simulated` EAS profile) to swap the microphone for `SimulatedCapture`, which plays 30 seconds of synthetic night (background noise plus a snoring stretch every 10 minutes) for every real second. Hold Stop for one second to analyse it and land on This Morning.
+
+## How overnight capture works
+
+```
+expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
+  → ExpoAudioCapture        session clock = wall clock at stream start + stream timestamp
+  → FrameAssembler          whole 1-second frames; clock jumps and all-zero seconds become gaps
+  → RecordingSession        per-second features (level, centroid, 10 Hz envelope); audio dropped
+  → SQLite session_frame    written every 30 s, so a killed app loses at most 30 s
+  → at Stop: heuristic → analyseNight → night + events + bins + tonight's log
+```
+
+- **iOS:** the expo-audio config plugin adds the `audio` background mode, which keeps the stream running with the screen locked.
+- **Android:** a backgrounded app only gets real microphone audio while it runs a foreground service of type `microphone` started while visible. `modules/nightwatch-recording-service` is that service (ongoing notification, partial wake lock, no audio of its own). Without it Android delivers silence, which the assembler would report as `microphone_taken`.
+- **Interruptions.** Streams are not told when they are interrupted. A jump in the session clock is a `stalled` gap; two or more all-zero seconds are `microphone_taken` (Android silences a call-preempted app); a watchdog restarts a stream that has delivered nothing for 10 s. A recording the app never stopped (killed overnight) is turned into a partial night at next launch, marked `app_closed`. This Morning then shows "Recording stopped at 03:12" with the probable cause and how to prevent it.
 
 ## Layout
 
@@ -36,7 +55,9 @@ src/domain/                pure logic, no React Native imports
   audio/                   FFT, A-weighted level, centroid, envelope per 1-second frame
   detection/               v0 heuristic
 src/data/                  SQLite schema, repositories, catalogue client
-src/native/                capture interface (native module goes here)
+src/native/                capture interface, expo-audio capture, simulator
+src/recording/             RecordingSession: capture → features → SQLite → scored night; launch recovery
+modules/nightwatch-recording-service/   Android foreground service (Kotlin), no-op on iOS
 src/ui/                    theme and shared components
 __tests__/                 Jest; data-layer tests run on node:sqlite through the same Db interface
 ```
@@ -52,10 +73,11 @@ __tests__/                 Jest; data-layer tests run on node:sqlite through the
 
 ## Next
 
-1. Native capture module (Expo Modules API): iOS background audio session, Android foreground service with the microphone type, interruption reporting, clip ring buffer. Then the Phase 0 gate: an 8-hour screen-off recording under 8% battery on an iPhone 11 and a 2020 mid-range Android.
-2. Record the 30-night test dataset and a small labelling tool driven by the v0 heuristic.
-3. Onboarding (microphone, notifications, profile bands, Health, contribution opt-in).
-4. Manrope font and icons to match the mockups.
-5. EAS project and signing credentials, so CI can produce signed native builds.
+1. Run the Phase 0 gate on real devices: an 8-hour screen-off recording under 8% battery on an iPhone 11 and a 2020 mid-range Android, plus a phone call mid-recording producing the interrupted state. The Kotlin module has not been compiled yet (no Android SDK in the environment it was written in), so the first Android build may need small fixes.
+2. Clips: keep a short rolling PCM buffer in JS and write the five loudest moments as audio files.
+3. Record the 30-night test dataset and a small labelling tool driven by the v0 heuristic.
+4. Onboarding (microphone, notifications, profile bands, Health, contribution opt-in).
+5. Manrope font and icons to match the mockups.
+6. EAS project and signing credentials, so CI can produce signed native builds.
 
 Catalogue articles are drafts: they need the full 150 to 250 word versions and clinician review before release.

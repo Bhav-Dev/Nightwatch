@@ -144,6 +144,36 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // v2: in-progress recordings survive the app being killed; nights remember why they stopped.
+  `
+  CREATE TABLE recording_session (
+    id TEXT PRIMARY KEY NOT NULL,
+    started_at INTEGER NOT NULL,
+    sensitivity TEXT NOT NULL,
+    last_frame_t INTEGER,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Per-second features of the recording in progress (never audio). Deleted once the night is saved.
+  CREATE TABLE session_frame (
+    session_id TEXT NOT NULL REFERENCES recording_session(id) ON DELETE CASCADE,
+    t INTEGER NOT NULL,
+    level_db REAL NOT NULL,
+    centroid_hz REAL NOT NULL,
+    envelope TEXT NOT NULL,
+    PRIMARY KEY (session_id, t)
+  ) WITHOUT ROWID;
+
+  CREATE TABLE session_gap (
+    session_id TEXT NOT NULL REFERENCES recording_session(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    cause TEXT NOT NULL
+  );
+
+  ALTER TABLE night ADD COLUMN interrupted_at_s INTEGER;
+  ALTER TABLE night ADD COLUMN interrupt_cause TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

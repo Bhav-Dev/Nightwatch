@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { averageScore, latestNight, nightBins, type NightRow } from '../../data/nightRepo';
+import { clockTimeAt, INTERRUPTION_COPY } from '../../domain/interruption';
 import { intensityFor, scoreLabel, type Bin } from '../../domain/scoring';
 import { colors, radius, space } from '../../ui/theme';
 
@@ -21,6 +22,7 @@ export default function Morning() {
   const [night, setNight] = useState<NightRow | null | undefined>(undefined);
   const [bins, setBins] = useState<Bin[]>([]);
   const [avg7, setAvg7] = useState<number | null>(null);
+  const [showPrevent, setShowPrevent] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -57,9 +59,20 @@ export default function Morning() {
       <ScrollView contentContainerStyle={{ padding: space(5) }}>
         <Text style={styles.eyebrow}>This morning</Text>
         {night.partial === 1 && (
-          <View style={styles.banner}>
-            <Text style={styles.bannerText}>Recording was interrupted, so this is a partial night.</Text>
-          </View>
+          <Pressable style={styles.banner} onPress={() => setShowPrevent((v) => !v)} accessibilityRole="button">
+            <Text style={styles.bannerTitle}>
+              {night.interrupted_at_s !== null
+                ? `Recording stopped at ${clockTimeAt(night.started_at, night.interrupted_at_s)}`
+                : 'Recording was interrupted'}
+            </Text>
+            {night.interrupt_cause && (
+              <Text style={styles.bannerText}>{INTERRUPTION_COPY[night.interrupt_cause].cause}</Text>
+            )}
+            <Text style={styles.bannerLink}>How to prevent this</Text>
+            {showPrevent && night.interrupt_cause && (
+              <Text style={styles.bannerText}>{INTERRUPTION_COPY[night.interrupt_cause].prevent}</Text>
+            )}
+          </Pressable>
         )}
         <View style={styles.card}>
           <Text style={styles.score}>{night.score}</Text>
@@ -112,7 +125,9 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 22, fontWeight: '700', marginBottom: space(2) },
   muted: { color: colors.textMuted, fontSize: 13, textAlign: 'left' },
   banner: { backgroundColor: '#2A2614', borderRadius: radius.button, padding: space(3), marginBottom: space(3) },
-  bannerText: { color: colors.accent },
+  bannerTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
+  bannerText: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  bannerLink: { color: colors.accent, fontSize: 14, marginTop: space(1), textDecorationLine: 'underline' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,

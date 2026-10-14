@@ -2,15 +2,12 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { commitPendingLog } from '../data/logRepo';
-import { saveNight } from '../data/nightRepo';
 import { getSetting } from '../data/settingsRepo';
-import { FrameFeatureBuffer } from '../domain/audio/frameBuffer';
-import { classifyNightHeuristic } from '../domain/detection/heuristic';
-import { analyseNight, type Gap, type Sensitivity } from '../domain/scoring';
-import { type AudioCapture, getAudioCapture } from '../native';
+import type { Sensitivity } from '../domain/scoring';
+import { getAudioCapture } from '../native';
+import { RecordingSession } from '../recording/recordingSession';
 import { colors, radius, space } from '../ui/theme';
 
 const formatElapsed = (s: number) =>
@@ -18,58 +15,59 @@ const formatElapsed = (s: number) =>
 
 export default function Recording() {
   const db = useSQLiteContext();
-  const capture = useRef<AudioCapture | null>(null);
-  const buffer = useRef(new FrameFeatureBuffer());
-  const gaps = useRef<Gap[]>([]);
-  const startedAt = useRef(new Date());
+  const session = useRef<RecordingSession | null>(null);
+  const finishing = useRef(false);
   const [elapsedS, setElapsedS] = useState(0);
-  const [lastLevelDb, setLastLevelDb] = useState<number | null>(null);
+  const [levelDb, setLevelDb] = useState<number | null>(null);
   const [analysing, setAnalysing] = useState(false);
 
   useEffect(() => {
-    const c = getAudioCapture();
-    capture.current = c;
-    if (!c) return;
-    c.start({
-      onWindow: ({ startS, samples }) => {
-        buffer.current.addWindow(startS, samples);
-        const entries = buffer.current.entries();
-        setElapsedS(entries.length > 0 ? entries[entries.length - 1].t + 1 : 0);
-        setLastLevelDb(entries[entries.length - 1]?.features.levelDb ?? null);
-      },
-      onInterrupted: ({ atS, resumedAtS }) => {
-        gaps.current.push({ startS: atS, endS: resumedAtS ?? atS });
-      },
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
+        const s = await RecordingSession.begin({ db, capture: getAudioCapture(), sensitivity, newId: randomUUID });
+        if (cancelled) {
+          await s.discard();
+          return;
+        }
+        session.current = s;
+      } catch (e) {
+        Alert.alert('Recording could not start', e instanceof Error ? e.message : String(e));
+        router.back();
+      }
+    })();
+
+    const tick = setInterval(() => {
+      if (!session.current) return;
+      setElapsedS(session.current.elapsedS);
+      setLevelDb(session.current.lastLevelDb);
+    }, 1000);
+    // The tab bar is hidden and Back does nothing while recording; only Stop ends it.
+    const back = BackHandler.addEventListener('hardwareBackPress', () => true);
+
     return () => {
-      c.stop();
+      cancelled = true;
+      clearInterval(tick);
+      back.remove();
+      // Unmounted without Stop: keep what was recorded rather than lose the night.
+      if (session.current && !finishing.current) void session.current.finish();
     };
-  }, []);
+  }, [db]);
 
   const stop = async () => {
+    if (!session.current || finishing.current) return;
+    finishing.current = true;
     setAnalysing(true);
-    await capture.current?.stop();
-    const entries = buffer.current.entries();
-    const durationS = entries.length > 0 ? entries[entries.length - 1].t + 1 : 0;
-    const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
-    const analysis = analyseNight({
-      durationS,
-      frames: classifyNightHeuristic(entries),
-      gaps: gaps.current,
-      partial: gaps.current.length > 0,
-      sensitivity,
-    });
-    const id = randomUUID();
-    await saveNight(db, {
-      id,
-      startedAt: startedAt.current,
-      endedAt: new Date(startedAt.current.getTime() + durationS * 1000),
-      partial: gaps.current.length > 0,
-      analysis,
-      newId: randomUUID,
-    });
-    await commitPendingLog(db, id);
-    router.replace('/morning');
+    try {
+      const night = await session.current.finish();
+      if (night) router.replace('/morning');
+      else router.back();
+    } catch (e) {
+      Alert.alert('Could not save the night', e instanceof Error ? e.message : String(e));
+      finishing.current = false;
+      setAnalysing(false);
+    }
   };
 
   if (analysing) {
@@ -81,8 +79,8 @@ export default function Recording() {
     );
   }
 
-  // Quiet level meter: 0 to 40 dB above the quietest second so far.
-  const meter = lastLevelDb === null ? 0 : Math.min(1, Math.max(0, (lastLevelDb + 70) / 50));
+  // Quiet live meter over roughly -70 to -20 dBFS.
+  const meter = levelDb === null ? 0 : Math.min(1, Math.max(0, (levelDb + 70) / 50));
 
   return (
     <View style={styles.screen}>
@@ -91,7 +89,10 @@ export default function Recording() {
       <View style={styles.meterTrack}>
         <View style={[styles.meterFill, { width: `${meter * 100}%` }]} />
       </View>
-      {__DEV__ && <Text style={styles.dev}>Simulated capture: 30 seconds of night per second</Text>}
+      <Text style={styles.note}>You can lock the phone. Recording carries on with the screen off.</Text>
+      {process.env.EXPO_PUBLIC_SIMULATE_CAPTURE === '1' && (
+        <Text style={styles.note}>Simulated capture: 30 seconds of night per second</Text>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityHint="Hold for one second to stop"
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   elapsed: { color: colors.text, fontSize: 64, fontWeight: '300', fontVariant: ['tabular-nums'], marginVertical: space(6) },
   meterTrack: { width: '70%', height: 6, borderRadius: 3, backgroundColor: colors.surfaceRaised, overflow: 'hidden' },
   meterFill: { height: 6, backgroundColor: colors.accent },
-  dev: { color: colors.textFaint, fontSize: 12, marginTop: space(4) },
+  note: { color: colors.textFaint, fontSize: 13, marginTop: space(4), textAlign: 'center' },
   stop: {
     position: 'absolute',
     bottom: space(16),

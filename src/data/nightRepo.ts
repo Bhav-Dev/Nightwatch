@@ -1,6 +1,7 @@
 import { localDateKey, nightDateWithSuffix } from '../domain/nightDate';
 import type { Bin, NightAnalysis } from '../domain/scoring';
 import type { Db } from './db';
+import type { InterruptCause } from './sessionRepo';
 
 export interface NightRow {
   id: string;
@@ -21,6 +22,9 @@ export interface NightRow {
   summary_text: string | null;
   updated_at: number;
   synced_at: number | null;
+  /** Offset into the night (s) where recording first stopped unexpectedly; null for clean nights. */
+  interrupted_at_s: number | null;
+  interrupt_cause: InterruptCause | null;
 }
 
 export interface SaveNightInput {
@@ -30,11 +34,12 @@ export interface SaveNightInput {
   partial: boolean;
   analysis: NightAnalysis;
   newId: () => string;
+  interruption?: { atS: number; cause: InterruptCause } | null;
 }
 
 /** Writes a scored night with its events and bins in one transaction. */
 export async function saveNight(db: Db, input: SaveNightInput): Promise<NightRow> {
-  const { id, startedAt, endedAt, partial, analysis, newId } = input;
+  const { id, startedAt, endedAt, partial, analysis, newId, interruption } = input;
   const baseDate = localDateKey(startedAt);
   const sameDate = await db.getFirstAsync<{ n: number }>(
     "SELECT COUNT(*) AS n FROM night WHERE date = ? OR date LIKE ? || '#%'",
@@ -47,8 +52,9 @@ export async function saveNight(db: Db, input: SaveNightInput): Promise<NightRow
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT INTO night (id, date, started_at, ended_at, duration_s, time_in_bed_s, score, score_version,
-         pct_snoring, event_count, max_db, floor_db, partial, counts_toward_averages, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         pct_snoring, event_count, max_db, floor_db, partial, counts_toward_averages, updated_at,
+         interrupted_at_s, interrupt_cause)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         date,
@@ -65,6 +71,8 @@ export async function saveNight(db: Db, input: SaveNightInput): Promise<NightRow
         partial ? 1 : 0,
         analysis.countsTowardAverages ? 1 : 0,
         endedS,
+        interruption?.atS ?? null,
+        interruption?.cause ?? null,
       ],
     );
     for (const e of analysis.events) {

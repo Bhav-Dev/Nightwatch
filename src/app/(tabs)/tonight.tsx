@@ -1,7 +1,8 @@
 import { Link, router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { requestNotificationPermissionsAsync } from 'expo-audio';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { listActiveCatalogue } from '../../data/catalogueRepo';
@@ -72,15 +73,15 @@ export default function Tonight() {
   };
 
   const start = async () => {
-    const capture = getAudioCapture();
-    if (!capture) {
-      Alert.alert('Recording is not available yet', 'The native audio module is still being built.');
+    if (!(await getAudioCapture().requestPermission())) {
+      Alert.alert('Microphone needed', 'Nightwatch needs the microphone to hear snoring. Audio stays on this phone.', [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
-    if (!(await capture.requestPermission())) {
-      Alert.alert('Microphone needed', 'Nightwatch needs the microphone to hear snoring. Audio stays on this phone.');
-      return;
-    }
+    // Android 13+: lets the "Recording your night" notification show. Recording works either way.
+    if (Platform.OS === 'android') await requestNotificationPermissionsAsync().catch(() => undefined);
     router.push('/recording');
   };
 
