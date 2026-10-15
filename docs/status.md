@@ -11,23 +11,22 @@ Last updated 15 October 2026. Tracks [project-plan.md](project-plan.md) item by 
 
 ## In one paragraph
 
-Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, trends, Health data, remedy tests, doctor's report, paywall, sign-in, sync, community dashboard), the backend and nightly job, and the labelling tools. About 220 automated tests pass across app and server, and the backend has run end to end on a real Postgres database. **Nothing has run on a phone yet, and nothing is connected to your Supabase project yet.** The next step is connecting Supabase and making a development build, then the Phase 0 device gate.
+Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, trends, Health data, remedy tests, doctor's report, paywall, sign-in, sync, community dashboard), the backend and nightly job, and the labelling tools. About 220 automated tests pass across app and server, and the backend has run end to end on a real Postgres database. **Nothing has run on a phone yet.** The backend is live in your shared Supabase project: database, both functions and the nightly job. The next steps are the accounts and keys and a development build, then the Phase 0 device gate.
 
 ## Next steps, in order
 
-1. 👤 **Connect Supabase**, following `server/README.md`, "Deploy to Supabase":
-   - run `server/sql/setup.sql`;
-   - `npm run migrate && npm run seed`;
-   - set the `NIGHTWATCH_*` secrets;
-   - deploy `nightwatch-api` and `nightwatch-aggregate`;
-   - add the cron job.
+1. ✅ **Supabase connected** (15 October 2026, project `zezujcujwvnmzxvbchmy`), following `server/README.md`, "Deploy to Supabase":
+   - schema and role, migration 001 and the 42-entry catalogue;
+   - the three secrets the backend needs to start (database URL, session secret, aggregate secret; kept in the gitignored `supabase/.env.nightwatch.local`);
+   - `nightwatch-api` and `nightwatch-aggregate` deployed; the API answers `/v1/health`;
+   - `pg_cron` and `pg_net` enabled, and the 04:00 UTC job scheduled. It has run once, by hand, through the scheduled command.
 
-   Check that the two Deno functions start (`supabase functions serve`); they have never run.
-2. 👤 **Accounts and keys** (each part of the app stays switched off until its key is set):
+   Secrets for the keys in step 2 are added as each key arrives (`npx supabase@latest secrets set --project-ref zezujcujwvnmzxvbchmy NIGHTWATCH_...=...`). The app's `EXPO_PUBLIC_API_URL` will be `https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api`.
+2. 👤 **Accounts and keys** (each part of the app stays switched off until its key is set). Placeholders for every value are in `.env.local` (app) and `supabase/.env.nightwatch.local` (server):
    - an Expo/EAS account;
    - a Resend key and sending domain;
-   - an Apple bundle id and Sign in with Apple;
-   - Google OAuth client ids;
+   - ✅ Apple: App ID `com.threeft2.nightwatch` registered with Sign in with Apple and HealthKit (15 October 2026); the server accepts Apple sign-in;
+   - Google OAuth client ids, in a Google Cloud project of Nightwatch's own (calmov's consent screen would show CalMov);
    - a RevenueCat project with the products;
    - Amazon Associates tracking ids.
 3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android. Fix whatever the first Android build turns up: the Kotlin module has never been compiled.
@@ -112,7 +111,7 @@ Acceptance criteria:
 | Dashboard screens with sample-size rules, "people like you" | 🟡 | Built; not seen on a phone |
 | Affiliate links on catalogue items | ✅ / 👤 | Amazon only, as decided; needs your Associates tracking ids |
 | Methods page on the site | ✅ / ⬜ | Written (`site/methods.html`); not hosted yet |
-| Backend on Supabase | ✅ / 👤 | Own `nightwatch` schema and role in your shared project; tested on real Postgres. Not deployed; the Deno functions have never run |
+| Backend on Supabase | ✅ | Own `nightwatch` schema and role in your shared project, migrated and seeded; both functions deployed and answering; nightly job scheduled and run once. Supabase's API roles cannot read the schema |
 | Closed beta of 100 | 👤 | |
 | **Gate:** 60% opt in, 5 remedies past 30 users, sanity check against the literature | 👤 | The job runs the sanity checks itself; needs beta data |
 
@@ -165,6 +164,7 @@ Raised during the build:
 | --- | --- |
 | Backend host | ✅ Decided: your existing Supabase project, in a `nightwatch` schema |
 | Clip format | ✅ Decided: WAV now, Opus later (groundwork in place) |
+| Bundle id (iOS) and package (Android) | ✅ Decided: `com.threeft2.nightwatch` on both, independent of the final app name |
 | Keeping held-out audio: the spec deletes recordings after labelling but also keeps the held-out set fixed for comparing models | 👤 Either consent covers keeping held-out audio (encrypted, restricted), or each model gets a new held-out set. See `tools/README.md` |
 | Labelling: pauses under 20 s stay inside one snoring region | 👤 Confirm |
 | Shared Supabase project: anyone with dashboard or owner access can read Nightwatch's health summaries | 👤 Accept, or use a separate project |
@@ -197,3 +197,6 @@ Raised during the build:
 - **Clips:** sharing gives the audio file only; no card image yet.
 - **"Keep full-night audio":** shown but disabled until compressed audio exists.
 - **Free-text "Other" remedies:** shown on Tonight but not in the morning log list.
+- **Google sign-in** uses `expo-auth-session`'s Google helper, deprecated in SDK 57; Expo now points to a native Google sign-in library. Its Android flow relies on a custom-scheme redirect that Google turns off by default for new Android clients. Switch before testing Google on a phone.
+- **Email sign-in links** open `nightwatch://auth?token=…`, which many email apps (Gmail included) will not open. Route them through an https page that opens the app (`NIGHTWATCH_APP_LINK_BASE`) before relying on email sign-in.
+- **Sign in with Apple on account deletion:** Apple requires apps to revoke the user's Apple tokens when they delete their account (needs a Sign in with Apple key and a server call). Not done yet; needed before App Store submission. The optional server-to-server notification endpoint can be added at the same time.
