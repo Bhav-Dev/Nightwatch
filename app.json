@@ -60,7 +60,7 @@
           "background": false
         }
       ],
-      "expo-health-connect",
+      "react-native-health-connect",
       [
         "expo-build-properties",
         {
