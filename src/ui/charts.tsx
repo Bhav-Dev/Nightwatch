@@ -3,11 +3,12 @@
  * marks, bars with rounded data-ends on a shared baseline, recessive grid, text in text
  * colours (never the series colour), and tap-to-inspect instead of hover.
  */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native';
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { colors, intensityColor } from './theme';
+import { colourRuns, labelX, outlineAmplitudes, outlinePath } from './timelineShape';
 
 function useWidth(initial = 320) {
   const [w, setW] = useState(initial);
@@ -24,10 +25,15 @@ function barPath(x: number, w: number, top: number, base: number): string {
 export interface TimelineBin {
   index: number;
   snoreS: number;
+  /** Mean level above the night's floor; sets the outline's height. */
+  levelDb: number;
   intensity: keyof typeof intensityColor | null;
 }
 
-/** The night in 5-minute bins: bar height is snoring seconds, colour the loudest intensity. */
+/**
+ * The night as a loudness outline mirrored around a centre line, in 5-minute bins: its height is
+ * how loud each stretch was, and stretches with snoring are filled with their loudest intensity.
+ */
 export function NightTimeline({
   bins,
   startedAtS,
@@ -45,39 +51,41 @@ export function NightTimeline({
   height?: number;
 }) {
   const [width, onLayout] = useWidth();
+  const clipId = `outline-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const bottomAxis = 18;
   const overlayH = overlay?.length ? 36 * overlay.length : 0;
   const plotH = height - bottomAxis;
-  const n = Math.max(bins.length, 1);
-  const gap = 2;
-  const bw = Math.max(1, (width - gap * (n - 1)) / n);
-  const max = Math.max(300, ...bins.map((b) => b.snoreS));
+  const centreY = plotH / 2;
+  const step = width / Math.max(bins.length, 1);
+  const outline = outlinePath(outlineAmplitudes(bins.map((b) => b.levelDb)), width, centreY, centreY - 2);
+  const runs = colourRuns(bins.map((b) => b.intensity));
   const hourTicks: { x: number; label: string }[] = [];
   for (let i = 0; i < bins.length; i++) {
     const t = new Date((startedAtS + i * 300) * 1000);
-    if (t.getMinutes() < 5) hourTicks.push({ x: i * (bw + gap), label: `${t.getHours()}:00` });
+    if (t.getMinutes() < 5) hourTicks.push({ x: i * step, label: `${t.getHours()}:00` });
   }
   return (
     <View onLayout={onLayout}>
       <Svg width={width} height={height + overlayH}>
-        <Line x1={0} x2={width} y1={plotH} y2={plotH} stroke={colors.border} strokeWidth={1} />
-        {bins.map((b, i) => {
-          const x = i * (bw + gap);
-          const h = (b.snoreS / max) * (plotH - 4);
-          const fill = b.intensity ? intensityColor[b.intensity] : colors.border;
-          return (
-            <Path
-              key={b.index}
-              d={barPath(x, bw, plotH - Math.max(h, b.snoreS > 0 ? 2 : 0), plotH)}
-              fill={fill}
-              opacity={selected === undefined || selected === null || selected === i ? 1 : 0.45}
-            />
-          );
-        })}
+        <Defs>
+          <ClipPath id={clipId}>
+            <Path d={outline} />
+          </ClipPath>
+        </Defs>
+        <Line x1={0} x2={width} y1={centreY} y2={centreY} stroke={colors.border} strokeWidth={1} />
+        <Path d={outline} fill={colors.textFaint} opacity={0.35} />
+        <G clipPath={`url(#${clipId})`}>
+          {runs.map((r) => (
+            <Rect key={r.start} x={r.start * step} y={0} width={(r.end - r.start) * step} height={plotH} fill={intensityColor[r.key]} />
+          ))}
+        </G>
+        {selected !== undefined && selected !== null ? (
+          <Line x1={(selected + 0.5) * step} x2={(selected + 0.5) * step} y1={0} y2={plotH} stroke={colors.text} strokeWidth={1} opacity={0.7} />
+        ) : null}
         {hourTicks
           .filter((_, k) => hourTicks.length <= 8 || k % 2 === 0)
           .map((t) => (
-            <SvgText key={t.x} x={t.x} y={height - 4} fill={colors.textFaint} fontSize={10}>
+            <SvgText key={t.x} x={labelX(t.x, width)} y={height - 4} fill={colors.textFaint} fontSize={10} textAnchor="middle">
               {t.label}
             </SvgText>
           ))}

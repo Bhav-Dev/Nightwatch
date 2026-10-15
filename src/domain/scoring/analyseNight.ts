@@ -82,7 +82,7 @@ export function analyseNight(input: NightInput): NightAnalysis {
     maxDb: events.reduce((m, e) => Math.max(m, e.peakDb), 0),
     score,
     label: scoreLabel(score),
-    countsTowardAverages: !(input.partial && timeInBedS < MIN_COUNTED_NIGHT_S),
+    countsTowardAverages: timeInBedS >= MIN_COUNTED_NIGHT_S,
   };
 }
 

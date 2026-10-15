@@ -17,7 +17,8 @@ export const INTERRUPTION_COPY: Record<InterruptCauseCopy, { cause: string; prev
 };
 
 /** "03:12" from the night's start time (epoch s) and an offset into it. */
-export function clockTimeAt(startedAtS: number, offsetS: number): string {
+export function clockTimeAt(startedAtS: number, offsetS: number, opts: { seconds?: boolean } = {}): string {
   const d = new Date((startedAtS + offsetS) * 1000);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return opts.seconds ? `${hm}:${String(d.getSeconds()).padStart(2, '0')}` : hm;
 }

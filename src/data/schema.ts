@@ -222,6 +222,11 @@ const MIGRATIONS: string[] = [
     fetched_at INTEGER NOT NULL
   );
   `,
+  `
+  -- Nights under 3 hours in bed now stay out of averages whether or not they were interrupted
+  -- (short test recordings were counting). Sync ignores this column, so updated_at stays.
+  UPDATE night SET counts_toward_averages = 0 WHERE time_in_bed_s < 10800;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

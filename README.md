@@ -121,7 +121,7 @@ The heuristic (v0) labels nights at Stop. The trained model will plug in through
 - **Experiment confidence** uses a seeded permutation test on the difference in means. With 7 nights a side, a test on medians reads "low confidence" even for a perfectly clean result. The verdict text still reports medians.
 - **"Was this your typical night?"** is asked for each night (dismissable by answering), not only on the first morning, because the aggregation excludes atypical nights.
 - **Events:** bridge gaps of up to 5 s, drop runs under 10 s, then merge events less than 20 s apart.
-- **Partial nights** are left out of averages only when partial and under 3 hours in bed; the aggregation leaves out every partial night.
+- **Short nights:** any night under 3 hours in bed is scored and shown but left out of averages and trends, whether or not it was interrupted (short test recordings were counting). Remedy tests and the community aggregation already skip nights under 3 hours, and the aggregation also leaves out every partial night.
 - **Sync versions:** a night's `updated_at` always increases, even within one second, and sync records the version it sent, so an edit made during a sync is never lost.
 - **Free-text "Other" remedies** are logged as `other:<text>` and sent to the review queue; they are never ranked.
 - **Paid vs free** follows the brief's table: free has 7 nights of history, the first sentence of the summary and the top-level ranking; paid unlocks 30/90-night trends, snapshots, the full summary and watch overlay, tests, people-like-you, profile breakdowns, your result against the crowd, and the report.

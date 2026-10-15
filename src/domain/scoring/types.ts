@@ -49,6 +49,6 @@ export interface NightAnalysis {
   maxDb: number;
   score: number;
   label: ScoreLabel;
-  /** False for partial nights under 3 hours: scored, but kept out of averages and trends. */
+  /** False for nights under 3 hours in bed, interrupted or not: scored, but kept out of averages and trends. */
   countsTowardAverages: boolean;
 }

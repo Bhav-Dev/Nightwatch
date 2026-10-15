@@ -29,6 +29,7 @@ import { getSetting, setSetting } from '../data/settingsRepo';
 import type { CatalogueItem } from '../domain/catalogue';
 import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
+import { clipsForDisplay } from '../domain/clipList';
 import { clockTimeAt, INTERRUPTION_COPY } from '../domain/interruption';
 import { intensityFor, scoreLabel, type Bin } from '../domain/scoring';
 import { morningSummary } from '../domain/summary';
@@ -152,7 +153,7 @@ export function NightView({ nightId }: { nightId?: string }) {
   const { night, bins, clips, samples, log, avg7 } = data;
   const delta = avg7 === null ? null : Math.round(night.score - avg7);
   const editable = logEditable(night.date);
-  const timelineBins = bins.map((b) => ({ index: b.index, snoreS: b.snoreS, intensity: b.snoreS > 0 ? intensityFor(b.maxDb) : null }));
+  const timelineBins = bins.map((b) => ({ index: b.index, snoreS: b.snoreS, levelDb: b.meanDb, intensity: b.snoreS > 0 ? intensityFor(b.maxDb) : null }));
   const binClip = (i: number) => clips.filter((c) => c.peak_s >= i * 300 && c.peak_s < (i + 1) * 300).sort((a, b) => b.peak_db - a.peak_db)[0] ?? null;
   const hasHealth = samples.length > 0;
   const overlayLines = overlay && hasHealth
@@ -298,7 +299,7 @@ export function NightView({ nightId }: { nightId?: string }) {
               {binClip(selectedBin) ? (playingUri ? ' · playing' : '') : ' · no clip here'}
             </Small>
           ) : (
-            <Small style={{ marginTop: space(2) }}>Tap a bar to hear its loudest moment.</Small>
+            <Small style={{ marginTop: space(2) }}>Tap the timeline to hear the loudest moment there.</Small>
           )}
           {hasHealth && !paid ? <Locked label="See oxygen and heart rate on the same timeline" trigger="overlay" /> : null}
         </Card>
@@ -320,13 +321,13 @@ export function NightView({ nightId }: { nightId?: string }) {
       {clips.length > 0 && (
         <Card>
           <H2>Loudest moments</H2>
-          {clips.slice(0, 5).map((c) => (
+          {clipsForDisplay(clips, night.started_at).map(({ clip: c, time }) => (
             <View key={c.id} style={styles.clipRow}>
               <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => toggle(c.path)} style={styles.play}>
                 <Text style={styles.playGlyph}>{playingUri === c.path ? '❚❚' : '▶'}</Text>
               </Pressable>
               <View style={{ flex: 1 }}>
-                <Text style={styles.clipTime}>{clockTimeAt(night.started_at, c.peak_s)}</Text>
+                <Text style={styles.clipTime}>{time}</Text>
                 <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
               </View>
               <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />

@@ -74,8 +74,14 @@ describe('analyseNight', () => {
     expect(night.countsTowardAverages).toBe(false);
   });
 
-  it('a short complete night still counts', () => {
+  it('keeps a short night out of averages even when it was not interrupted', () => {
     const night = analyseNight({ durationS: 2 * 3600, frames: evenNight(2, 0.2, 15) });
+    expect(night.score).toBeGreaterThan(0);
+    expect(night.countsTowardAverages).toBe(false);
+  });
+
+  it('counts a complete night of exactly 3 hours', () => {
+    const night = analyseNight({ durationS: 3 * 3600, frames: evenNight(3, 0.2, 15) });
     expect(night.countsTowardAverages).toBe(true);
   });
 

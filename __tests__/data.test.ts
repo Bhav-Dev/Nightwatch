@@ -40,6 +40,24 @@ describe('schema', () => {
     const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version', []);
     expect(row?.user_version).toBe(SCHEMA_VERSION);
   });
+
+  it('takes short nights saved under the old rule out of averages', async () => {
+    const db = await freshDb();
+    const short = await recordNight(db, 10, { hours: 1 });
+    const full = await recordNight(db, 11);
+    // As the old rule saved it: a complete 1-hour night counted. Step back one version.
+    await db.runAsync('UPDATE night SET counts_toward_averages = 1 WHERE id = ?', [short]);
+    await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION - 1}`);
+    await migrate(db);
+    const rows = await db.getAllAsync<{ id: string; counts_toward_averages: number }>(
+      'SELECT id, counts_toward_averages FROM night ORDER BY started_at',
+      [],
+    );
+    expect(rows).toEqual([
+      { id: short, counts_toward_averages: 0 },
+      { id: full, counts_toward_averages: 1 },
+    ]);
+  });
 });
 
 describe('catalogue store', () => {
