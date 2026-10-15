@@ -29,7 +29,10 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
    - Google OAuth client ids, in a Google Cloud project of Nightwatch's own (calmov's consent screen would show CalMov);
    - a RevenueCat project with the products;
    - Amazon Associates tracking ids.
-3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android. Fix whatever the first Android build turns up: the Kotlin module has never been compiled.
+3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android.
+   - Android: ✅ builds on EAS (15 October 2026, project `@vesuviuss-team/nightwatch`), first installed on a Samsung S24 Ultra. The first build failed on a duplicate Health Connect module; `expo-health-connect` was removed, since `react-native-health-connect` 4.x includes it.
+   - iPhone: not built yet. Needs `eas device:create` and the first `eas build --platform ios` run from your own terminal (Apple login).
+   - The battery test needs a `preview` build (release mode, no dev server); development builds use more power.
 4. 👤 **Phase 0 gate:**
    - an 8-hour screen-off recording under 8% battery on both phones;
    - a phone call during recording should show "Recording stopped at…".
@@ -43,7 +46,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 | Item | Status | Notes |
 | --- | --- | --- |
 | Project on the shared stack | ✅ | Expo SDK 57, React Native, TypeScript, Expo Router |
-| Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). Never run on a phone; the Kotlin is not compiled |
+| Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). The Kotlin compiles (Android development build on EAS); not yet tested overnight on a phone |
 | Interrupted recordings | 🟡 | Clock jumps, silent stretches and app kills become partial nights with a cause. Tested in code, not on a phone |
 | 30-night test dataset | 👤 | Needs volunteers. Tools ready in `tools/` |
 | Catalogue of about 40 entries with articles | ✅ | 42 entries. Articles are short drafts (see Content below) |
