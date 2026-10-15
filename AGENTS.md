@@ -42,7 +42,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## This project
 
-- Product spec: Nightwatch snoring app. See README.md for what is built, the layout, and decisions taken where the spec was ambiguous.
+- Product spec: `docs/project-plan.md` (the plan; mockups in `docs/screens.html`). `docs/status.md` tracks every plan item; update it when work lands. README.md covers what is built, the layout, and decisions taken where the spec was ambiguous.
 - Keep `src/domain/`, `src/data/`, `src/recording/`, `src/sync/`, `src/clips/` (except expoClipFiles) and `shared/` free of React Native imports so they run under plain Jest and in the server's contract test.
 - `shared/` is used by the app and the server; a change to `shared/remedyEffect.ts` must also be made in `server/test/reference_aggregate.py`.
 - The server (`server/`) has its own package, tsconfig and tests: `cd server && npm test && npm run typecheck`. `server/test/appContract.test.ts` runs the app's API client and sync against the real server.

@@ -1,6 +1,6 @@
 # Nightwatch
 
-Record your snoring, see it against your watch's data, and find out which remedies helped people like you. The product brief and development spec live outside the repo; this README covers what is built, how to run it, and the decisions taken where the spec was open.
+Record your snoring, see it against your watch's data, and find out which remedies helped people like you. The product plan and development spec are in [`docs/project-plan.md`](docs/project-plan.md), the screen mockups in [`docs/screens.html`](docs/screens.html) (open in a browser), and progress against every item in the plan in [`docs/status.md`](docs/status.md). This README covers what is built, how to run it, and the decisions taken where the spec was open.
 
 ## Status
 
@@ -18,6 +18,7 @@ Partner mode (Household) is not built: the brief holds it for the first update a
 ## Layout
 
 ```
+docs/                      project plan, screen mockups, status against the plan
 shared/                    code used by both app and server
   api.ts                   the /v1 API contract
   remedyEffect.ts          the remedy-effect algorithm (eligibility, within-person deltas, community figures)

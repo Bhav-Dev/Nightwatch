@@ -1,0 +1,199 @@
+# Nightwatch: where we are
+
+Last updated 15 October 2026. Tracks [project-plan.md](project-plan.md) item by item. Update it as work lands.
+
+| Mark | Meaning |
+| --- | --- |
+| ✅ | Done: built, and checked by automated tests, a typecheck or a real-database run here |
+| 🟡 | Built, but not yet checked where it matters (on a phone, against the real service, or by measurement) |
+| 👤 | Needs you: a decision, an account or key, real people, or an outside reviewer |
+| ⬜ | Not started |
+
+## In one paragraph
+
+Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, trends, Health data, remedy tests, doctor's report, paywall, sign-in, sync, community dashboard), the backend and nightly job, and the labelling tools. About 220 automated tests pass across app and server, and the backend has run end to end on a real Postgres database. **Nothing has run on a phone yet, and nothing is connected to your Supabase project yet.** The next step is connecting Supabase and making a development build, then the Phase 0 device gate.
+
+## Next steps, in order
+
+1. 👤 **Connect Supabase**, following `server/README.md`, "Deploy to Supabase":
+   - run `server/sql/setup.sql`;
+   - `npm run migrate && npm run seed`;
+   - set the `NIGHTWATCH_*` secrets;
+   - deploy `nightwatch-api` and `nightwatch-aggregate`;
+   - add the cron job.
+
+   Check that the two Deno functions start (`supabase functions serve`); they have never run.
+2. 👤 **Accounts and keys** (each part of the app stays switched off until its key is set):
+   - an Expo/EAS account;
+   - a Resend key and sending domain;
+   - an Apple bundle id and Sign in with Apple;
+   - Google OAuth client ids;
+   - a RevenueCat project with the products;
+   - Amazon Associates tracking ids.
+3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android. Fix whatever the first Android build turns up: the Kotlin module has never been compiled.
+4. 👤 **Phase 0 gate:**
+   - an 8-hour screen-off recording under 8% battery on both phones;
+   - a phone call during recording should show "Recording stopped at…".
+5. 👤 **Labelled test set:** record the 30 nights with 5 to 8 volunteers, label them with `tools/`, then train the detection model (Phase 1 gate).
+6. Then the Phase 1 to 3 gates with testers, and Phase 4 (launch).
+
+## Phases and gates
+
+### Phase 0: Foundations
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Project on the shared stack | ✅ | Expo SDK 57, React Native, TypeScript, Expo Router |
+| Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). Never run on a phone; the Kotlin is not compiled |
+| Interrupted recordings | 🟡 | Clock jumps, silent stretches and app kills become partial nights with a cause. Tested in code, not on a phone |
+| 30-night test dataset | 👤 | Needs volunteers. Tools ready in `tools/` |
+| Catalogue of about 40 entries with articles | ✅ | 42 entries. Articles are short drafts (see Content below) |
+| **Gate:** 8-hour screen-off recording under 8% battery, both platforms | 👤 | Needs phones |
+
+Acceptance criteria:
+
+| Criterion | Status | Notes |
+| --- | --- | --- |
+| 8-hour recording on iPhone 11 and a mid-range Android, screen off, DND, under 8%, 96 bins | 🟡 | 96 bins per 8-hour night is tested; the device run is pending |
+| A phone call gives the interrupted state with the right stop time and a partial night | 🟡 | Logic tested; device pending |
+| CI builds both platforms and runs scoring unit tests | ✅ / 👤 | CI runs tests and the JS bundle for both platforms. Signed native builds need EAS credentials |
+| 42-entry catalogue loads from the server and shows as Tonight chips | ✅ / 🟡 | Loading from the server is proven in the contract test; the chips have not been seen on a phone |
+
+### Phase 1: Parity
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Detection | ✅ / ⬜ | The heuristic (v0) is in place, as decided. The model is not trained yet; it plugs in through `OnlineSnoreScorer` |
+| Score, timeline, clips, remedy and factor logging, 7-night history | 🟡 | All built and logic-tested; UI not seen on a phone |
+| Tonight and This Morning screens | 🟡 | Built from the mockups |
+| Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Share gives the audio file only; no card image yet |
+| Onboarding, Settings, export, delete, auto-stop, bedtime reminder | 🟡 | Built |
+| Internal test with 5 snorers for 2 weeks, compared with SnoreLab | 👤 | |
+| **Gate:** 85% event agreement, testers say the morning screen told them something new | 👤 | Needs labelled nights and a trained model |
+
+Acceptance criteria:
+
+| Criterion | Status | Notes |
+| --- | --- | --- |
+| Event agreement of 85% or more and frame F1 of 0.80 or more on held-out nights | ⬜ | The evaluator is built (`tools/eval`); it needs the labelled set and a model |
+| Scoring fixture nights for each band within 1 point; partial night excluded from averages | ✅ | |
+| This Morning renders in under 500 ms with 300 events; clips play within 300 ms | 🟡 | Not measured; needs a device |
+| Ticks persist, pre-fill the next night, and stay editable until noon | ✅ | |
+| Five testers, 10 nights each, four say they learned something | 👤 | |
+
+### Phase 2: Personal insight
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Health import and correlation timeline | 🟡 | Apple Health and Health Connect readers, alignment and nightly summary. Alignment and summary are tested; the readers are untested on a phone |
+| Morning summary | ✅ | Template rules, 20 fixture nights |
+| 14-night experiments | ✅ | Plan, progress and verdict with confidence |
+| Doctor's report PDF | ✅ / 🟡 | Content and compliance header tested; the PDF render on a phone is not checked |
+| Paywall and subscription | 🟡 / 👤 | Built on RevenueCat, with locks throughout. Needs a RevenueCat project and store products |
+| **Gate:** 20 testers, half import Health, a GP or sleep clinician reviews the report wording | 👤 | |
+
+Acceptance criteria:
+
+| Criterion | Status | Notes |
+| --- | --- | --- |
+| Health aligns within 60 s and gives a summary; nights with no Health data show no overlay and no errors | ✅ / 🟡 | Alignment and summary tested; the screen not seen on a phone |
+| Summary follows the template exactly for 20 fixture nights | ✅ | |
+| Experiment gives the right with/without medians, and "not enough nights" below 5 a side | ✅ | |
+| Report PDF has the header, date range, counts, chart and factor table; a clinician has reviewed the wording | ✅ / 👤 | Clinician review outstanding |
+| Trial starts, status mirrors to the server within 5 minutes, features unlock, restore works on a second device | 🟡 | The server's webhook mirror is tested; the store flow is not |
+
+### Phase 3: Community layer
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Accounts and sync | ✅ | Account always required (Apple, Google, email link). Two-phone sync proven in the contract test |
+| Contribution opt-in flow | ✅ / 🟡 | Server tested; screens built |
+| Nightly aggregation job | ✅ | Matches an independent NumPy reference to 0.1 on 500 synthetic contributors |
+| Dashboard screens with sample-size rules, "people like you" | 🟡 | Built; not seen on a phone |
+| Affiliate links on catalogue items | ✅ / 👤 | Amazon only, as decided; needs your Associates tracking ids |
+| Methods page on the site | ✅ / ⬜ | Written (`site/methods.html`); not hosted yet |
+| Backend on Supabase | ✅ / 👤 | Own `nightwatch` schema and role in your shared project; tested on real Postgres. Not deployed; the Deno functions have never run |
+| Closed beta of 100 | 👤 | |
+| **Gate:** 60% opt in, 5 remedies past 30 users, sanity check against the literature | 👤 | The job runs the sanity checks itself; needs beta data |
+
+Acceptance criteria:
+
+| Criterion | Status | Notes |
+| --- | --- | --- |
+| Opt-in creates an unlinked contributor id; opt-out drops rows next run; account deletion removes synced data | ✅ | |
+| Job on 500 seeded contributors matches a reference to 0.1; segments under 10 absent | ✅ | |
+| Dashboard shows early and hidden states; free tier cannot request a profile segment | ✅ / 🟡 | Server enforced and tested; screens built |
+| Affiliate links show the disclosure; ordering matches median_delta | ✅ / 🟡 | Logic done; not seen on a phone |
+| Sanity assertions pass on beta data | 👤 | |
+
+### Phase 4: Launch
+
+| Item | Status |
+| --- | --- |
+| Store listings and screenshots that lead with the dashboard | ⬜ |
+| Site pages for the top snoring and apnoea questions; press note from the first findings | ⬜ |
+| Reviewer demo account seeded with 14 nights | ⬜ |
+| Privacy policy, terms, affiliate disclosure page | ⬜ |
+| App Store privacy labels, Play data-safety form, background-audio justification | ⬜ (the justification text is drafted in the plan) |
+| **Gate:** zero crashes across the device matrix; reviewer demo path works end to end | ⬜ |
+
+### After launch
+
+| Item | Status |
+| --- | --- |
+| Partner mode (Household) | ⬜ Held for the first update, as the plan says; "coming soon" card in Settings |
+| Monthly catalogue review, "what the data says" post, new slices | ⬜ |
+| Localisation and non-UK affiliate programmes | ⬜ (Amazon links already work in 12 marketplaces once tags are set) |
+
+## Open decisions
+
+From the plan:
+
+| Decision | Status |
+| --- | --- |
+| Name (Nightwatch is a placeholder; check store and domain availability) | 👤 |
+| Detection model: fine-tune now, or heuristic first and collect labels | ✅ Decided: heuristic now, train later |
+| Account-free contribution, or account required | ✅ Decided: account always required |
+| Dashboard visible to free users, or paid only | ✅ Built as the plan suggests: top level free, slices paid |
+| Which clinician reviews the report wording, and whether to pay them | 👤 |
+| Partner mode at launch or in the first update | 👤 Built for the first update; confirm |
+| Amazon only, or direct brand programmes too | ✅ Decided: Amazon only for now |
+
+Raised during the build:
+
+| Decision | Status |
+| --- | --- |
+| Backend host | ✅ Decided: your existing Supabase project, in a `nightwatch` schema |
+| Clip format | ✅ Decided: WAV now, Opus later (groundwork in place) |
+| Keeping held-out audio: the spec deletes recordings after labelling but also keeps the held-out set fixed for comparing models | 👤 Either consent covers keeping held-out audio (encrypted, restricted), or each model gets a new held-out set. See `tools/README.md` |
+| Labelling: pauses under 20 s stay inside one snoring region | 👤 Confirm |
+| Shared Supabase project: anyone with dashboard or owner access can read Nightwatch's health summaries | 👤 Accept, or use a separate project |
+
+## Content
+
+| Item | Status |
+| --- | --- |
+| Catalogue articles at 150 to 250 words, with "see a GP if" lines | ⬜ Short drafts exist; need writing and clinician review |
+| Medical-device wording guide (one page) | ⬜ |
+| "What we share" page | ✅ In the app (Settings, Data and sharing) |
+
+## Operational checklist (from the plan)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Environments: local, staging, production | ⬜ | Staging can be a second schema (`nightwatch_staging`) with its own role |
+| CI: lint, unit tests, scoring fixtures, build per platform | ✅ | Plus server tests and the NumPy check |
+| Signed release builds from CI, keystore and certificates backed up | 👤 | EAS credentials |
+| Crash reporting | ⬜ | No Sentry or Crashlytics yet |
+| API error-rate alert, aggregation-job alert | ⬜ | Failures are logged in `nightwatch.aggregate_job_log`; nothing alerts yet |
+| Nightly Postgres backup with a tested restore | 👤 | Supabase backups cover it; check the plan includes point-in-time recovery, and test a restore |
+| Analytics (10 events, no health values) | ✅ / ⬜ | Defined and wired; no vendor connected |
+| Store readiness: privacy labels, data-safety form, demo account | ⬜ | Phase 4 |
+| Legal: privacy policy, terms, affiliate disclosure, methods page | ⬜ / ✅ | Methods page written; the rest are Phase 4 |
+
+## Known gaps in what is built
+
+- **Recording view:** no battery estimate.
+- **Clips:** sharing gives the audio file only; no card image yet.
+- **"Keep full-night audio":** shown but disabled until compressed audio exists.
+- **Free-text "Other" remedies:** shown on Tonight but not in the morning log list.
