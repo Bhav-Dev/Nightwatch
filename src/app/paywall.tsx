@@ -79,7 +79,7 @@ export default function Paywall() {
           ) : (
             <>
               <Small>Subscriptions are not set up in this build.</Small>
-              {__DEV__ ? (
+              {config.internalTools ? (
                 <Button
                   kind="secondary"
                   label="Unlock for development"

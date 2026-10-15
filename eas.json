@@ -12,7 +12,9 @@
       "env": { "EXPO_PUBLIC_SIMULATE_CAPTURE": "1" }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_INTERNAL_BUILD": "1" }
     },
     "production": {
       "autoIncrement": true

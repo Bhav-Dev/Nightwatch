@@ -142,7 +142,7 @@ export default function SettingsScreen() {
           <H2>Subscription</H2>
           <Body muted>{paid ? 'Your paid plan is active.' : 'Free plan: recording, scores, clips, 7 nights of history and the community ranking.'}</Body>
           {!paid ? <Button kind="secondary" label="See the paid plan" onPress={() => router.push({ pathname: '/paywall', params: { trigger: 'settings' } })} style={{ marginTop: space(3) }} /> : null}
-          {__DEV__ ? (
+          {config.internalTools ? (
             <ToggleRow
               label="Development: unlock paid features"
               value={devPaid}

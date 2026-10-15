@@ -15,4 +15,11 @@ export const config = {
   revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
   siteUrl: (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://nightwatch.app').replace(/\/$/, ''),
   supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@nightwatch.app',
+  /**
+   * The development account (when no server is set) and the "unlock paid features" switches.
+   * On in development builds, and in internal test builds whose eas.json profile sets
+   * EXPO_PUBLIC_INTERNAL_BUILD=1 (preview), so overnight tests can run in release mode.
+   * Never set it for production.
+   */
+  internalTools: __DEV__ || process.env.EXPO_PUBLIC_INTERNAL_BUILD === '1',
 };

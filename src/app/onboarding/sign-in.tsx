@@ -109,7 +109,7 @@ export default function SignIn() {
       {!api.configured ? (
         <Card>
           <Small>No server is configured for this build (EXPO_PUBLIC_API_URL).</Small>
-          {__DEV__ ? <Button kind="link" label="Continue with a development account" onPress={devSignIn} /> : null}
+          {config.internalTools ? <Button kind="link" label="Continue with a development account" onPress={devSignIn} /> : null}
         </Card>
       ) : null}
       <Small>By continuing you agree to the terms and privacy policy.</Small>

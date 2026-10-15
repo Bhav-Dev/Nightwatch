@@ -64,7 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshEntitlement = useCallback(async () => {
-    const dev = __DEV__ && (await getSetting(db, 'dev_paid')) === '1';
+    const dev = config.internalTools && (await getSetting(db, 'dev_paid')) === '1';
     const store = await currentEntitlement().catch(() => false);
     const server = getToken() && api.configured ? await api.subscription().then((s) => s.active).catch(() => false) : false;
     setPaid(dev || store || server);
