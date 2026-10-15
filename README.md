@@ -86,7 +86,7 @@ The backend runs on Supabase, inside an existing project used by other apps. Nig
 
 The app's `EXPO_PUBLIC_API_URL` is `https://<ref>.supabase.co/functions/v1/nightwatch-api`. Step-by-step setup is in `server/README.md`, "Deploy to Supabase". The same code still runs on a VPS, and moving is a dump and restore of the `nightwatch` schema.
 
-**The Supabase (Deno) entry points have never been run**, because Deno was not available. The schema, role, migrations, API and nightly job were run against a real Postgres 16 database that already held another app's tables, connecting as `nightwatch_app`.
+**Deployed** to the shared project on 15 October 2026: schema and role, migrations and catalogue, secrets, both functions (deployed with `--use-api`, so no Docker), `pg_cron` and `pg_net`, and the 04:00 UTC job. The API answers `/v1/health`, and the nightly job has run once through the scheduled command.
 
 ## How overnight capture works
 
@@ -129,7 +129,7 @@ The heuristic (v0) labels nights at Stop. The trained model will plug in through
 
 ## Not verified, or still to do
 
-- **Devices:** nothing has run on a phone. Also untested: the Kotlin module (no Android SDK here), the Health and RevenueCat libraries, Sign in with Apple and Google, and the Deno functions.
+- **Devices:** nothing has run on a phone. Also untested: the Kotlin module (no Android SDK here), the Health and RevenueCat libraries, and Sign in with Apple and Google.
 - **Phase gates that need people:** the 8-hour battery test, the labelled test set, 5 then 20 testers, a clinician review of the report wording, and the 100-person beta.
 - **Content:** catalogue articles are short drafts that need the 150 to 250 word versions and clinician review. The privacy policy, terms and affiliate disclosure pages are Phase 4.
 - **Smaller gaps:** the Recording view has no battery estimate. Clip sharing does not yet make a card image. Analytics events are defined and wired but go to no vendor (`setAnalyticsSink`).

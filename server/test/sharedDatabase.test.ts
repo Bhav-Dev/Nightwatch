@@ -74,6 +74,25 @@ describe('shared database', () => {
     await db.exec('RESET ROLE');
   });
 
+  it("setup.sql runs as a non-superuser owner, as Supabase's postgres role is", async () => {
+    const db = await sharedDatabase();
+    await db.exec('CREATE ROLE project_owner LOGIN CREATEROLE; GRANT CREATE ON DATABASE postgres TO project_owner;');
+    await db.exec('SET ROLE project_owner');
+    await db.exec(SETUP.replace('CHANGE_ME', 'test-password'));
+
+    const [schema] = (await db.query<{ owner: string; acl: string }>(
+      `SELECT nspowner::regrole::text AS owner, nspacl::text AS acl FROM pg_namespace WHERE nspname = 'nightwatch'`,
+    )).rows;
+    expect(schema).toEqual({ owner: 'nightwatch_app', acl: '{nightwatch_app=UC/nightwatch_app}' });
+
+    // The owner may switch to the role, but does not inherit its access to the data.
+    await db.exec('SET ROLE nightwatch_app; SET search_path TO nightwatch;');
+    await migrate(pgliteSql(db));
+    await db.exec('SET ROLE project_owner');
+    await expect(db.query('SELECT * FROM nightwatch.app_user')).rejects.toThrow(/permission denied/);
+    await db.exec('RESET ROLE');
+  });
+
   it('refuses to migrate or run on a connection that resolves to another schema', async () => {
     const bare = await createPglite({ schema: null });
     await expect(migrate(bare)).rejects.toBeInstanceOf(WrongSchemaError);

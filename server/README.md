@@ -204,10 +204,12 @@ These steps assume Ubuntu 24.04 with Node 22, Postgres 16 and Caddy.
 
 Nightwatch adds one schema, one role, two functions, a handful of prefixed secrets and one cron job to the project. It does not use `supabase db push`, Supabase Auth, the REST API or storage, so it cannot disturb the other apps' migrations, users or data.
 
-1. **Schema and role (once).** Open the SQL editor, paste `server/sql/setup.sql`, replace `CHANGE_ME` with a long random password (`openssl rand -base64 32`), and run it. It creates schema `nightwatch` and role `nightwatch_app` (owner of the schema, search_path set to it, no access to `public`). Leave `nightwatch` **out** of the project's exposed schemas (Settings → API), so the auto-generated REST API never serves it.
+1. **Schema and role (once).** Open the SQL editor, paste `server/sql/setup.sql`, replace `CHANGE_ME` with a long random password (`openssl rand -hex 32`; base64 characters would need escaping in the connection string), and run it. It creates schema `nightwatch` and role `nightwatch_app` (owner of the schema, search_path set to it, no access to `public`). Leave `nightwatch` **out** of the project's exposed schemas (Settings → API), so the auto-generated REST API never serves it.
 2. **Connection strings.** From the dashboard's Connect dialog, take the pooler connection strings and swap in the role: the user name on Supabase's pooler is `nightwatch_app.<project-ref>`.
-   - Transaction pooler (port 6543), for the functions: `postgres://nightwatch_app.<ref>:<password>@<pooler-host>:6543/postgres`
+   - Transaction pooler (port 6543), for the functions: `postgres://nightwatch_app.<ref>:<password>@<pooler-host>:6543/postgres?sslmode=require`
    - Session pooler (port 5432), for migrations and seeding from a laptop or CI: the same with port 5432.
+
+   Keep `?sslmode=require` on both; without it the driver connects unencrypted.
 3. **Migrations and catalogue,** from `server/` (repeat the migrate step after pulling new migrations):
    ```bash
    export DATABASE_URL='<session pooler URL as nightwatch_app>'
@@ -228,12 +230,17 @@ Nightwatch adds one schema, one role, two functions, a handful of prefixed secre
    Keep a copy of the aggregate secret for step 6.
 5. **Functions,** from the repo root (`supabase/config.toml` turns off Supabase JWT checks for both, because the app sends our own session token; no `supabase link` is needed):
    ```bash
-   npx supabase@latest functions deploy nightwatch-api --project-ref <ref>
-   npx supabase@latest functions deploy nightwatch-aggregate --project-ref <ref>
+   npx supabase@latest functions deploy nightwatch-api --project-ref <ref> --use-api
+   npx supabase@latest functions deploy nightwatch-aggregate --project-ref <ref> --use-api
    ```
-   The names are prefixed so they cannot collide with the other apps' functions. The app's API base URL (`EXPO_PUBLIC_API_URL`) is `https://<ref>.supabase.co/functions/v1/nightwatch-api`, and the RevenueCat webhook URL is `https://<ref>.supabase.co/functions/v1/nightwatch-api/v1/subscription/webhook`.
-6. **Schedule.** Enable the `pg_cron` and `pg_net` extensions if the project doesn't have them yet (they are project-wide and other apps may already use them; Nightwatch's schema does not depend on them). Then, in the SQL editor:
+   `--use-api` bundles on Supabase's side, so Docker is not needed. Always name the functions, and never pass `--prune`: in a shared project it deletes the other apps' functions. The CLI needs a personal access token (`npx supabase@latest login`, or `SUPABASE_ACCESS_TOKEN`); a project-scoped token with Edge Functions and Edge Function Secrets set to read-write is enough. The names are prefixed so they cannot collide with the other apps' functions. The app's API base URL (`EXPO_PUBLIC_API_URL`) is `https://<ref>.supabase.co/functions/v1/nightwatch-api`, and the RevenueCat webhook URL is `https://<ref>.supabase.co/functions/v1/nightwatch-api/v1/subscription/webhook`.
+6. **Schedule.** In the SQL editor, enable the `pg_cron` and `pg_net` extensions if the project doesn't have them yet (they are project-wide and other apps may already use them; Nightwatch's schema does not depend on them), then store the secret and add the job:
    ```sql
+   create extension if not exists pg_cron with schema pg_catalog;
+   grant usage on schema cron to postgres;
+   grant all privileges on all tables in schema cron to postgres;
+   create extension if not exists pg_net with schema extensions;
+
    select vault.create_secret('<NIGHTWATCH_AGGREGATE_SECRET>', 'nightwatch_aggregate_secret');
    select cron.schedule('nightwatch-aggregate', '0 4 * * *', $$
      select net.http_post(
@@ -251,12 +258,7 @@ Nightwatch adds one schema, one role, two functions, a handful of prefixed secre
 
 **Who can see the data.** The `nightwatch_app` role cannot read other apps' tables, and the REST API cannot read Nightwatch's. But anyone who can sign in to the dashboard, or any backend that connects as the project owner (`postgres`), can read the `nightwatch` schema. Nightwatch stores special-category health data (nightly summaries); if other people work on the shared project, decide whether that access is acceptable, or keep Nightwatch in its own project. Moving later is a schema dump and restore (below).
 
-**Not verified here.** The Deno entry points (`supabase/functions/*/index.ts`) were type-checked under Node but never run, because Deno was not available where this was written. Two things to confirm on the first deploy:
-
-- The shared modules use extensionless relative imports (`./stats`), which Deno does not resolve by itself. Each function's `deno.json` import map maps them to the `.ts` files.
-- The functions import `../../../server/src`, which is outside `supabase/functions`. The Supabase CLI bundles imports from anywhere in the project, but check that `supabase functions serve` picks them up locally.
-
-If either fails, bundle `server/src` with esbuild into the function folder as a fallback.
+**Deno.** The entry points (`supabase/functions/*/index.ts`) are type-checked under Node only, since CI has no Deno. Both were first deployed on 15 October 2026 and start: the CLI uploads the `server/src` and `shared/` files they import from outside `supabase/functions`, and each function's `deno.json` import map resolves the shared modules' extensionless imports (`./stats`). If a later change breaks that, bundle `server/src` with esbuild into the function folder as a fallback. `supabase functions serve` (local) has not been tried; it needs Docker.
 
 Edge functions have a wall-clock limit (about 150 s on the free plan, 400 s on paid plans). The job took under a second for 500 synthetic contributors on Postgres 16. Watch `aggregate_job_log` timings as the community grows. Past a few tens of thousands of contributors, run the CLI from a small VM or a GitHub Actions schedule against the same database instead.
 
