@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { NightSummary } from '../../shared/remedyEffect';
 import { track } from '../analytics';
@@ -40,6 +40,7 @@ import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
 import { colors, intensityColor, radius, space } from '../ui/theme';
+import { LogPicker } from './LogPicker';
 import { useClipPlayer } from './useClipPlayer';
 
 interface Loaded {
@@ -57,6 +58,7 @@ interface Loaded {
 }
 
 const hm = (s: number) => `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** This Morning for the latest night, or any past night by id. */
 export function NightView({ nightId }: { nightId?: string }) {
@@ -68,7 +70,7 @@ export function NightView({ nightId }: { nightId?: string }) {
   const [overlay, setOverlay] = useState(false);
   const [showPrevent, setShowPrevent] = useState(false);
   const [editing, setEditing] = useState(false);
-  const { toggle, playingUri } = useClipPlayer();
+  const { toggle, stop, playingUri, positionS, durationS } = useClipPlayer();
 
   const load = useCallback(async () => {
     const night = nightId ? await getNight(db, nightId) : await latestNight(db);
@@ -166,8 +168,11 @@ export function NightView({ nightId }: { nightId?: string }) {
   const onSelectBin = (i: number) => {
     setSelectedBin(i);
     const c = binClip(i);
+    // Tapping a stretch with no clip stops whatever is playing.
     if (c) toggle(c.path);
+    else stop();
   };
+  const playingClip = playingUri ? (clips.find((c) => c.path === playingUri) ?? null) : null;
 
   const share = async (c: ClipRow) => {
     if (!(await Sharing.isAvailableAsync())) return Alert.alert('Sharing is not available on this device');
@@ -179,17 +184,8 @@ export function NightView({ nightId }: { nightId?: string }) {
     await load();
   };
 
-  const tick = async (item: CatalogueItem) => {
-    const on = item.type === 'remedy' ? log.remedies.includes(item.id) : log.factors.some((f) => f.id === item.id);
-    let value: string | null = null;
-    let next = !on;
-    if (item.value_options) {
-      const cur = log.factors.find((f) => f.id === item.id)?.value ?? '';
-      const nextValue = item.value_options[item.value_options.indexOf(cur) + 1];
-      next = nextValue !== undefined;
-      value = nextValue ?? null;
-    }
-    await setNightTick(db, night.id, { itemId: item.id, type: item.type, value }, next);
+  const setLogTick = async (item: CatalogueItem, value: string | null, on: boolean) => {
+    await setNightTick(db, night.id, { itemId: item.id, type: item.type, value }, on);
     await load();
     void sync();
   };
@@ -212,18 +208,48 @@ export function NightView({ nightId }: { nightId?: string }) {
     await load();
   };
 
+  // Free-text remedies are stored as "other:<text>" and are not in the catalogue.
   const loggedItems = [
-    ...log.remedies.map((id) => catalogue.get(id)).filter((c): c is CatalogueItem => !!c),
+    ...log.remedies
+      .map((id): CatalogueItem | undefined =>
+        id.startsWith('other:')
+          ? { id, type: 'remedy', kind: 'habit', category: 'Other', name: id.slice('other:'.length), article_md: '', link_url: null, shop: false, amazon: null, active: true, version: 0 }
+          : catalogue.get(id),
+      )
+      .filter((c): c is CatalogueItem => !!c),
     ...log.factors.map((f) => catalogue.get(f.id)).filter((c): c is CatalogueItem => !!c),
   ];
-  const editItems = editing ? [...catalogue.values()] : loggedItems;
   const factorValue = (id: string) => log.factors.find((f) => f.id === id)?.value;
+  const logSelection = new Map<string, string | null>([
+    ...log.remedies.map((id): [string, string | null] => [id, null]),
+    ...log.factors.map((f): [string, string | null] => [f.id, f.value ?? null]),
+  ]);
 
   return (
     <Screen
       eyebrow={nightId ? 'Night' : 'This morning'}
       title={new Date(night.started_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       right={nightId ? undefined : <GearLink />}
+      footer={
+        playingClip ? (
+          <View style={styles.nowPlaying} accessibilityLiveRegion="polite">
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nowPlayingTitle}>
+                Playing {clockTimeAt(night.started_at, playingClip.peak_s)} · {intensityFor(Math.max(0, playingClip.peak_db - night.floor_db))}
+              </Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${Math.min(100, (positionS / Math.max(1, durationS || playingClip.end_s - playingClip.start_s)) * 100)}%` }]} />
+              </View>
+              <Small>
+                {mmss(positionS)} / {mmss(durationS || playingClip.end_s - playingClip.start_s)}
+              </Small>
+            </View>
+            <Pressable onPress={stop} accessibilityRole="button" accessibilityLabel="Stop playing" style={styles.stopButton}>
+              <Text style={styles.stopLabel}>Stop</Text>
+            </Pressable>
+          </View>
+        ) : undefined
+      }
     >
       {night.partial === 1 && (
         <Pressable style={styles.banner} onPress={() => setShowPrevent((v) => !v)} accessibilityRole="button">
@@ -338,19 +364,25 @@ export function NightView({ nightId }: { nightId?: string }) {
       )}
 
       <Card>
-        <H2 right={editable ? <Button kind="link" label={editing ? 'Done' : 'Edit'} onPress={() => setEditing((e) => !e)} /> : undefined}>Last night’s log</H2>
-        {editItems.length === 0 ? <Small>Nothing logged, so this night counts as a “nothing tried” baseline.</Small> : null}
-        <ScrollView horizontal={!editing} showsHorizontalScrollIndicator={false}>
-          <View style={editing ? styles.wrap : styles.rowChips}>
-            {editItems.map((item) => {
-              const v = factorValue(item.id);
-              const on = item.type === 'remedy' ? log.remedies.includes(item.id) : log.factors.some((f) => f.id === item.id);
-              return <Chip key={item.id} label={v ? `${item.name} · ${v}` : item.name} selected={on} onPress={() => (editing ? tick(item) : undefined)} />;
-            })}
-          </View>
-        </ScrollView>
+        <H2 right={editable ? <Button kind="link" label="Edit" onPress={() => setEditing(true)} /> : undefined}>Last night’s log</H2>
+        {loggedItems.length === 0 ? <Small>Nothing logged, so this night counts as a “nothing tried” baseline.</Small> : null}
+        <View style={styles.wrap}>
+          {loggedItems.map((item) => {
+            const v = factorValue(item.id);
+            return <Chip key={item.id} label={v ? `${item.name} · ${v} units` : item.name} selected onPress={() => (editable ? setEditing(true) : undefined)} />;
+          })}
+        </View>
         {!editable ? <Small style={{ marginTop: space(2) }}>The log can be edited until noon the next day.</Small> : null}
       </Card>
+      <LogPicker
+        visible={editing}
+        title="Last night’s log"
+        types={['remedy', 'factor']}
+        items={[...catalogue.values()]}
+        selected={logSelection}
+        onSet={setLogTick}
+        onClose={() => setEditing(false)}
+      />
       {nightId ? null : (
         <Button kind="link" label="Past nights" onPress={() => router.push('/trends')} />
       )}
@@ -384,8 +416,21 @@ const styles = StyleSheet.create({
   play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
   playGlyph: { color: colors.text, fontSize: 14 },
   clipTime: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  rowChips: { flexDirection: 'row' },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
+  nowPlaying: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(4),
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.card,
+    paddingHorizontal: space(4),
+    paddingVertical: space(3),
+  },
+  nowPlayingTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  progressTrack: { height: 3, borderRadius: 2, backgroundColor: colors.border, marginVertical: space(2), overflow: 'hidden' },
+  progressFill: { height: 3, backgroundColor: colors.accent },
+  stopButton: { backgroundColor: colors.accent, borderRadius: radius.button, paddingHorizontal: space(5), paddingVertical: space(3) },
+  stopLabel: { color: colors.accentText, fontSize: 16, fontWeight: '800' },
 });
 
 // Clip files are plain files; expose a helper for Settings to remove them all.
