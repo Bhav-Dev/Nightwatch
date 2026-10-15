@@ -41,7 +41,9 @@ function reference(people: SyntheticContributor[], remedies: string[]): { rows: 
     }),
   );
   const script = fileURLToPath(new URL('./reference_aggregate.py', import.meta.url));
-  const out = execFileSync(process.env.PYTHON ?? 'python3', [script, input], { maxBuffer: 64 * 1024 * 1024 });
+  // On Windows, python3 is usually the Microsoft Store stub; the real interpreter is python.
+  const python = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+  const out = execFileSync(python, [script, input], { maxBuffer: 64 * 1024 * 1024 });
   return JSON.parse(out.toString());
 }
 

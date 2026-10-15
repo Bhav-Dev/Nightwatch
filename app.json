@@ -10,11 +10,11 @@
     "backgroundColor": "#0F1629",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.nightwatch",
+      "bundleIdentifier": "com.threeft2.nightwatch",
       "usesAppleSignIn": true
     },
     "android": {
-      "package": "app.nightwatch",
+      "package": "com.threeft2.nightwatch",
       "adaptiveIcon": {
         "backgroundColor": "#0F1629",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -73,6 +73,11 @@
     "experiments": {
       "typedRoutes": false
     },
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "564577d1-dadc-4c2b-8ee4-a21646fef1ed"
+      }
+    },
+    "owner": "vesuviuss-team"
   }
 }
