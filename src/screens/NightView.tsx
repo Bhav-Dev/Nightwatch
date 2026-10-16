@@ -156,8 +156,9 @@ export function NightView({ nightId }: { nightId?: string }) {
     // This morning, once: a fresher look at the weather than the bedtime forecast, if it is old or missing.
     const nowS = Date.now() / 1000;
     if (!nightId && !weatherRefreshed.current && nowS - night.ended_at < 12 * 3600 && (!weather || nowS - weather.fetched_at > 3 * 3600)) {
-      weatherRefreshed.current = true;
+      // Only count it as tried once weather is on, so turning weather on later still fills this morning in.
       if ((await getSetting(db, 'weather')) !== 'on') return;
+      weatherRefreshed.current = true;
       const forecast = await fetchWeatherHere();
       const hour = forecast?.hours.find((h) => {
         const t = Date.parse(h.time) / 1000;
