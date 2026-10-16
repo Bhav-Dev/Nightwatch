@@ -34,7 +34,7 @@ export const DATA_NOTE = 'Self-reported results from app users, not medical evid
 export default function Remedies() {
   const [tab, setTab] = useState<Tab>('mine');
   return (
-    <Screen eyebrow="Remedies" title={tab === 'mine' ? 'What you’ve tried' : 'What works for others'} right={<GearLink />}>
+    <Screen sky="plain" eyebrow="Remedies" title={tab === 'mine' ? 'What you’ve tried' : 'What works for others'} right={<GearLink />}>
       <Segmented<Tab> value={tab} onChange={setTab} options={[{ value: 'mine', label: 'Mine' }, { value: 'everyone', label: 'Everyone' }]} />
       {tab === 'mine' ? <Mine /> : <Everyone />}
     </Screen>

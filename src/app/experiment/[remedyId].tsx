@@ -36,7 +36,7 @@ export default function StartExperiment() {
   };
 
   return (
-    <Screen footer={<Button label="Start tonight" onPress={start} disabled={!chosen} />}>
+    <Screen sky="plain" footer={<Button label="Start tonight" onPress={start} disabled={!chosen} />}>
       {remedyId === 'new' ? (
         <Card>
           <H2>Which remedy?</H2>

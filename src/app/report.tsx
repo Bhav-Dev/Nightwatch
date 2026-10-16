@@ -37,7 +37,7 @@ export default function Report() {
   };
 
   return (
-    <Screen footer={<Button label="Create PDF" onPress={generate} busy={busy} />}>
+    <Screen sky="plain" footer={<Button label="Create PDF" onPress={generate} busy={busy} />}>
       <Card>
         <H2>What it includes</H2>
         <Body muted>Nights recorded, your score over time, snoring episodes by loudness, oxygen dips from your watch if connected, and how the factors and remedies you logged compare.</Body>

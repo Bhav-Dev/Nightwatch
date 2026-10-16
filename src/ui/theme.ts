@@ -30,6 +30,8 @@ export const sky = {
   night: ['#1E2459', '#111639', '#090C1F'],
   /** While recording: nearly black, so the screen does not light the room. */
   deep: ['#07080F', '#030409'],
+  /** Remedies, Trends and the screens opened from them: the same indigo, without the night sky. */
+  plain: ['#121838', '#0B1026'],
   /** This morning: a sunrise, warm apricot at the top through coral and rose to a dusky blue. */
   dawn: ['#F9C59A', '#EE9A8F', '#B07597', '#4B4A88', '#1F2558'],
   // This morning, following the weather (sun and clouds, rain, snow and fog are drawn on top).
@@ -74,6 +76,7 @@ const COOL_MORNING_TONES = { ...MORNING_TONES, eyebrow: '#3E4C78' };
 export const onSky: Record<SkyVariant, { title: string; eyebrow: string; icon: string; card: string; statusBar: 'light' | 'dark' }> = {
   night: NIGHT_TONES,
   deep: NIGHT_TONES,
+  plain: NIGHT_TONES,
   dawn: MORNING_TONES,
   dawnPartly: MORNING_TONES,
   dawnCloudy: MORNING_TONES,

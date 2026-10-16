@@ -55,7 +55,7 @@ export default function RemedyDetail() {
   const article = detail?.article_md || item?.article_md || '';
 
   return (
-    <Screen title={item?.name ?? ''} eyebrow={item?.category}>
+    <Screen sky="plain" title={item?.name ?? ''} eyebrow={item?.category}>
       <Stack.Screen options={{ title: '' }} />
       {detail === undefined ? <Loading /> : null}
       {all && all.status !== 'hidden' ? (

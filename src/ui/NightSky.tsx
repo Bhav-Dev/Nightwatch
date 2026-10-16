@@ -30,8 +30,8 @@ export function NightSky({ variant = 'night' }: { variant?: SkyVariant }) {
   const id = `sky${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const stops = sky[variant];
   const morning = isMorningSky(variant);
-  // No stars in the morning; fewer and dimmer while recording.
-  const stars = useMemo(() => (morning ? [] : starField(variant === 'deep' ? 28 : 70, 11)), [variant, morning]);
+  // No stars in the morning or on plain screens; fewer and dimmer while recording.
+  const stars = useMemo(() => (morning || variant === 'plain' ? [] : starField(variant === 'deep' ? 28 : 70, 11)), [variant, morning]);
   const dim = variant === 'deep' ? 0.35 : 1;
   const reach = 0.8;
   // How much of the sun shows through the weather.

@@ -58,7 +58,7 @@ export default function Trends() {
   const latestAvg = mean;
 
   return (
-    <Screen eyebrow="Trends" title="Your nights" right={<GearLink />}>
+    <Screen sky="plain" eyebrow="Trends" title="Your nights" right={<GearLink />}>
       <Segmented<Range>
         value={effectiveRange}
         onChange={(r) => (paid || r === '7' ? setRange(r) : router.push({ pathname: '/paywall', params: { trigger: 'history' } }))}

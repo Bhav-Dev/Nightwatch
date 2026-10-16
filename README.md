@@ -125,7 +125,7 @@ This Morning follows the weather: a sunrise when it is clear, then partly cloudy
 
 ## Look
 
-A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`): an indigo gradient with a fixed, faint star field (a few stars twinkle unless the system asks for reduced motion), frosted see-through cards, and moonlight gold for the one thing to tap. Tonight has a crescent moon and a greeting; Recording is nearly black with a slowly breathing moon so the screen does not light the room; This Morning has a dawn glow. Headings use Nunito (`@expo-google-fonts/nunito`, loaded in the root layout); icons are Ionicons.
+A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`): an indigo gradient with a fixed, faint star field (a few stars twinkle unless the system asks for reduced motion), frosted see-through cards, and moonlight gold for the one thing to tap. Tonight has a crescent moon and a greeting; Recording is nearly black with a slowly breathing moon so the screen does not light the room; This Morning has a sunrise that follows the weather. Remedies, Trends and the screens opened from them (remedy detail, remedy test, doctor's report) use the same indigo without the night sky (`sky="plain"`). Headings use Nunito (`@expo-google-fonts/nunito`, loaded in the root layout); icons are Ionicons.
 
 ## Detection
 
