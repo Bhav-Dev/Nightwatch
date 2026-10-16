@@ -11,6 +11,13 @@ export interface SessionRow {
   updated_at: number;
   /** Id of the online model scoring this session, if any. */
   detector: string | null;
+  /** Sleep sounds played during the session ('white' | 'pink' | 'brown'), and until which second. */
+  sleep_sound: string | null;
+  sleep_sound_until_s: number | null;
+}
+
+export async function setSessionSleepSound(db: Db, id: string, kind: string | null, untilS: number | null): Promise<void> {
+  await db.runAsync('UPDATE recording_session SET sleep_sound = ?, sleep_sound_until_s = ? WHERE id = ?', [kind, untilS, id]);
 }
 
 export interface SessionGap {

@@ -1,3 +1,4 @@
+import { Nunito_700Bold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import { randomUUID } from 'expo-crypto';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
@@ -27,6 +28,9 @@ const header = {
 } as const;
 
 export default function RootLayout() {
+  // Headings use Nunito; wait for it (a moment on first launch) so text never jumps.
+  const [fontsLoaded, fontError] = useFonts({ Nunito_700Bold, Nunito_800ExtraBold });
+  if (!fontsLoaded && !fontError) return null;
   return (
     <SQLiteProvider databaseName="nightwatch.db" onInit={onInit}>
       <AppProvider>

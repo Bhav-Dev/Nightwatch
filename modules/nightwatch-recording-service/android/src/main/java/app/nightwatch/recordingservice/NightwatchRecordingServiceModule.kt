@@ -20,6 +20,8 @@ class NightwatchRecordingServiceModule : Module() {
   /** The sound segment being written; only touched on encoderThread. */
   private var segment: AacSegmentWriter? = null
 
+  private val noise = NoisePlayer()
+
   override fun definition() = ModuleDefinition {
     Name("NightwatchRecordingService")
 
@@ -84,7 +86,21 @@ class NightwatchRecordingServiceModule : Module() {
       ).get()
     }
 
+    /** Sleep sounds: plays generated noise ("white", "pink", "brown") for durationS, fading out over the last fadeOutS. */
+    Function("startNoise") { color: String, gain: Double, durationS: Double, fadeOutS: Double ->
+      noise.start(color, gain.toFloat(), (durationS * 1000).toLong(), (fadeOutS * 1000).toLong())
+    }
+
+    AsyncFunction("stopNoise") {
+      noise.stop()
+    }
+
+    Function("isNoisePlaying") {
+      noise.isPlaying
+    }
+
     OnDestroy {
+      noise.stop()
       encoderThread.execute {
         segment?.abort()
         segment = null

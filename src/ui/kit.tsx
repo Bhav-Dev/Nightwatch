@@ -1,9 +1,11 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, radius, space } from './theme';
+import { NightSky } from './NightSky';
+import { colors, fonts, radius, space, type SkyVariant } from './theme';
 
 export function Screen({
   title,
@@ -12,6 +14,7 @@ export function Screen({
   children,
   scroll = true,
   footer,
+  sky = 'night',
 }: {
   title?: string;
   eyebrow?: string;
@@ -19,6 +22,8 @@ export function Screen({
   children: ReactNode;
   scroll?: boolean;
   footer?: ReactNode;
+  /** The sky behind the screen: night (default), deep (recording) or dawn (this morning). */
+  sky?: SkyVariant;
 }) {
   const header =
     title || eyebrow || right ? (
@@ -31,27 +36,30 @@ export function Screen({
       </View>
     ) : null;
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      {scroll ? (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {header}
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[styles.content, { flex: 1 }]}>
-          {header}
-          {children}
-        </View>
-      )}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
-    </SafeAreaView>
+    <View style={styles.screen}>
+      <NightSky variant={sky} />
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {scroll ? (
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            {header}
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[styles.content, { flex: 1 }]}>
+            {header}
+            {children}
+          </View>
+        )}
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </SafeAreaView>
+    </View>
   );
 }
 
 export function GearLink() {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} hitSlop={12}>
-      <Text style={{ color: colors.textMuted, fontSize: 24 }}>⚙︎</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} hitSlop={12} style={styles.iconButton}>
+      <Ionicons name="settings-outline" size={22} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -142,7 +150,7 @@ export function Row({ label, value, onPress, right }: { label: string; value?: s
       <Text style={styles.rowLabel}>{label}</Text>
       {value ? <Text style={styles.rowValue}>{value}</Text> : null}
       {right}
-      {onPress && !right ? <Text style={styles.chevron}>›</Text> : null}
+      {onPress && !right ? <Ionicons name="chevron-forward" size={18} color={colors.textFaint} /> : null}
     </Pressable>
   );
 }
@@ -175,7 +183,7 @@ export function Locked({ label, trigger }: { label: string; trigger: string }) {
       onPress={() => router.push({ pathname: '/paywall', params: { trigger } })}
       style={styles.locked}
     >
-      <Text style={styles.lockGlyph}>🔒</Text>
+      <Ionicons name="lock-closed-outline" size={16} color={colors.accent} />
       <Text style={styles.lockedLabel}>{label}</Text>
     </Pressable>
   );
@@ -200,11 +208,13 @@ export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () 
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1 },
   content: { padding: space(5), paddingBottom: space(10) },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: space(5) },
-  eyebrow: { color: colors.accent, fontSize: 14, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { color: colors.text, fontSize: 26, fontWeight: '700', marginTop: space(1) },
+  eyebrow: { color: colors.accent, fontSize: 13, fontFamily: fonts.headingSemi, letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { color: colors.text, fontSize: 28, fontFamily: fonts.heading, marginTop: space(1) },
   footer: { padding: space(5), paddingTop: space(2) },
+  iconButton: { padding: space(1) },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,
@@ -214,11 +224,18 @@ export const styles = StyleSheet.create({
     marginBottom: space(4),
   },
   h2Row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space(3) },
-  h2: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  h2: { color: colors.text, fontSize: 18, fontFamily: fonts.headingSemi },
   body: { color: colors.text, fontSize: 15, lineHeight: 22 },
   small: { color: colors.textFaint, fontSize: 13, lineHeight: 18 },
-  primary: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: space(4), alignItems: 'center', paddingHorizontal: space(6) },
-  primaryLabel: { color: colors.accentText, fontSize: 17, fontWeight: '800' },
+  primary: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.button,
+    paddingVertical: space(4),
+    alignItems: 'center',
+    paddingHorizontal: space(6),
+    boxShadow: '0px 6px 24px rgba(246, 215, 142, 0.28)',
+  },
+  primaryLabel: { color: colors.accentText, fontSize: 17, fontFamily: fonts.heading },
   secondary: {
     borderRadius: radius.button,
     paddingVertical: space(3.5),
@@ -227,8 +244,8 @@ export const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     paddingHorizontal: space(5),
   },
-  secondaryLabel: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  dangerLabel: { color: colors.danger, fontSize: 16, fontWeight: '700' },
+  secondaryLabel: { color: colors.text, fontSize: 16, fontFamily: fonts.headingSemi },
+  dangerLabel: { color: colors.danger, fontSize: 16, fontFamily: fonts.headingSemi },
   link: { paddingVertical: space(2) },
   linkLabel: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   segmented: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.chip, padding: 3, marginBottom: space(4) },
@@ -246,7 +263,6 @@ export const styles = StyleSheet.create({
   },
   rowLabel: { color: colors.text, fontSize: 16, flex: 1 },
   rowValue: { color: colors.textMuted, fontSize: 15 },
-  chevron: { color: colors.textFaint, fontSize: 22 },
   locked: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -258,6 +274,5 @@ export const styles = StyleSheet.create({
     padding: space(4),
     marginVertical: space(2),
   },
-  lockGlyph: { fontSize: 16 },
   lockedLabel: { color: colors.textMuted, fontSize: 15, flex: 1 },
 });

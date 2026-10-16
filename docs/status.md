@@ -69,6 +69,8 @@ Acceptance criteria:
 | Score, timeline, clips, remedy and factor logging, 7-night history | 🟡 | All built and logic-tested; UI not seen on a phone |
 | Tonight and This Morning screens | 🟡 | Built from the mockups |
 | Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Up to 5 snoring clips plus the 3 loudest "other sounds" a night. Share gives the audio file only; no card image yet |
+| Sleep sounds (white, pink, brown noise with a fade-out timer) | 🟡 | Beyond the plan, decided 16 October 2026. Generated natively, steady sounds only; snoring under them is measured against the sound. Tested in code; not yet heard on a phone. Android only |
+| Night-sky look (theme, moon, dawn morning, Nunito, icons) | 🟡 | 16 October 2026; not yet seen on a phone |
 | Sound recording (listen back from the timeline) | 🟡 | Beyond the plan, decided 16 October 2026: the parts of the night with sound, AAC 24 kbps, kept 30 nights, on by default. Built and tested in code (Android native encoder, segments, retention, playback); not yet run on a phone. iOS ⬜ (needs the encoder in Swift) |
 | Onboarding, Settings, export, delete, auto-stop, bedtime reminder | 🟡 | Built |
 | Internal test with 5 snorers for 2 weeks, compared with SnoreLab | 👤 | |
@@ -199,6 +201,7 @@ Raised during the build:
 
 - **Recording view:** no battery estimate.
 - **Clips:** sharing gives the audio file only; no card image yet.
+- **Sleep sounds:** Android only (iOS needs the noise player in Swift). Playing them all night is not offered; an echo-cancellation test (pink noise and a snoring video, with and without the platform canceller) would show whether that could work.
 - **Sound recording:** Android only; iOS needs the same AAC encoder in Swift. Battery has to be measured again with it on (the 8% gate). Clips are still WAV, though they could now use the AAC encoder.
 - **Google sign-in** uses `expo-auth-session`'s Google helper, deprecated in SDK 57; Expo now points to a native Google sign-in library. Its Android flow relies on a custom-scheme redirect that Google turns off by default for new Android clients. Switch before testing Google on a phone.
 - **Email sign-in links** open `nightwatch://auth?token=…`, which many email apps (Gmail included) will not open. Route them through an https page that opens the app (`NIGHTWATCH_APP_LINK_BASE`) before relying on email sign-in.

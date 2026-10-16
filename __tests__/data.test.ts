@@ -42,13 +42,12 @@ describe('schema', () => {
   });
 
   it('takes short nights saved under the old rule out of averages', async () => {
-    // The schema as it was before the short-night rule, with a 1-hour night counted as it was then.
-    const db = openTestDb();
-    await migrate(db, MIGRATION_SQL.findIndex((sql) => sql.includes('counts_toward_averages = 0')));
+    const db = await freshDb();
     const short = await recordNight(db, 10, { hours: 1 });
     const full = await recordNight(db, 11);
+    // As the old rule saved it: a complete 1-hour night counted. Then the migration that fixes it.
     await db.runAsync('UPDATE night SET counts_toward_averages = 1 WHERE id = ?', [short]);
-    await migrate(db);
+    await db.execAsync(MIGRATION_SQL.find((sql) => sql.includes('counts_toward_averages = 0'))!);
     const rows = await db.getAllAsync<{ id: string; counts_toward_averages: number }>(
       'SELECT id, counts_toward_averages FROM night ORDER BY started_at',
       [],

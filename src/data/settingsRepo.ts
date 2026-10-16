@@ -4,6 +4,9 @@ export type SettingKey =
   | 'sensitivity'
   /** '0' turns off keeping the night's sound; unset or '1' means on. */
   | 'sound_recording'
+  /** Sleep sounds to play while falling asleep: 'white' | 'pink' | 'brown'; unset means off. */
+  | 'sleep_sound'
+  | 'sleep_sound_minutes'
   | 'landing_tab'
   | 'contribution'
   | 'pending_prefilled_for'

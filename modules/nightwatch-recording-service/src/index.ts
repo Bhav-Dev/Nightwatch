@@ -8,6 +8,10 @@ interface NightwatchRecordingServiceModule {
   beginSegment?(path: string, sampleRate: number, bitrate: number): void;
   appendPcm?(pcm: Uint8Array): void;
   endSegment?(): Promise<number>;
+  // Sleep sounds. Missing on builds made before they existed.
+  startNoise?(color: string, gain: number, durationS: number, fadeOutS: number): void;
+  stopNoise?(): Promise<void>;
+  isNoisePlaying?(): boolean;
 }
 
 // Android only. On iOS (and in Expo Go) this is null and the calls below are no-ops.
@@ -40,5 +44,21 @@ export const SoundEncoder = {
   },
   async end(): Promise<number> {
     return (await native?.endSegment?.()) ?? 0;
+  },
+};
+
+export type NoiseColor = 'white' | 'pink' | 'brown';
+
+/** Generated noise for falling asleep, with a timer that fades it out. */
+export const NoisePlayer = {
+  available: typeof native?.startNoise === 'function',
+  start(color: NoiseColor, gain: number, durationS: number, fadeOutS: number): void {
+    native?.startNoise?.(color, gain, durationS, fadeOutS);
+  },
+  async stop(): Promise<void> {
+    await native?.stopNoise?.();
+  },
+  isPlaying(): boolean {
+    return native?.isNoisePlaying?.() ?? false;
   },
 };

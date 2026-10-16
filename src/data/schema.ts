@@ -250,19 +250,27 @@ const MIGRATIONS: string[] = [
   CREATE INDEX sound_segment_night ON sound_segment(night_id);
   CREATE INDEX sound_segment_session ON sound_segment(session_id);
   `,
+  `
+  -- Sleep sounds played from the phone (generated white, pink or brown noise) and the second,
+  -- from the start of the recording, they stopped at. Snoring under them is measured against
+  -- the sound rather than the quiet room.
+  ALTER TABLE recording_session ADD COLUMN sleep_sound TEXT;
+  ALTER TABLE recording_session ADD COLUMN sleep_sound_until_s INTEGER;
+  ALTER TABLE night ADD COLUMN sleep_sound TEXT;
+  ALTER TABLE night ADD COLUMN sleep_sound_until_s INTEGER;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-/** The schema's migrations in order (read-only; exported for tests that start from an older version). */
+/** The schema's migrations in order (read-only; exported so tests can check a data migration on its own). */
 export const MIGRATION_SQL: readonly string[] = MIGRATIONS;
 
-/** Brings the database up to `target` (the latest version by default). */
-export async function migrate(db: Db, target = MIGRATIONS.length): Promise<void> {
+export async function migrate(db: Db): Promise<void> {
   await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version', []);
   const current = row?.user_version ?? 0;
-  for (let v = current; v < Math.min(target, MIGRATIONS.length); v++) {
+  for (let v = current; v < MIGRATIONS.length; v++) {
     await db.withTransactionAsync(async () => {
       await db.execAsync(MIGRATIONS[v]);
       await db.execAsync(`PRAGMA user_version = ${v + 1}`);

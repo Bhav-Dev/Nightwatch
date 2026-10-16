@@ -60,17 +60,25 @@ export function modulationDepthDb(series: number[]): number {
  * Labels a whole night of frame features (ordered by second). The floor needs the full night, so this runs
  * once at Stop over the features kept during recording (the audio itself is long gone).
  */
-export function classifyNightHeuristic(frames: { t: number; features: FrameFeatures }[]): Frame[] {
+export function classifyNightHeuristic(
+  frames: { t: number; features: FrameFeatures }[],
+  /** Sleep sounds played until this second: snoring there must stand out from the sound, not just the quiet room. */
+  opts: { maskedUntilS?: number } = {},
+): Frame[] {
   const features = frames.map((f) => f.features);
-  const floorDb = percentile(
+  const nightFloorDb = percentile(
     features.map((f) => f.levelDb),
     FLOOR_PERCENTILE,
   );
+  const masked = opts.maskedUntilS ?? 0;
+  const maskedLevels = masked > 0 ? frames.filter((f) => f.t < masked).map((f) => f.features.levelDb) : [];
+  const maskedFloorDb = maskedLevels.length > 0 ? Math.max(nightFloorDb, percentile(maskedLevels, FLOOR_PERCENTILE)) : nightFloorDb;
   const half = Math.floor(HEURISTIC.contextS / 2);
   const minLag = HEURISTIC.minPeriodS * ENVELOPE_RATE_HZ;
   const maxLag = HEURISTIC.maxPeriodS * ENVELOPE_RATE_HZ;
 
   return features.map((f, i) => {
+    const floorDb = frames[i].t < masked ? maskedFloorDb : nightFloorDb;
     let snore = f.levelDb - floorDb >= HEURISTIC.minAboveFloorDb && f.centroidHz < HEURISTIC.maxCentroidHz;
     if (snore) {
       const context: number[] = [];

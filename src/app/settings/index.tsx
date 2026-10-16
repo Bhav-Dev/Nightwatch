@@ -17,6 +17,7 @@ import { SOUND_KEEP_DAYS } from '../../recording/soundRecorder';
 import { removeClipFile } from '../../screens/NightView';
 import { useApp } from '../../state/AppContext';
 import { Body, Button, Card, H2, Row, Segmented, Small, ToggleRow } from '../../ui/kit';
+import { NightSky } from '../../ui/NightSky';
 import { colors, space } from '../../ui/theme';
 
 const BEDTIMES = ['21:30', '22:00', '22:30', '23:00', '23:30'];
@@ -149,6 +150,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom']}>
+      <NightSky />
       <ScrollView contentContainerStyle={{ padding: space(5) }}>
         <Card>
           <H2>Account</H2>

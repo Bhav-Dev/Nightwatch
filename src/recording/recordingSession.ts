@@ -17,6 +17,7 @@ import {
   type StoredFrame,
   sessionFrames,
   sessionGaps,
+  setSessionSleepSound,
 } from '../data/sessionRepo';
 import { frameFeatures } from '../domain/audio/features';
 import { HEURISTIC_DETECTOR_ID, type OnlineSnoreScorer } from '../domain/detection/classifier';
@@ -168,6 +169,14 @@ export class RecordingSession {
   }
 
   /**
+   * Notes that sleep sounds play until `untilS` (seconds from the start), so the analysis can
+   * allow for them; call again with the real stop time if they end early. null clears it.
+   */
+  setSleepSound(kind: string | null, untilS: number | null): void {
+    this.enqueue(() => setSessionSleepSound(this.db, this.id, kind, kind ? untilS : null));
+  }
+
+  /**
    * Stops capture, scores the night, saves it with tonight's log and clears the session.
    * Resolves null if nothing was captured (nothing is saved).
    */
@@ -233,16 +242,24 @@ export async function finaliseSession(
   if (opts.abandoned && !interruption) interruption = { atS: durationS, cause: 'app_closed' };
   const partial = interruption !== null;
 
+  // Sleep sounds: up to when they stopped (or the night ended, if sooner).
+  const sleepSound =
+    session.sleep_sound && session.sleep_sound_until_s !== null
+      ? { kind: session.sleep_sound, untilS: Math.min(session.sleep_sound_until_s, durationS) }
+      : null;
+  const maskedUntilS = sleepSound?.untilS ?? 0;
+
   // A model's per-second output wins when it covered the whole night.
   const modelCovered = frames.every((f) => f.snoreProb !== null);
   const analysis = analyseNight({
     durationS,
     frames: modelCovered
       ? frames.map((f) => ({ t: f.t, levelDb: f.features.levelDb, snoreProb: f.snoreProb! }))
-      : classifyNightHeuristic(frames),
+      : classifyNightHeuristic(frames, { maskedUntilS }),
     gaps: gaps.filter((g) => g.endS <= durationS),
     partial,
     sensitivity: session.sensitivity as Sensitivity,
+    maskedUntilS,
   });
   const startedAt = new Date(session.started_at * 1000);
   const nightId = opts.newId();
@@ -255,6 +272,7 @@ export async function finaliseSession(
     newId: opts.newId,
     interruption,
     detector: modelCovered ? (session.detector ?? 'model') : HEURISTIC_DETECTOR_ID,
+    sleepSound,
   });
   await keepClipsForEvents(db, sessionId, nightId, analysis.events, opts.files ?? null);
   await attachSoundToNight(db, sessionId, nightId);

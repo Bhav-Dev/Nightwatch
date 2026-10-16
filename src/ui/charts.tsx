@@ -41,6 +41,7 @@ export function NightTimeline({
   selected,
   recorded,
   playheadS,
+  soundUntilS,
   overlay,
   height = 140,
 }: {
@@ -53,6 +54,8 @@ export function NightTimeline({
   recorded?: { startS: number; endS: number }[];
   /** Where playback is, in seconds from the start; drawn as a line. */
   playheadS?: number | null;
+  /** Sleep sounds played until this second: shaded behind the outline. */
+  soundUntilS?: number | null;
   /** Optional thin lines drawn under the bars (SpO2, heart rate), each scaled to its own band below the chart. */
   overlay?: { label: string; points: { x: number; y: number }[]; color: string }[];
   height?: number;
@@ -81,6 +84,7 @@ export function NightTimeline({
             <Path d={outline} />
           </ClipPath>
         </Defs>
+        {soundUntilS ? <Rect x={0} y={0} width={xAt(soundUntilS)} height={plotH} rx={6} fill={colors.info} opacity={0.08} /> : null}
         <Line x1={0} x2={width} y1={centreY} y2={centreY} stroke={colors.border} strokeWidth={1} />
         <Path d={outline} fill={colors.textFaint} opacity={0.35} />
         <G clipPath={`url(#${clipId})`}>

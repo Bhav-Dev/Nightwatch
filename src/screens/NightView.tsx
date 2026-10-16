@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -33,6 +34,7 @@ import type { AlignedSample } from '../domain/health';
 import { clipsForDisplay } from '../domain/clipList';
 import { clockTimeAt, INTERRUPTION_COPY } from '../domain/interruption';
 import { intensityFor, scoreLabel, type Bin } from '../domain/scoring';
+import { sleepSoundName } from '../domain/sleepSounds';
 import { morningSummary } from '../domain/summary';
 import { getHealthSource } from '../health';
 import { importHealthForNight } from '../health/importNight';
@@ -40,7 +42,7 @@ import { useApp } from '../state/AppContext';
 import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
-import { colors, intensityColor, radius, space } from '../ui/theme';
+import { colors, fonts, intensityColor, radius, space } from '../ui/theme';
 import { LogPicker } from './LogPicker';
 import { useClipPlayer } from './useClipPlayer';
 
@@ -228,7 +230,7 @@ export function NightView({ nightId }: { nightId?: string }) {
     clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => (
       <View key={c.id} style={styles.clipRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => playClip(c.path)} style={styles.play}>
-          <Text style={styles.playGlyph}>{playingUri === c.path ? '❚❚' : '▶'}</Text>
+          <Ionicons name={playingUri === c.path ? 'pause' : 'play'} size={18} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.clipTime}>{time}</Text>
@@ -292,6 +294,7 @@ export function NightView({ nightId }: { nightId?: string }) {
 
   return (
     <Screen
+      sky="dawn"
       eyebrow={nightId ? 'Night' : 'This morning'}
       title={new Date(night.started_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       right={nightId ? undefined : <GearLink />}
@@ -401,6 +404,7 @@ export function NightView({ nightId }: { nightId?: string }) {
             selected={selectedBin}
             recorded={sounds.map((s) => ({ startS: s.start_s, endS: s.end_s }))}
             playheadS={playheadS}
+            soundUntilS={night.sleep_sound ? night.sleep_sound_until_s : null}
             overlay={overlayLines}
           />
           <View style={styles.legend}>
@@ -416,7 +420,18 @@ export function NightView({ nightId }: { nightId?: string }) {
                 <Text style={styles.legendText}>recorded</Text>
               </View>
             ) : null}
+            {night.sleep_sound ? (
+              <View style={styles.legendItem}>
+                <View style={[styles.swatch, { backgroundColor: colors.info, opacity: 0.25 }]} />
+                <Text style={styles.legendText}>sleep sounds</Text>
+              </View>
+            ) : null}
           </View>
+          {night.sleep_sound && night.sleep_sound_until_s ? (
+            <Small style={{ marginTop: space(2) }}>
+              {sleepSoundName(night.sleep_sound)} played until {clockTimeAt(night.started_at, night.sleep_sound_until_s)}. Snoring then is measured against the sound.
+            </Small>
+          ) : null}
           {selectedBin !== null && !playingSeg ? (
             <Small style={{ marginTop: space(2) }}>
               {clockTimeAt(night.started_at, selectedBin * 300)}: {Math.round(bins[selectedBin].snoreS / 60)} min snoring
@@ -500,7 +515,7 @@ const styles = StyleSheet.create({
   bannerTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
   bannerText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   bannerLink: { color: colors.accent, fontSize: 14, marginTop: space(1), textDecorationLine: 'underline' },
-  score: { color: colors.text, fontSize: 72, fontWeight: '800' },
+  score: { color: colors.text, fontSize: 76, fontFamily: fonts.heading },
   label: { color: colors.accent, fontSize: 18, fontWeight: '700', marginBottom: space(4) },
   stats: { flexDirection: 'row' },
   statValue: { color: colors.text, fontSize: 18, fontWeight: '700', textTransform: 'capitalize' },
@@ -510,7 +525,6 @@ const styles = StyleSheet.create({
   legendText: { color: colors.textMuted, fontSize: 12, textTransform: 'capitalize' },
   clipRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
   play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
-  playGlyph: { color: colors.text, fontSize: 14 },
   clipTime: { color: colors.text, fontSize: 16, fontWeight: '600' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
   nowPlaying: {

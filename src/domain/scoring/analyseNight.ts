@@ -16,7 +16,15 @@ export interface NightInput {
   gaps?: Gap[];
   partial?: boolean;
   sensitivity?: Sensitivity;
+  /**
+   * Sleep sounds played until this second. Loudness there is measured against the sound (its
+   * own floor), not the quiet room, and a model's score must clear a higher bar.
+   */
+  maskedUntilS?: number;
 }
+
+/** How much surer a model must be that a second is snoring while sleep sounds play. */
+export const MASKED_THRESHOLD_BUMP = 0.15;
 
 export function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
@@ -59,9 +67,13 @@ export function analyseNight(input: NightInput): NightAnalysis {
 
   const recordedLevels = level.filter((l) => !Number.isNaN(l));
   const floorDb = percentile(recordedLevels, FLOOR_PERCENTILE);
-  const aboveFloor = level.map((l) => (Number.isNaN(l) ? l : Math.max(0, l - floorDb)));
+  const masked = Math.max(0, Math.min(durationS, Math.floor(input.maskedUntilS ?? 0)));
+  const maskedLevels = level.slice(0, masked).filter((l) => !Number.isNaN(l));
+  const maskedFloorDb = maskedLevels.length > 0 ? Math.max(floorDb, percentile(maskedLevels, FLOOR_PERCENTILE)) : floorDb;
+  const aboveFloor = level.map((l, t) => (Number.isNaN(l) ? l : Math.max(0, l - (t < masked ? maskedFloorDb : floorDb))));
 
-  const isSnore = prob.map((p, t) => !Number.isNaN(level[t]) && p >= threshold);
+  const maskedThreshold = Math.min(0.95, threshold + MASKED_THRESHOLD_BUMP);
+  const isSnore = prob.map((p, t) => !Number.isNaN(level[t]) && p >= (t < masked ? maskedThreshold : threshold));
   const events = buildEvents(detectEventSpans(isSnore), aboveFloor);
 
   const gapS = (input.gaps ?? []).reduce((s, g) => s + Math.max(0, g.endS - g.startS), 0);

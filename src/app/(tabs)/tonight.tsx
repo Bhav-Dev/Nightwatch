@@ -1,14 +1,24 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { requestNotificationPermissionsAsync } from 'expo-audio';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { NoisePlayer } from '../../../modules/nightwatch-recording-service/src';
 import { listActiveCatalogue } from '../../data/catalogueRepo';
 import { runningExperiments, type Experiment } from '../../data/experimentRepo';
+import { getSetting, setSetting } from '../../data/settingsRepo';
 import { planFor } from '../../domain/experiment';
-import { GearLink } from '../../ui/kit';
+import {
+  DEFAULT_SLEEP_TIMER_MINUTES,
+  SLEEP_SOUND_GAIN,
+  SLEEP_SOUND_PREVIEW_S,
+  SLEEP_SOUNDS,
+  SLEEP_TIMER_MINUTES,
+  type SleepSoundKind,
+} from '../../domain/sleepSounds';
+import { GearLink, Segmented } from '../../ui/kit';
 import { useApp } from '../../state/AppContext';
 import { type LogTick, prefillPendingLog, setPendingTick } from '../../data/logRepo';
 import { type CatalogueItem } from '../../domain/catalogue';
@@ -16,7 +26,17 @@ import { localDateKey } from '../../domain/nightDate';
 import { getAudioCapture } from '../../native';
 import { LogPicker } from '../../screens/LogPicker';
 import { Chip } from '../../ui/Chip';
-import { colors, radius, space } from '../../ui/theme';
+import { Moon, NightSky } from '../../ui/NightSky';
+import { colors, fonts, radius, space } from '../../ui/theme';
+
+/** A calm greeting for the time of day. */
+function greeting(now: Date): string {
+  const h = now.getHours();
+  if (h >= 5 && h < 12) return 'Good morning';
+  if (h >= 12 && h < 18) return 'Good afternoon';
+  if (h >= 18 && h < 22) return 'Good evening';
+  return 'Time for bed';
+}
 
 const TIPS = [
   'Plug the phone in so the battery lasts the night.',
@@ -34,8 +54,49 @@ export default function Tonight() {
   const [ticks, setTicks] = useState<Map<string, LogTick>>(new Map());
   const [picker, setPicker] = useState<'remedy' | 'factor' | null>(null);
   const [plans, setPlans] = useState<{ experiment: Experiment; plan: 'with' | 'without' }[]>([]);
+  const [sleepSound, setSleepSound] = useState<SleepSoundKind | 'off'>('off');
+  const [sleepMinutes, setSleepMinutes] = useState<number>(DEFAULT_SLEEP_TIMER_MINUTES);
+  const [previewing, setPreviewing] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = useMemo(() => new Date(), []);
   const tip = TIPS[today.getDate() % TIPS.length];
+
+  const stopPreview = useCallback(() => {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = null;
+    setPreviewing(false);
+    void NoisePlayer.stop();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const kind = (await getSetting(db, 'sleep_sound')) as SleepSoundKind | null;
+        setSleepSound(kind && SLEEP_SOUNDS.some((s) => s.kind === kind) ? kind : 'off');
+        setSleepMinutes(Number((await getSetting(db, 'sleep_sound_minutes')) ?? DEFAULT_SLEEP_TIMER_MINUTES));
+      })();
+      // Leaving the screen ends a preview.
+      return () => stopPreview();
+    }, [db, stopPreview]),
+  );
+
+  const chooseSleepSound = async (kind: SleepSoundKind | 'off') => {
+    stopPreview();
+    setSleepSound(kind);
+    await setSetting(db, 'sleep_sound', kind === 'off' ? null : kind);
+  };
+
+  const chooseSleepMinutes = async (minutes: number) => {
+    setSleepMinutes(minutes);
+    await setSetting(db, 'sleep_sound_minutes', String(minutes));
+  };
+
+  const togglePreview = () => {
+    if (previewing || sleepSound === 'off') return stopPreview();
+    NoisePlayer.start(sleepSound, SLEEP_SOUND_GAIN, SLEEP_SOUND_PREVIEW_S, 2);
+    setPreviewing(true);
+    previewTimer.current = setTimeout(() => setPreviewing(false), SLEEP_SOUND_PREVIEW_S * 1000);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -109,20 +170,24 @@ export default function Tonight() {
     }
     // Android 13+: lets the "Recording your night" notification show. Recording works either way.
     if (Platform.OS === 'android') await requestNotificationPermissionsAsync().catch(() => undefined);
+    stopPreview();
     router.push('/recording');
   };
 
+  const chosenSound = SLEEP_SOUNDS.find((s) => s.kind === sleepSound);
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      <NightSky />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>Tonight</Text>
-            <Text style={styles.date}>
-              {today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </Text>
-          </View>
           <GearLink />
+        </View>
+        <View style={styles.hero}>
+          <Moon size={128} />
+          <Text style={styles.greeting}>{greeting(today)}</Text>
+          <Text style={styles.date}>{today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
 
         {plans.map(({ experiment, plan }) => (
@@ -165,7 +230,39 @@ export default function Tonight() {
           );
         })}
 
-        <View style={styles.tip}>
+        {NoisePlayer.available ? (
+          <View style={styles.card}>
+            <View style={styles.sectionRow}>
+              <Text style={styles.cardTitle}>Sleep sounds</Text>
+              {chosenSound ? (
+                <Pressable onPress={togglePreview} accessibilityRole="button" hitSlop={8}>
+                  <Text style={styles.change}>{previewing ? 'Stop preview' : 'Preview'}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <Segmented
+              value={sleepSound}
+              onChange={chooseSleepSound}
+              options={[{ value: 'off' as const, label: 'Off' }, ...SLEEP_SOUNDS.map((s) => ({ value: s.kind, label: s.short }))]}
+            />
+            {chosenSound ? (
+              <>
+                <Segmented
+                  value={String(sleepMinutes)}
+                  onChange={(v) => chooseSleepMinutes(Number(v))}
+                  options={SLEEP_TIMER_MINUTES.map((m) => ({ value: String(m), label: `${m} min` }))}
+                />
+                <Text style={styles.cardBody}>
+                  {chosenSound.description}. Fades out after {sleepMinutes} minutes, so the rest of the night records cleanly.
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.cardBody}>Gentle, steady noise to fall asleep to. It fades out on a timer.</Text>
+            )}
+          </View>
+        ) : null}
+
+        <View style={styles.card}>
           <Text style={styles.tipTitle}>Tip</Text>
           <Text style={styles.tipBody}>{tip}</Text>
         </View>
@@ -188,21 +285,33 @@ export default function Tonight() {
         onAddOther={addOther}
         onClose={() => setPicker(null)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: space(5), paddingBottom: space(8) },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: space(6) },
-  eyebrow: { color: colors.accent, fontSize: 14, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  date: { color: colors.text, fontSize: 26, fontWeight: '700', marginTop: space(1) },
+  header: { flexDirection: 'row', justifyContent: 'flex-end' },
+  hero: { alignItems: 'center', marginTop: -space(4), marginBottom: space(4) },
+  greeting: { color: colors.text, fontSize: 30, fontFamily: fonts.heading, marginTop: space(1) },
+  date: { color: colors.textMuted, fontSize: 15, marginTop: space(1) },
   plan: { backgroundColor: colors.surfaceRaised, borderRadius: radius.card, padding: space(4), marginBottom: space(2) },
-  planTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
+  planTitle: { color: colors.accent, fontFamily: fonts.headingSemi, marginBottom: space(1) },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: space(4), marginBottom: space(2) },
-  section: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
+  section: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.headingSemi },
   change: { color: colors.accent, fontSize: 15, fontWeight: '700' },
+  card: {
+    marginTop: space(6),
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space(5),
+  },
+  cardTitle: { color: colors.text, fontSize: 17, fontFamily: fonts.headingSemi },
+  cardBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
   choose: {
     borderWidth: 1,
@@ -212,20 +321,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: space(4),
     paddingVertical: space(4),
   },
-  chooseLabel: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  chooseLabel: { color: colors.text, fontSize: 16, fontFamily: fonts.headingSemi },
   chooseHint: { color: colors.textFaint, fontSize: 13, marginTop: space(1) },
-  tip: {
-    marginTop: space(8),
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space(5),
-  },
-  tipTitle: { color: colors.info, fontWeight: '700', marginBottom: space(1) },
+  tipTitle: { color: colors.info, fontFamily: fonts.headingSemi, marginBottom: space(1) },
   tipBody: { color: colors.text, fontSize: 15, lineHeight: 21 },
   footer: { padding: space(5), paddingTop: space(2) },
-  primary: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: space(4.5), alignItems: 'center' },
-  primaryLabel: { color: colors.accentText, fontSize: 18, fontWeight: '800' },
+  primary: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.button,
+    paddingVertical: space(4.5),
+    alignItems: 'center',
+    boxShadow: '0px 6px 28px rgba(246, 215, 142, 0.32)',
+  },
+  primaryLabel: { color: colors.accentText, fontSize: 18, fontFamily: fonts.heading },
   hint: { color: colors.textFaint, textAlign: 'center', marginTop: space(2), fontSize: 13 },
 });
