@@ -1,6 +1,8 @@
 package app.nightwatch.recordingservice
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.provider.AlarmClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.exception.Exceptions
@@ -97,6 +99,34 @@ class NightwatchRecordingServiceModule : Module() {
 
     Function("isNoisePlaying") {
       noise.isPlaying
+    }
+
+    /**
+     * Adds a one-off alarm to the phone's own Clock app without opening it, so it rings whatever
+     * happens to this app overnight. False when no Clock app accepts it.
+     */
+    Function("setClockAlarm") { hour: Int, minute: Int, label: String ->
+      val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+        putExtra(AlarmClock.EXTRA_HOUR, hour)
+        putExtra(AlarmClock.EXTRA_MINUTES, minute)
+        putExtra(AlarmClock.EXTRA_MESSAGE, label)
+        putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+      }
+      try {
+        val activity = appContext.currentActivity
+        if (activity != null) {
+          activity.startActivity(intent)
+        } else {
+          context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        true
+      } catch (e: ActivityNotFoundException) {
+        Log.w(TAG, "No Clock app accepts alarms", e)
+        false
+      } catch (e: SecurityException) {
+        Log.w(TAG, "Not allowed to set an alarm", e)
+        false
+      }
     }
 
     OnDestroy {

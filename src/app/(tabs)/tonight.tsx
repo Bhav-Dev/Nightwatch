@@ -1,3 +1,6 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
+import { getCalendars } from 'expo-localization';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -5,7 +8,7 @@ import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View
 import { requestNotificationPermissionsAsync } from 'expo-audio';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NoisePlayer } from '../../../modules/nightwatch-recording-service/src';
+import { ClockAlarm, NoisePlayer } from '../../../modules/nightwatch-recording-service/src';
 import { listActiveCatalogue } from '../../data/catalogueRepo';
 import { runningExperiments, type Experiment } from '../../data/experimentRepo';
 import { getSetting, setSetting } from '../../data/settingsRepo';
@@ -18,6 +21,7 @@ import {
   SLEEP_TIMER_MINUTES,
   type SleepSoundKind,
 } from '../../domain/sleepSounds';
+import { DEFAULT_WAKE_TIME, parseWakeTime, wakeDate, wakeSetting, type WakeTime } from '../../domain/wakeAlarm';
 import { Button, GearLink, Segmented } from '../../ui/kit';
 import { askForLocation, weatherConfigured } from '../../weather/weatherClient';
 import { useApp } from '../../state/AppContext';
@@ -40,10 +44,15 @@ function greeting(now: Date): string {
 }
 
 const TIPS = [
+  'Place the phone on the bedside table, screen down is fine.',
   'Plug the phone in so the battery lasts the night.',
-  'Turn on Do Not Disturb so calls and alerts do not stop the recording.',
+  'Turn on Do Not Disturb so calls do not stop the recording. Alarms still ring.',
   'Airplane mode is fine; recording does not need a connection.',
 ];
+
+/** A time of day in the phone's own 12 or 24-hour style. */
+const clockTime = (wake: WakeTime, uses24h: boolean) =>
+  wakeDate(wake).toLocaleTimeString([], { hour: uses24h ? '2-digit' : 'numeric', minute: '2-digit', hour12: !uses24h });
 
 /** Free-text remedies are logged as "other:<text>" and sent to the catalogue review queue. */
 const OTHER_PREFIX = 'other:';
@@ -58,6 +67,9 @@ export default function Tonight() {
   const [sleepSound, setSleepSound] = useState<SleepSoundKind | 'off'>('off');
   const [sleepMinutes, setSleepMinutes] = useState<number>(DEFAULT_SLEEP_TIMER_MINUTES);
   const [previewing, setPreviewing] = useState(false);
+  const [wake, setWake] = useState<WakeTime | null>(null);
+  const [pickingWake, setPickingWake] = useState(false);
+  const uses24h = useMemo(() => getCalendars()[0]?.uses24hourClock ?? true, []);
   /** Offer weather on the morning screen until it has been answered once. */
   const [offerWeather, setOfferWeather] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,6 +89,7 @@ export default function Tonight() {
         const kind = (await getSetting(db, 'sleep_sound')) as SleepSoundKind | null;
         setSleepSound(kind && SLEEP_SOUNDS.some((s) => s.kind === kind) ? kind : 'off');
         setSleepMinutes(Number((await getSetting(db, 'sleep_sound_minutes')) ?? DEFAULT_SLEEP_TIMER_MINUTES));
+        setWake(parseWakeTime(await getSetting(db, 'wake_alarm')));
         setOfferWeather(weatherConfigured && (await getSetting(db, 'weather')) === null);
       })();
       // Leaving the screen ends a preview.
@@ -93,6 +106,11 @@ export default function Tonight() {
   const chooseSleepMinutes = async (minutes: number) => {
     setSleepMinutes(minutes);
     await setSetting(db, 'sleep_sound_minutes', String(minutes));
+  };
+
+  const chooseWake = async (time: WakeTime | null) => {
+    setWake(time);
+    await setSetting(db, 'wake_alarm', time ? wakeSetting(time) : null);
   };
 
   const answerWeather = async (yes: boolean) => {
@@ -240,36 +258,79 @@ export default function Tonight() {
           );
         })}
 
-        {NoisePlayer.available ? (
+        {NoisePlayer.available || ClockAlarm.available ? (
           <View style={styles.card}>
-            <View style={styles.sectionRow}>
-              <Text style={styles.cardTitle}>Sleep sounds</Text>
-              {chosenSound ? (
-                <Pressable onPress={togglePreview} accessibilityRole="button" hitSlop={8}>
-                  <Text style={styles.change}>{previewing ? 'Stop preview' : 'Preview'}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-            <Segmented
-              value={sleepSound}
-              onChange={chooseSleepSound}
-              options={[{ value: 'off' as const, label: 'Off' }, ...SLEEP_SOUNDS.map((s) => ({ value: s.kind, label: s.short }))]}
-            />
-            {chosenSound ? (
+            {NoisePlayer.available ? (
               <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.cardTitle}>Sleep sounds</Text>
+                  {chosenSound ? (
+                    <Pressable onPress={togglePreview} accessibilityRole="button" hitSlop={8}>
+                      <Text style={styles.change}>{previewing ? 'Stop preview' : 'Preview'}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
                 <Segmented
-                  value={String(sleepMinutes)}
-                  onChange={(v) => chooseSleepMinutes(Number(v))}
-                  options={SLEEP_TIMER_MINUTES.map((m) => ({ value: String(m), label: `${m} min` }))}
+                  value={sleepSound}
+                  onChange={chooseSleepSound}
+                  options={[{ value: 'off' as const, label: 'Off' }, ...SLEEP_SOUNDS.map((s) => ({ value: s.kind, label: s.short }))]}
                 />
-                <Text style={styles.cardBody}>
-                  {chosenSound.description}. Fades out after {sleepMinutes} minutes, so the rest of the night records cleanly.
-                </Text>
+                {chosenSound ? (
+                  <>
+                    <Segmented
+                      value={String(sleepMinutes)}
+                      onChange={(v) => chooseSleepMinutes(Number(v))}
+                      options={SLEEP_TIMER_MINUTES.map((m) => ({ value: String(m), label: `${m} min` }))}
+                    />
+                    <Text style={styles.cardBody}>
+                      {chosenSound.description}. Fades out after {sleepMinutes} minutes, so the rest of the night records cleanly.
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.cardBody}>Gentle, steady noise to fall asleep to. It fades out on a timer.</Text>
+                )}
               </>
-            ) : (
-              <Text style={styles.cardBody}>Gentle, steady noise to fall asleep to. It fades out on a timer.</Text>
-            )}
+            ) : null}
+            {ClockAlarm.available ? (
+              <View style={NoisePlayer.available ? styles.divided : undefined}>
+                <Pressable
+                  style={styles.alarmRow}
+                  onPress={() => setPickingWake(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={wake ? `Wake-up alarm at ${clockTime(wake, uses24h)}. Change` : 'Set a wake-up alarm'}
+                >
+                  <Text style={styles.cardTitle}>Wake-up alarm</Text>
+                  <View style={styles.alarmValue}>
+                    <Text style={wake ? styles.alarmTime : styles.alarmOff}>{wake ? clockTime(wake, uses24h) : 'Off'}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+                  </View>
+                </Pressable>
+                <Text style={styles.cardBody}>
+                  {wake
+                    ? 'Added to your Clock app when you start recording. The recording stops just before it rings.'
+                    : 'Adds an alarm to your Clock app, and the recording stops just before it rings.'}
+                </Text>
+                {wake ? (
+                  <Pressable onPress={() => chooseWake(null)} accessibilityRole="button" hitSlop={8} style={styles.alarmClear}>
+                    <Text style={styles.change}>Turn off</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
           </View>
+        ) : null}
+        {pickingWake ? (
+          <DateTimePicker
+            value={wakeDate(wake ?? DEFAULT_WAKE_TIME)}
+            mode="time"
+            presentation="dialog"
+            is24Hour={uses24h}
+            onValueChange={(_, date) => {
+              setPickingWake(false);
+              void chooseWake({ hour: date.getHours(), minute: date.getMinutes() });
+            }}
+            onDismiss={() => setPickingWake(false)}
+          />
         ) : null}
 
         {offerWeather ? (
@@ -286,17 +347,13 @@ export default function Tonight() {
           </View>
         ) : null}
 
-        <View style={styles.card}>
-          <Text style={styles.tipTitle}>Tip</Text>
-          <Text style={styles.tipBody}>{tip}</Text>
-        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <Pressable accessibilityRole="button" style={styles.primary} onPress={start}>
           <Text style={styles.primaryLabel}>Start recording</Text>
         </Pressable>
-        <Text style={styles.hint}>Place the phone on the bedside table, screen down is fine.</Text>
+        <Text style={styles.hint}>{tip}</Text>
       </View>
 
       <LogPicker
@@ -348,7 +405,12 @@ const styles = StyleSheet.create({
   },
   chooseLabel: { color: colors.text, fontSize: 16, fontFamily: fonts.headingSemi },
   chooseHint: { color: colors.textFaint, fontSize: 13, marginTop: space(1) },
-  tipTitle: { color: colors.info, fontFamily: fonts.headingSemi, marginBottom: space(1) },
+  divided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderStrong, marginTop: space(5), paddingTop: space(4) },
+  alarmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space(1), marginBottom: space(1) },
+  alarmValue: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
+  alarmTime: { color: colors.accent, fontSize: 20, fontFamily: fonts.heading, fontVariant: ['tabular-nums'] },
+  alarmOff: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.headingSemi },
+  alarmClear: { alignSelf: 'flex-start', marginTop: space(3) },
   tipBody: { color: colors.text, fontSize: 15, lineHeight: 21 },
   footer: { padding: space(5), paddingTop: space(2) },
   primary: {

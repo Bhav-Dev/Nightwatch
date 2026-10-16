@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/nunito": "^0.4.2",
+    "@expo/ui": "~57.0.25",
     "@expo/vector-icons": "^15.0.2",
     "@kingstinct/react-native-healthkit": "^16.2.0",
     "expo": "~57.0.29",

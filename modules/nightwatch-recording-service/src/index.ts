@@ -12,6 +12,8 @@ interface NightwatchRecordingServiceModule {
   startNoise?(color: string, gain: number, durationS: number, fadeOutS: number): void;
   stopNoise?(): Promise<void>;
   isNoisePlaying?(): boolean;
+  // The phone's Clock app. Missing on builds made before it existed.
+  setClockAlarm?(hour: number, minute: number, label: string): boolean;
 }
 
 // Android only. On iOS (and in Expo Go) this is null and the calls below are no-ops.
@@ -60,5 +62,14 @@ export const NoisePlayer = {
   },
   isPlaying(): boolean {
     return native?.isNoisePlaying?.() ?? false;
+  },
+};
+
+/** The phone's own Clock app: adds a one-off alarm there without opening it. */
+export const ClockAlarm = {
+  available: typeof native?.setClockAlarm === 'function',
+  /** False when the alarm could not be added (no Clock app takes it). */
+  set(hour: number, minute: number, label: string): boolean {
+    return native?.setClockAlarm?.(hour, minute, label) ?? false;
   },
 };
