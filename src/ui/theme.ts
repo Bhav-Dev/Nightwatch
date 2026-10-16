@@ -30,11 +30,21 @@ export const sky = {
   night: ['#1E2459', '#111639', '#090C1F'],
   /** While recording: nearly black, so the screen does not light the room. */
   deep: ['#07080F', '#030409'],
-  /** This morning: a dusky dawn glow at the top fading into the night. */
-  dawn: ['#6B4B63', '#33305F', '#0E1330'],
+  /** This morning: a sunrise, warm apricot at the top through coral and rose to a dusky blue. */
+  dawn: ['#F9C59A', '#EE9A8F', '#B07597', '#4B4A88', '#1F2558'],
 } as const;
 
 export type SkyVariant = keyof typeof sky;
+
+/**
+ * What sits directly on the sky. The sunrise is bright at the top, so its header text and icons
+ * are dark, and its cards are more solid so their text stays crisp on the warm colours.
+ */
+export const onSky: Record<SkyVariant, { title: string; eyebrow: string; icon: string; card: string; statusBar: 'light' | 'dark' }> = {
+  night: { title: '#F4F1FF', eyebrow: '#F6D78E', icon: '#AAB1D6', card: 'rgba(28, 36, 80, 0.62)', statusBar: 'light' },
+  deep: { title: '#F4F1FF', eyebrow: '#F6D78E', icon: '#AAB1D6', card: 'rgba(28, 36, 80, 0.62)', statusBar: 'light' },
+  dawn: { title: '#2A1F3D', eyebrow: '#8A3F2C', icon: '#3A2E4F', card: 'rgba(28, 26, 66, 0.86)', statusBar: 'dark' },
+};
 
 /** Rounded, friendly headings (loaded in the root layout); body text stays the system font. */
 export const fonts = {

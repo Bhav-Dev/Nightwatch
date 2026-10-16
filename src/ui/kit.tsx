@@ -1,11 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
+import { createContext, type ReactNode, useCallback, useContext } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NightSky } from './NightSky';
-import { colors, fonts, radius, space, type SkyVariant } from './theme';
+import { colors, fonts, onSky, radius, space, type SkyVariant } from './theme';
+
+/** The sky the current screen is drawn on, so cards and header text can suit it. */
+const SkyContext = createContext<SkyVariant>('night');
+export const useSky = () => useContext(SkyContext);
 
 export function Screen({
   title,
@@ -25,54 +30,66 @@ export function Screen({
   /** The sky behind the screen: night (default), deep (recording) or dawn (this morning). */
   sky?: SkyVariant;
 }) {
+  const tones = onSky[sky];
+  // A bright sky (the sunrise) wants dark status bar icons while this screen is showing.
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle(tones.statusBar);
+      return () => setStatusBarStyle('light');
+    }, [tones.statusBar]),
+  );
   const header =
     title || eyebrow || right ? (
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {eyebrow ? <Text style={[styles.eyebrow, { color: tones.eyebrow }]}>{eyebrow}</Text> : null}
+          {title ? <Text style={[styles.title, { color: tones.title }]}>{title}</Text> : null}
         </View>
         {right}
       </View>
     ) : null;
   return (
-    <View style={styles.screen}>
-      <NightSky variant={sky} />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        {scroll ? (
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {header}
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={[styles.content, { flex: 1 }]}>
-            {header}
-            {children}
-          </View>
-        )}
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
-      </SafeAreaView>
-    </View>
+    <SkyContext.Provider value={sky}>
+      <View style={styles.screen}>
+        <NightSky variant={sky} />
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          {scroll ? (
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              {header}
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={[styles.content, { flex: 1 }]}>
+              {header}
+              {children}
+            </View>
+          )}
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
+        </SafeAreaView>
+      </View>
+    </SkyContext.Provider>
   );
 }
 
 export function GearLink() {
+  const sky = useSky();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} hitSlop={12} style={styles.iconButton}>
-      <Ionicons name="settings-outline" size={22} color={colors.textMuted} />
+      <Ionicons name="settings-outline" size={22} color={onSky[sky].icon} />
     </Pressable>
   );
 }
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
+  const surface = { backgroundColor: onSky[useSky()].card };
   if (onPress) {
     return (
-      <Pressable accessibilityRole="button" onPress={onPress} style={[styles.card, style]}>
+      <Pressable accessibilityRole="button" onPress={onPress} style={[styles.card, surface, style]}>
         {children}
       </Pressable>
     );
   }
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <View style={[styles.card, surface, style]}>{children}</View>;
 }
 
 export function H2({ children, right }: { children: ReactNode; right?: ReactNode }) {

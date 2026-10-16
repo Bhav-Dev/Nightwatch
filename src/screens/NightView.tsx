@@ -511,7 +511,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { backgroundColor: colors.warningSurface, borderRadius: radius.button, padding: space(3), marginBottom: space(3) },
+  // Solid enough to read on the bright sunrise sky as well as at night.
+  banner: { backgroundColor: 'rgba(58, 40, 14, 0.92)', borderRadius: radius.button, padding: space(3), marginBottom: space(3) },
   bannerTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
   bannerText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   bannerLink: { color: colors.accent, fontSize: 14, marginTop: space(1), textDecorationLine: 'underline' },

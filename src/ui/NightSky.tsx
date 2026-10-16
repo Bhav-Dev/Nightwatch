@@ -29,10 +29,10 @@ export function NightSky({ variant = 'night' }: { variant?: SkyVariant }) {
   const { width, height } = useWindowDimensions();
   const id = `sky${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const stops = sky[variant];
-  const stars = useMemo(() => starField(variant === 'deep' ? 28 : 70, 11), [variant]);
-  const dim = variant === 'deep' ? 0.35 : variant === 'dawn' ? 0.55 : 1;
-  // At dawn the stars fade out lower down the sky.
-  const reach = variant === 'dawn' ? 0.5 : 0.8;
+  // No stars at sunrise; fewer and dimmer while recording.
+  const stars = useMemo(() => (variant === 'dawn' ? [] : starField(variant === 'deep' ? 28 : 70, 11)), [variant]);
+  const dim = variant === 'deep' ? 0.35 : 1;
+  const reach = 0.8;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width={width} height={height}>
@@ -42,8 +42,22 @@ export function NightSky({ variant = 'night' }: { variant?: SkyVariant }) {
               <Stop key={c} offset={i / (stops.length - 1)} stopColor={c} />
             ))}
           </LinearGradient>
+          {variant === 'dawn' ? (
+            <RadialGradient id={`${id}sun`} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#FFF4D6" stopOpacity={0.95} />
+              <Stop offset="0.3" stopColor="#FFD9A0" stopOpacity={0.55} />
+              <Stop offset="1" stopColor="#FFC58A" stopOpacity={0} />
+            </RadialGradient>
+          ) : null}
         </Defs>
         <Rect x={0} y={0} width={width} height={height} fill={`url(#${id})`} />
+        {variant === 'dawn' ? (
+          <>
+            {/* The sun just rising over the top of the screen, and its warm glow. */}
+            <Circle cx={width * 0.72} cy={height * 0.02} r={width * 0.62} fill={`url(#${id}sun)`} />
+            <Circle cx={width * 0.72} cy={height * 0.02} r={width * 0.085} fill="#FFF6E0" opacity={0.9} />
+          </>
+        ) : null}
         {stars.map((st, i) => (
           <Circle key={i} cx={st.x * width} cy={st.y * height * reach} r={st.r} fill="#FFFFFF" opacity={st.o * dim} />
         ))}
