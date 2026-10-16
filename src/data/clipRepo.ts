@@ -15,9 +15,11 @@ export interface ClipRow {
   bytes: number;
   saved: number;
   created_at: number;
+  /** 'snore' overlaps a snoring event; 'other' is a loud moment that was not counted as snoring. */
+  kind: 'snore' | 'other';
 }
 
-export async function insertClip(db: Db, row: Omit<ClipRow, 'saved'>): Promise<void> {
+export async function insertClip(db: Db, row: Omit<ClipRow, 'saved' | 'kind'>): Promise<void> {
   await db.runAsync(
     `INSERT INTO clip (id, session_id, night_id, start_s, end_s, peak_s, peak_db, codec, sample_rate, path, bytes, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -31,6 +33,10 @@ export async function getClip(db: Db, id: string): Promise<ClipRow | null> {
 
 export async function deleteClipRow(db: Db, id: string): Promise<void> {
   await db.runAsync('DELETE FROM clip WHERE id = ?', [id]);
+}
+
+export async function markOtherClip(db: Db, id: string): Promise<void> {
+  await db.runAsync("UPDATE clip SET kind = 'other' WHERE id = ?", [id]);
 }
 
 export async function sessionClips(db: Db, sessionId: string): Promise<ClipRow[]> {

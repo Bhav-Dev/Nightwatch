@@ -107,7 +107,7 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
 
 ## Clips, WAV now, Opus later
 
-Clips are 15-second 16 kHz WAV (about 480 KB each; five a night is well under the 5 MB budget). Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. "Keep full-night audio" is shown but disabled until compressed audio exists.
+Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring ("Other sounds", so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. "Keep full-night audio" is shown but disabled until compressed audio exists.
 
 ## Detection
 

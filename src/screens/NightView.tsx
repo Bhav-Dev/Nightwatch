@@ -173,6 +173,23 @@ export function NightView({ nightId }: { nightId?: string }) {
     else stop();
   };
   const playingClip = playingUri ? (clips.find((c) => c.path === playingUri) ?? null) : null;
+  const snoreClips = clips.filter((c) => c.kind !== 'other');
+  const otherClips = clips.filter((c) => c.kind === 'other');
+
+  const clipRows = (list: ClipRow[]) =>
+    clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => (
+      <View key={c.id} style={styles.clipRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => toggle(c.path)} style={styles.play}>
+          <Text style={styles.playGlyph}>{playingUri === c.path ? '❚❚' : '▶'}</Text>
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.clipTime}>{time}</Text>
+          <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
+        </View>
+        <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
+        <Button kind="link" label="Share" onPress={() => share(c)} />
+      </View>
+    ));
 
   const share = async (c: ClipRow) => {
     if (!(await Sharing.isAvailableAsync())) return Alert.alert('Sharing is not available on this device');
@@ -344,22 +361,18 @@ export function NightView({ nightId }: { nightId?: string }) {
         </Card>
       )}
 
-      {clips.length > 0 && (
+      {snoreClips.length > 0 && (
         <Card>
           <H2>Loudest moments</H2>
-          {clipsForDisplay(clips, night.started_at).map(({ clip: c, time }) => (
-            <View key={c.id} style={styles.clipRow}>
-              <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => toggle(c.path)} style={styles.play}>
-                <Text style={styles.playGlyph}>{playingUri === c.path ? '❚❚' : '▶'}</Text>
-              </Pressable>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.clipTime}>{time}</Text>
-                <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
-              </View>
-              <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
-              <Button kind="link" label="Share" onPress={() => share(c)} />
-            </View>
-          ))}
+          {clipRows(snoreClips)}
+        </Card>
+      )}
+
+      {otherClips.length > 0 && (
+        <Card>
+          <H2>Other sounds</H2>
+          <Small>The loudest moments that were not counted as snoring. Have a listen to check.</Small>
+          {clipRows(otherClips)}
         </Card>
       )}
 

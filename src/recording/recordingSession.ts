@@ -1,7 +1,7 @@
 import { ClipCollector, selectClips } from '../clips/clipCollector';
 import type { ClipFiles } from '../clips/clipFiles';
 import { encoderFor } from '../clips/codec';
-import { attachClipsToNight, deleteClipRow, getClip, insertClip, sessionClips } from '../data/clipRepo';
+import { attachClipsToNight, deleteClipRow, getClip, insertClip, markOtherClip, sessionClips } from '../data/clipRepo';
 import { commitPendingLog } from '../data/logRepo';
 import { saveNight } from '../data/nightRepo';
 import type { Db } from '../data/db';
@@ -250,12 +250,16 @@ async function keepClipsForEvents(
 ): Promise<void> {
   const clips = await sessionClips(db, sessionId);
   if (clips.length === 0) return;
-  const { keepIds, clipForEvent } = selectClips(
+  const { keepIds, otherIds, clipForEvent } = selectClips(
     clips.map((c) => ({ id: c.id, startS: c.start_s, endS: c.end_s, peakDb: c.peak_db, saved: c.saved === 1 })),
     events,
   );
   for (const c of clips) {
     if (keepIds.has(c.id)) continue;
+    if (otherIds.has(c.id)) {
+      await markOtherClip(db, c.id);
+      continue;
+    }
     if (files) await files.remove(c.path);
     await deleteClipRow(db, c.id);
   }

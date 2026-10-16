@@ -5,7 +5,8 @@
  * keeps a provisional list: a rolling buffer of the last 30 seconds of PCM, a slow estimate of
  * the room's quiet level, and up to MAX_CANDIDATES clips around the loudest seconds that were
  * well above it. At Stop, clips that overlap real events are kept (the top 5 plus any the user
- * saves); the rest are deleted.
+ * saves), and so are the 3 loudest that were not counted as snoring ("other sounds", so the
+ * user can check what was left out); the rest are deleted.
  */
 
 export const CLIP_BEFORE_S = 7;
@@ -157,13 +158,23 @@ export function selectClips(
   candidates: readonly { id: string; startS: number; endS: number; peakDb: number; saved?: boolean }[],
   events: readonly { startS: number; endS: number }[],
   keep = 5,
-): { keepIds: Set<string>; clipForEvent: (string | null)[] } {
+  keepOther = 3,
+): { keepIds: Set<string>; otherIds: Set<string>; clipForEvent: (string | null)[] } {
   const overlapsEvent = (c: { startS: number; endS: number }) => events.some((e) => c.startS < e.endS && c.endS > e.startS);
   const ranked = candidates.filter(overlapsEvent).sort((a, b) => b.peakDb - a.peakDb);
   const keepIds = new Set([...ranked.slice(0, keep).map((c) => c.id), ...candidates.filter((c) => c.saved).map((c) => c.id)]);
+  // The loudest moments that were not counted as snoring, so the user can hear what was left
+  // out and judge whether the detector missed something.
+  const otherIds = new Set(
+    candidates
+      .filter((c) => !overlapsEvent(c) && !keepIds.has(c.id))
+      .sort((a, b) => b.peakDb - a.peakDb)
+      .slice(0, keepOther)
+      .map((c) => c.id),
+  );
   const clipForEvent = events.map((e) => {
     const best = ranked.find((c) => keepIds.has(c.id) && c.startS < e.endS && c.endS > e.startS);
     return best?.id ?? null;
   });
-  return { keepIds, clipForEvent };
+  return { keepIds, otherIds, clipForEvent };
 }

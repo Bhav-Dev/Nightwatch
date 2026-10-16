@@ -3,7 +3,7 @@ import { refreshCatalogue } from '../src/data/catalogueClient';
 import { catalogueVersion, listActiveCatalogue, seedCatalogueIfEmpty } from '../src/data/catalogueRepo';
 import { commitPendingLog, getPendingLog, prefillPendingLog, setPendingTick } from '../src/data/logRepo';
 import { averageScore, latestNight, nightBins, saveNight } from '../src/data/nightRepo';
-import { migrate, SCHEMA_VERSION } from '../src/data/schema';
+import { MIGRATION_SQL, migrate, SCHEMA_VERSION } from '../src/data/schema';
 import { analyseNight } from '../src/domain/scoring';
 import { evenNight } from './helpers/fixtureNight';
 import { openTestDb } from './helpers/nodeDb';
@@ -42,12 +42,12 @@ describe('schema', () => {
   });
 
   it('takes short nights saved under the old rule out of averages', async () => {
-    const db = await freshDb();
+    // The schema as it was before the short-night rule, with a 1-hour night counted as it was then.
+    const db = openTestDb();
+    await migrate(db, MIGRATION_SQL.findIndex((sql) => sql.includes('counts_toward_averages = 0')));
     const short = await recordNight(db, 10, { hours: 1 });
     const full = await recordNight(db, 11);
-    // As the old rule saved it: a complete 1-hour night counted. Step back one version.
     await db.runAsync('UPDATE night SET counts_toward_averages = 1 WHERE id = ?', [short]);
-    await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION - 1}`);
     await migrate(db);
     const rows = await db.getAllAsync<{ id: string; counts_toward_averages: number }>(
       'SELECT id, counts_toward_averages FROM night ORDER BY started_at',

@@ -80,6 +80,14 @@ describe('selectClips', () => {
     expect(clipForEvent[0]).toBeNull();
     expect(clipForEvent[6]).toBe('k6');
   });
+
+  it('also keeps the three loudest moments that were not counted as snoring', () => {
+    const snore = { id: 's', startS: 0, endS: 15, peakDb: 20 };
+    const others = [5, 30, 12, 25, 1].map((peakDb, i) => ({ id: `o${peakDb}`, startS: 1000 * (i + 1), endS: 1000 * (i + 1) + 15, peakDb }));
+    const { keepIds, otherIds } = selectClips([snore, ...others], [{ startS: 5, endS: 40 }]);
+    expect([...keepIds]).toEqual(['s']);
+    expect([...otherIds].sort()).toEqual(['o12', 'o25', 'o30']);
+  });
 });
 
 class FakeCapture implements AudioCapture {
@@ -109,7 +117,8 @@ describe('clips in a recorded night', () => {
     const night = await session.finish();
     const clips = await nightClips(db, night!.nightId);
     expect(clips.length).toBeGreaterThan(0);
-    expect(clips.length).toBeLessThanOrEqual(5);
+    expect(clips.filter((c) => c.kind === 'snore').length).toBeLessThanOrEqual(5);
+    expect(clips.filter((c) => c.kind === 'other').length).toBeLessThanOrEqual(3);
     expect(clips.every((c) => c.codec === 'wav' && files.files.has(c.path))).toBe(true);
     // Files of discarded candidates are gone.
     expect(files.files.size).toBe(clips.length);

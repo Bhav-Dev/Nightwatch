@@ -227,15 +227,24 @@ const MIGRATIONS: string[] = [
   -- (short test recordings were counting). Sync ignores this column, so updated_at stays.
   UPDATE night SET counts_toward_averages = 0 WHERE time_in_bed_s < 10800;
   `,
+  `
+  -- 'snore' clips overlap snoring events; 'other' clips are the loudest moments that were not
+  -- counted as snoring, kept so the user can check what was left out.
+  ALTER TABLE clip ADD COLUMN kind TEXT NOT NULL DEFAULT 'snore';
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-export async function migrate(db: Db): Promise<void> {
+/** The schema's migrations in order (read-only; exported for tests that start from an older version). */
+export const MIGRATION_SQL: readonly string[] = MIGRATIONS;
+
+/** Brings the database up to `target` (the latest version by default). */
+export async function migrate(db: Db, target = MIGRATIONS.length): Promise<void> {
   await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version', []);
   const current = row?.user_version ?? 0;
-  for (let v = current; v < MIGRATIONS.length; v++) {
+  for (let v = current; v < Math.min(target, MIGRATIONS.length); v++) {
     await db.withTransactionAsync(async () => {
       await db.execAsync(MIGRATIONS[v]);
       await db.execAsync(`PRAGMA user_version = ${v + 1}`);
