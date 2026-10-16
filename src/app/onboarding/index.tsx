@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../ui/kit';
-import { Moon, NightSky } from '../../ui/NightSky';
+import { Logo } from '../../ui/Logo';
+import { NightSky } from '../../ui/NightSky';
 import { colors, fonts, space } from '../../ui/theme';
 
 export default function Welcome() {
@@ -12,7 +13,7 @@ export default function Welcome() {
       <NightSky />
       <SafeAreaView style={styles.safe}>
         <View style={styles.body}>
-          <Moon size={150} />
+          <Logo width={240} />
           <Text style={styles.brand}>Nightwatch</Text>
           <Text style={styles.line}>Record your snoring, see what changes it, and compare with thousands of other snorers.</Text>
         </View>

@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Mask, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { logoArt } from './logoArt';
 import { colors, isMorningSky, sky, type SkyVariant } from './theme';
 
 /** A fixed, scattered star field: the same sky every time (seeded), denser towards the top. */
@@ -242,25 +243,26 @@ function Twinkles({ width, height }: { width: number; height: number }) {
   );
 }
 
-/** A crescent moon with a soft glow. */
+/** The logo's crescent on its own, centred in a soft glow. It fills 60% of the square. */
 export function Moon({ size = 96, glow = true }: { size?: number; glow?: boolean }) {
   const id = `moon${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const c = size / 2;
-  const r = size * 0.3;
+  const { cx, cy, r, gradient, colours } = logoArt.moon;
+  const half = r / 0.6;
   return (
-    <Svg width={size} height={size}>
+    <Svg width={size} height={size} viewBox={`${cx - half} ${cy - half} ${2 * half} ${2 * half}`}>
       <Defs>
         <RadialGradient id={`${id}glow`} cx="50%" cy="50%" r="50%">
           <Stop offset="0" stopColor={colors.accent} stopOpacity={0.3} />
           <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
         </RadialGradient>
-        <Mask id={`${id}cut`}>
-          <Rect x={0} y={0} width={size} height={size} fill="#FFFFFF" />
-          <Circle cx={c + r * 0.55} cy={c - r * 0.35} r={r * 0.92} fill="#000000" />
-        </Mask>
+        <LinearGradient id={`${id}fill`} x1={gradient[0]} y1={gradient[1]} x2={gradient[2]} y2={gradient[3]} gradientUnits="userSpaceOnUse">
+          {colours.map((c, i) => (
+            <Stop key={c} offset={i / (colours.length - 1)} stopColor={c} />
+          ))}
+        </LinearGradient>
       </Defs>
-      {glow ? <Circle cx={c} cy={c} r={size / 2} fill={`url(#${id}glow)`} /> : null}
-      <Circle cx={c} cy={c} r={r} fill={colors.accent} mask={`url(#${id}cut)`} />
+      {glow ? <Circle cx={cx} cy={cy} r={half} fill={`url(#${id}glow)`} /> : null}
+      <Path d={logoArt.moon.d} fill={`url(#${id}fill)`} />
     </Svg>
   );
 }

@@ -34,7 +34,9 @@
         "android.permission.health.READ_RESPIRATORY_RATE",
         "android.permission.health.READ_SLEEP"
       ],
-      "blockedPermissions": ["android.permission.ACCESS_FINE_LOCATION"]
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -83,6 +85,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Nightwatch uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#111639"
         }
       ]
     ],

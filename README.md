@@ -140,7 +140,9 @@ A gold crescent moon rising over a lavender sound wave, on indigo. It started as
 | `assets/android-icon-foreground.png`, `-background.png` | Android adaptive icon: the moon, wave and sea on transparent, over the sky. The moon and stars sit inside the 66-unit safe zone, so every launcher shape keeps them |
 | `assets/android-icon-monochrome.png` | Android 13 and later themed icons: one colour, recoloured to match the wallpaper |
 | `assets/notification-icon.png` | Notification icon (expo-notifications plugin), white on transparent |
-| `assets/splash-icon.png`, `favicon.png`, `store/play-store-icon.png` | Splash image (not yet configured), web, and the Play Store listing (512 px) |
+| `assets/splash-icon.png` | Splash screen (expo-splash-screen plugin), on the night sky's colour. Sized to fit the circle Android 12 and later crop splash images to. Expo Router keeps it up until the first screen is ready |
+| `assets/favicon.png`, `store/play-store-icon.png` | Web, and the Play Store listing (512 px) |
+| `src/ui/logoArt.ts` | The same shapes for the app: `Logo` (`src/ui/Logo.tsx`) on the welcome screen, and the crescent in `Moon` on Tonight and Recording |
 | `docs/icon-preview.png` | Every version as a phone shows it, on light and dark home screens |
 
 For iOS 26's Liquid Glass look, Apple's Icon Composer (a Mac app) builds a layered `.icon` file. Import `assets/icon-src/layers/` in order (sky, stars, moon, sea, with the sea in front of the moon so it hides the moon's lower edge). Save the result as `assets/app.icon` and set `"ios": { "icon": "./assets/app.icon" }`. Icon Composer then handles dark, tinted and clear itself. The Recording foreground notification keeps Android's microphone icon, because it is the microphone that is in use.
