@@ -232,6 +232,24 @@ const MIGRATIONS: string[] = [
   -- counted as snoring, kept so the user can check what was left out.
   ALTER TABLE clip ADD COLUMN kind TEXT NOT NULL DEFAULT 'snore';
   `,
+  `
+  -- Compressed audio of the parts of a night with sound in them (silence is not kept), for
+  -- playback from the timeline. Times are seconds from the start of the session. Kept on this
+  -- phone for a limited number of nights; never synced.
+  CREATE TABLE sound_segment (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT,
+    night_id TEXT REFERENCES night(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    codec TEXT NOT NULL,
+    path TEXT NOT NULL,
+    bytes INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX sound_segment_night ON sound_segment(night_id);
+  CREATE INDEX sound_segment_session ON sound_segment(session_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

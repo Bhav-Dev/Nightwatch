@@ -2,7 +2,7 @@ import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { NightSummary } from '../../shared/remedyEffect';
@@ -26,6 +26,7 @@ import {
   setTypical,
 } from '../data/nightRepo';
 import { getSetting, setSetting } from '../data/settingsRepo';
+import { nightSoundSegments, type SoundSegmentRow } from '../data/soundRepo';
 import type { CatalogueItem } from '../domain/catalogue';
 import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
@@ -48,6 +49,8 @@ interface Loaded {
   bins: Bin[];
   events: EventRow[];
   clips: ClipRow[];
+  /** The night's recorded sound, in time order (empty when sound recording was off). */
+  sounds: SoundSegmentRow[];
   samples: AlignedSample[];
   hrMean: number | null;
   log: { remedies: string[]; factors: { id: string; value: string | null }[] };
@@ -70,7 +73,26 @@ export function NightView({ nightId }: { nightId?: string }) {
   const [overlay, setOverlay] = useState(false);
   const [showPrevent, setShowPrevent] = useState(false);
   const [editing, setEditing] = useState(false);
-  const { toggle, stop, playingUri, positionS, durationS } = useClipPlayer();
+  const advance = useRef<(uri: string) => void>(() => undefined);
+  const { toggle, play, seekBy, stop, playingUri, positionS, durationS } = useClipPlayer({ onFinished: (uri) => advance.current(uri) });
+  /** The recorded-sound segment playing (null when a clip, or nothing, is playing). */
+  const [playingSegId, setPlayingSegId] = useState<string | null>(null);
+
+  // When a stretch of sound ends, carry on with the next one, so the night plays through.
+  useEffect(() => {
+    advance.current = (uri) => {
+      const sounds = data?.sounds ?? [];
+      const i = sounds.findIndex((s) => s.path === uri);
+      if (i < 0) return; // a clip finished: nothing to carry on to
+      const next = sounds[i + 1];
+      if (next) {
+        setPlayingSegId(next.id);
+        play(next.path, 0);
+      } else {
+        setPlayingSegId(null);
+      }
+    };
+  });
 
   const load = useCallback(async () => {
     const night = nightId ? await getNight(db, nightId) : await latestNight(db);
@@ -87,10 +109,11 @@ export function NightView({ nightId }: { nightId?: string }) {
     }
     const nightCount = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM night', []))?.n ?? 0;
     const prompted = await getSetting(db, 'health_prompted_after');
-    const [bins, events, clips, samples, summary, log, history, avg7, experiments] = await Promise.all([
+    const [bins, events, clips, sounds, samples, summary, log, history, avg7, experiments] = await Promise.all([
       nightBins(db, night.id),
       nightEvents(db, night.id),
       nightClips(db, night.id),
+      nightSoundSegments(db, night.id),
       healthSamples(db, night.id),
       healthSummary(db, night.id),
       nightLog(db, night.id),
@@ -103,6 +126,7 @@ export function NightView({ nightId }: { nightId?: string }) {
       bins,
       events,
       clips,
+      sounds,
       samples,
       hrMean: summary?.hr_mean ?? null,
       log,
@@ -165,21 +189,45 @@ export function NightView({ nightId }: { nightId?: string }) {
       ].filter((l) => l.points.length > 1)
     : undefined;
 
-  const onSelectBin = (i: number) => {
+  const { sounds } = data;
+  /** The recorded sound at a second of the night, or the next one starting in the same 5 minutes. */
+  const soundAt = (i: number, atS: number) =>
+    sounds.find((s) => atS >= s.start_s && atS < s.end_s) ?? sounds.find((s) => s.start_s >= atS && s.start_s < (i + 1) * 300) ?? null;
+
+  const onSelectTime = (i: number, atS: number) => {
     setSelectedBin(i);
+    if (sounds.length > 0) {
+      // Nights with recorded sound: play the night from the moment tapped.
+      const seg = soundAt(i, atS);
+      if (seg) {
+        setPlayingSegId(seg.id);
+        play(seg.path, Math.max(0, atS - seg.start_s));
+      } else {
+        setPlayingSegId(null);
+        stop();
+      }
+      return;
+    }
+    // Older nights: the loudest clip in that 5 minutes; a stretch with no clip stops playback.
+    setPlayingSegId(null);
     const c = binClip(i);
-    // Tapping a stretch with no clip stops whatever is playing.
     if (c) toggle(c.path);
     else stop();
   };
-  const playingClip = playingUri ? (clips.find((c) => c.path === playingUri) ?? null) : null;
+  const playClip = (path: string) => {
+    setPlayingSegId(null);
+    toggle(path);
+  };
+  const playingSeg = playingUri && playingSegId ? (sounds.find((s) => s.id === playingSegId && s.path === playingUri) ?? null) : null;
+  const playingClip = playingUri && !playingSeg ? (clips.find((c) => c.path === playingUri) ?? null) : null;
+  const playheadS = playingSeg ? playingSeg.start_s + positionS : playingClip ? playingClip.start_s + positionS : null;
   const snoreClips = clips.filter((c) => c.kind !== 'other');
   const otherClips = clips.filter((c) => c.kind === 'other');
 
   const clipRows = (list: ClipRow[]) =>
     clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => (
       <View key={c.id} style={styles.clipRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => toggle(c.path)} style={styles.play}>
+        <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => playClip(c.path)} style={styles.play}>
           <Text style={styles.playGlyph}>{playingUri === c.path ? '❚❚' : '▶'}</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -248,7 +296,26 @@ export function NightView({ nightId }: { nightId?: string }) {
       title={new Date(night.started_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       right={nightId ? undefined : <GearLink />}
       footer={
-        playingClip ? (
+        playingSeg ? (
+          <View style={styles.nowPlaying} accessibilityLiveRegion="polite">
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nowPlayingTitle}>Playing {clockTimeAt(night.started_at, playingSeg.start_s + Math.floor(positionS), { seconds: true })}</Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${Math.min(100, (positionS / Math.max(1, durationS || playingSeg.end_s - playingSeg.start_s)) * 100)}%` }]} />
+              </View>
+              <Small>The night plays on through each stretch of sound.</Small>
+            </View>
+            <Pressable onPress={() => seekBy(-15)} accessibilityRole="button" accessibilityLabel="Back 15 seconds" style={styles.skipButton} hitSlop={6}>
+              <Text style={styles.skipLabel}>−15</Text>
+            </Pressable>
+            <Pressable onPress={stop} accessibilityRole="button" accessibilityLabel="Stop playing" style={styles.stopButton}>
+              <Text style={styles.stopLabel}>Stop</Text>
+            </Pressable>
+            <Pressable onPress={() => seekBy(15)} accessibilityRole="button" accessibilityLabel="Forward 15 seconds" style={styles.skipButton} hitSlop={6}>
+              <Text style={styles.skipLabel}>+15</Text>
+            </Pressable>
+          </View>
+        ) : playingClip ? (
           <View style={styles.nowPlaying} accessibilityLiveRegion="polite">
             <View style={{ flex: 1 }}>
               <Text style={styles.nowPlayingTitle}>
@@ -327,7 +394,15 @@ export function NightView({ nightId }: { nightId?: string }) {
           >
             Timeline
           </H2>
-          <NightTimeline bins={timelineBins} startedAtS={night.started_at} onSelect={onSelectBin} selected={selectedBin} overlay={overlayLines} />
+          <NightTimeline
+            bins={timelineBins}
+            startedAtS={night.started_at}
+            onSelect={onSelectTime}
+            selected={selectedBin}
+            recorded={sounds.map((s) => ({ startS: s.start_s, endS: s.end_s }))}
+            playheadS={playheadS}
+            overlay={overlayLines}
+          />
           <View style={styles.legend}>
             {(['quiet', 'light', 'loud', 'epic'] as const).map((k) => (
               <View key={k} style={styles.legendItem}>
@@ -335,15 +410,23 @@ export function NightView({ nightId }: { nightId?: string }) {
                 <Text style={styles.legendText}>{k}</Text>
               </View>
             ))}
+            {sounds.length > 0 ? (
+              <View style={styles.legendItem}>
+                <View style={[styles.swatch, { backgroundColor: colors.info, height: 3 }]} />
+                <Text style={styles.legendText}>recorded</Text>
+              </View>
+            ) : null}
           </View>
-          {selectedBin !== null ? (
+          {selectedBin !== null && !playingSeg ? (
             <Small style={{ marginTop: space(2) }}>
               {clockTimeAt(night.started_at, selectedBin * 300)}: {Math.round(bins[selectedBin].snoreS / 60)} min snoring
-              {binClip(selectedBin) ? (playingUri ? ' · playing' : '') : ' · no clip here'}
+              {sounds.length > 0 ? ' · quiet, nothing recorded here' : binClip(selectedBin) ? (playingUri ? ' · playing' : '') : ' · no clip here'}
             </Small>
-          ) : (
-            <Small style={{ marginTop: space(2) }}>Tap the timeline to hear the loudest moment there.</Small>
-          )}
+          ) : !playingSeg ? (
+            <Small style={{ marginTop: space(2) }}>
+              {sounds.length > 0 ? 'Tap anywhere on the timeline to listen from that moment.' : 'Tap the timeline to hear the loudest moment there.'}
+            </Small>
+          ) : null}
           {hasHealth && !paid ? <Locked label="See oxygen and heart rate on the same timeline" trigger="overlay" /> : null}
         </Card>
       ) : night.source === 'remote' ? (
@@ -443,6 +526,8 @@ const styles = StyleSheet.create({
   progressTrack: { height: 3, borderRadius: 2, backgroundColor: colors.border, marginVertical: space(2), overflow: 'hidden' },
   progressFill: { height: 3, backgroundColor: colors.accent },
   stopButton: { backgroundColor: colors.accent, borderRadius: radius.button, paddingHorizontal: space(5), paddingVertical: space(3) },
+  skipButton: { paddingHorizontal: space(1), paddingVertical: space(3) },
+  skipLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
   stopLabel: { color: colors.accentText, fontSize: 16, fontWeight: '800' },
 });
 

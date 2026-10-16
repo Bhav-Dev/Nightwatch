@@ -78,12 +78,12 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
   };
 }
 
-/** Deletes every local row (Settings → Delete all local data). Clip files are removed by the caller. */
+/** Deletes every local row (Settings → Delete all local data). Clip and sound files are removed by the caller. */
 export async function deleteAllLocalData(db: Db): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const t of [
       'event', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'pending_log', 'experiment', 'snapshot',
-      'clip', 'session_frame', 'session_gap', 'recording_session', 'sync_tombstone', 'cache', 'night', 'profile',
+      'clip', 'sound_segment', 'session_frame', 'session_gap', 'recording_session', 'sync_tombstone', 'cache', 'night', 'profile',
     ]) {
       await db.runAsync(`DELETE FROM ${t}`, []);
     }

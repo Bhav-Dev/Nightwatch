@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ExpoClipFiles } from '../clips/expoClipFiles';
 import type { Db } from '../data/db';
 import { initDatabase } from '../data/init';
+import { tidySoundFiles } from '../native/soundWriter';
 import { recoverAbandonedSessions } from '../recording/recordingSession';
 import { AppProvider } from '../state/AppContext';
 import { colors } from '../ui/theme';
@@ -14,6 +15,8 @@ async function onInit(db: Db) {
   await initDatabase(db);
   // A recording the app never got to stop (killed overnight) becomes a partial night.
   await recoverAbandonedSessions(db, randomUUID, new ExpoClipFiles());
+  // Sound past its keeping period, and half-written segments, go. Never blocks opening the app.
+  await tidySoundFiles(db).catch((e) => console.warn('Tidying sound files failed', e));
 }
 
 const header = {

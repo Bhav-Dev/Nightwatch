@@ -95,9 +95,10 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
   → ExpoAudioCapture        session clock = wall clock at stream start + stream timestamp
   → FrameAssembler          whole 1-second frames; clock jumps and all-zero seconds become gaps
   → RecordingSession        per-second features (level, centroid, 10 Hz envelope) and an optional model score;
-                            loud seconds feed the clip collector; audio is then dropped
+                            loud seconds feed the clip collector; seconds with sound feed the sound recorder
+  → SoundRecorder           stretches of sound (lead-in, quiet tail, 5-minute cap) → native AAC .m4a segments
   → SQLite session_frame    written every 30 s, so a killed app loses at most 30 s
-  → at Stop or auto-stop    detector → analyseNight → night, events, bins, clips, tonight's log
+  → at Stop or auto-stop    detector → analyseNight → night, events, bins, clips, sound segments, tonight's log
 ```
 
 - **iOS:** the expo-audio plugin adds the `audio` background mode.
@@ -107,7 +108,11 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
 
 ## Clips, WAV now, Opus later
 
-Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring ("Other sounds", so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. "Keep full-night audio" is shown but disabled until compressed audio exists.
+Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring ("Other sounds", so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. Clips could now use the native AAC encoder below; they are still WAV.
+
+## Sound recording (listen back from the timeline)
+
+The parts of each night with sound in them are kept, compressed, so the morning timeline can be played from any point; silence is never written (`src/recording/soundRecorder.ts`). A second at least 6 dB above the room's running quiet level starts or extends a segment; each segment begins 3 seconds before the first loud second, runs on through pauses of up to 8 seconds (the gaps between snores), and is capped at 5 minutes so a phone that dies loses at most the segment being written. Segments are AAC-LC at 24 kbps, 16 kHz mono (`.m4a`, about 11 MB per hour of sound), encoded by the platform encoder in `modules/nightwatch-recording-service` (`AacSegmentWriter.kt`: MediaCodec and MediaMuxer, on one background thread). Rows are in `sound_segment`; files in the document directory's `sounds/`. They stay on the phone, are never synced, and are deleted after 30 nights (`soundRetention.ts`, at launch, along with any half-written file). Settings has an on/off switch (on by default), the storage used and "Delete sound recordings". On the morning screen a thin line under the timeline marks recorded stretches; a tap plays from that moment, a playhead follows, and playback carries on into the next stretch. Android only so far: iOS needs the same encoder in Swift, and the switch is shown as unavailable there. Builds made before this feature simply keep no sound.
 
 ## Detection
 
@@ -121,6 +126,7 @@ The heuristic (v0) labels nights at Stop. The trained model will plug in through
 - **Experiment confidence** uses a seeded permutation test on the difference in means. With 7 nights a side, a test on medians reads "low confidence" even for a perfectly clean result. The verdict text still reports medians.
 - **"Was this your typical night?"** is asked for each night (dismissable by answering), not only on the first morning, because the aggregation excludes atypical nights.
 - **Events:** bridge gaps of up to 5 s, drop runs under 10 s, then merge events less than 20 s apart.
+- **Sound is kept, on by default** (product decision, 16 October 2026). The plan processed audio and discarded it, keeping only clips; users could not check whether the detector missed snoring. Nights now keep their sound (silence dropped, AAC at 24 kbps, about 5 to 20 MB a night) for 30 nights on the phone, never uploaded, with a switch to turn it off. The microphone onboarding step says so.
 - **Short nights:** any night under 3 hours in bed is scored and shown but left out of averages and trends, whether or not it was interrupted (short test recordings were counting). Remedy tests and the community aggregation already skip nights under 3 hours, and the aggregation also leaves out every partial night.
 - **Sync versions:** a night's `updated_at` always increases, even within one second, and sync records the version it sent, so an edit made during a sync is never lost.
 - **Free-text "Other" remedies** are logged as `other:<text>` and sent to the review queue; they are never ranked.

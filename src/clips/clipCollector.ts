@@ -1,3 +1,5 @@
+import { nextQuietLevel } from '../domain/audio/quietLevel';
+
 /**
  * Picks the loudest moments of the night while recording, before the audio is thrown away.
  *
@@ -63,9 +65,7 @@ export class ClipCollector {
     this.ring.set(samples.subarray(0, sampleRate), slot * sampleRate);
     this.ringT[slot] = t;
 
-    // Quiet level: falls quickly to quieter seconds, rises slowly, so snoring does not drag it up.
-    if (this.quietDb === null) this.quietDb = levelDb;
-    else this.quietDb = levelDb < this.quietDb ? levelDb : this.quietDb + (levelDb - this.quietDb) * 0.002;
+    this.quietDb = nextQuietLevel(this.quietDb, levelDb);
 
     const loud = levelDb - this.quietDb >= CANDIDATE_ABOVE_QUIET_DB && snoreLike !== false;
 

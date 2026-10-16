@@ -9,8 +9,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { allClipPaths, clipStorageBytes } from '../../data/clipRepo';
 import { deleteAllLocalData, exportAll } from '../../data/exportData';
 import { getSetting, setSetting } from '../../data/settingsRepo';
+import { allSoundPaths, deleteAllSoundRows, soundStorageBytes } from '../../data/soundRepo';
 import { config } from '../../config';
+import { removeSoundFile, soundRecordingAvailable } from '../../native/soundWriter';
 import { cancelBedtimeNudge, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
+import { SOUND_KEEP_DAYS } from '../../recording/soundRecorder';
 import { removeClipFile } from '../../screens/NightView';
 import { useApp } from '../../state/AppContext';
 import { Body, Button, Card, H2, Row, Segmented, Small, ToggleRow } from '../../ui/kit';
@@ -27,6 +30,7 @@ export default function SettingsScreen() {
   const [bedtime, setBedtime] = useState<string | null>(null);
   const [stopHour, setStopHour] = useState('11');
   const [storage, setStorage] = useState(0);
+  const [soundOn, setSoundOn] = useState(true);
   const [devPaid, setDevPaid] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -35,7 +39,8 @@ export default function SettingsScreen() {
     setLanding((await getSetting(db, 'landing_tab')) ?? 'auto');
     setBedtime(await getSetting(db, 'bedtime_reminder'));
     setStopHour((await getSetting(db, 'auto_stop_hour')) ?? '11');
-    setStorage(await clipStorageBytes(db));
+    setStorage((await clipStorageBytes(db)) + (await soundStorageBytes(db)));
+    setSoundOn((await getSetting(db, 'sound_recording')) !== '0');
     setDevPaid((await getSetting(db, 'dev_paid')) === '1');
   }, [db]);
 
@@ -45,7 +50,7 @@ export default function SettingsScreen() {
     }, [load]),
   );
 
-  const save = async (key: 'sensitivity' | 'landing_tab' | 'auto_stop_hour', value: string | null) => {
+  const save = async (key: 'sensitivity' | 'landing_tab' | 'auto_stop_hour' | 'sound_recording', value: string | null) => {
     await setSetting(db, key, value);
     await load();
   };
@@ -92,9 +97,24 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           for (const p of await allClipPaths(db)) removeClipFile(p);
+          for (const p of await allSoundPaths(db)) removeSoundFile(p);
           await deleteAllLocalData(db);
           await load();
           router.replace('/onboarding/microphone');
+        },
+      },
+    ]);
+
+  const deleteSound = () =>
+    Alert.alert('Delete all sound recordings?', 'The recorded sound of every night is removed from this phone. Scores, timelines and saved clips stay.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          for (const p of await allSoundPaths(db)) removeSoundFile(p);
+          await deleteAllSoundRows(db);
+          await load();
         },
       },
     ]);
@@ -113,6 +133,7 @@ export default function SettingsScreen() {
             try {
               if (api.configured) await api.deleteAccount();
               for (const p of await allClipPaths(db)) removeClipFile(p);
+              for (const p of await allSoundPaths(db)) removeSoundFile(p);
               await deleteAllLocalData(db);
               await signOut();
               router.replace('/onboarding');
@@ -181,8 +202,19 @@ export default function SettingsScreen() {
           <View style={{ marginTop: space(2) }}>
             <Segmented value={stopHour} onChange={(v) => save('auto_stop_hour', v)} options={STOP_HOURS.map((h) => ({ value: h, label: `${h}:00` }))} />
           </View>
-          <ToggleRow label="Keep full-night audio" value={false} onChange={() => undefined} disabled hint="Available once compressed audio is supported; a full night of uncompressed audio would take about 1 GB." />
-          <Row label="Storage used by clips" value={`${(storage / 1_000_000).toFixed(1)} MB`} />
+          <ToggleRow
+            label="Record sounds during the night"
+            value={soundRecordingAvailable && soundOn}
+            onChange={(v) => save('sound_recording', v ? '1' : '0')}
+            disabled={!soundRecordingAvailable}
+            hint={
+              soundRecordingAvailable
+                ? `Keeps the parts of each night with sound in them, compressed, so you can listen back from the timeline. Silence is not kept. Stays on this phone and is deleted after ${SOUND_KEEP_DAYS} nights.`
+                : 'Not available on this phone yet.'
+            }
+          />
+          <Row label="Storage used by recordings" value={`${(storage / 1_000_000).toFixed(1)} MB`} />
+          <Button kind="link" label="Delete sound recordings" onPress={deleteSound} />
         </Card>
 
         <Card>

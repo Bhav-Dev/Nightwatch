@@ -5,6 +5,7 @@ import { attachClipsToNight, deleteClipRow, getClip, insertClip, markOtherClip, 
 import { commitPendingLog } from '../data/logRepo';
 import { saveNight } from '../data/nightRepo';
 import type { Db } from '../data/db';
+import { attachSoundToNight, deleteSoundSegmentRow, insertSoundSegment, sessionSoundSegments } from '../data/soundRepo';
 import {
   appendFrames,
   appendGap,
@@ -22,6 +23,7 @@ import { HEURISTIC_DETECTOR_ID, type OnlineSnoreScorer } from '../domain/detecti
 import { classifyNightHeuristic, HEURISTIC } from '../domain/detection/heuristic';
 import { analyseNight, type Sensitivity } from '../domain/scoring';
 import type { AudioCapture } from '../native/audioCapture';
+import { type SegmentWriter, SoundRecorder } from './soundRecorder';
 
 /** Features are written to SQLite in batches this size, so a killed app loses at most this many seconds. */
 export const PERSIST_EVERY_S = 30;
@@ -42,6 +44,7 @@ export interface FinishedNight {
 export class RecordingSession {
   private pending: StoredFrame[] = [];
   private clips: ClipCollector | null = null;
+  private sound: SoundRecorder | null = null;
   private writes: Promise<void> = Promise.resolve();
   private lastLevel: number | null = null;
   private lastT = -1;
@@ -66,6 +69,8 @@ export class RecordingSession {
     files?: ClipFiles | null;
     /** An on-device model; without one the heuristic labels the night at Stop. */
     scorer?: OnlineSnoreScorer | null;
+    /** Compresses the parts of the night with sound for playback; null keeps no sound. */
+    sound?: SegmentWriter | null;
   }): Promise<RecordingSession> {
     const now = opts.now ?? (() => new Date());
     const startedAt = now();
@@ -103,6 +108,20 @@ export class RecordingSession {
         opts.newId,
       );
     }
+    if (opts.sound) {
+      session.sound = new SoundRecorder(opts.sound, opts.newId, (s) =>
+        insertSoundSegment(opts.db, {
+          id: s.id,
+          session_id: session.id,
+          start_s: s.startS,
+          end_s: s.endS,
+          codec: 'aac',
+          path: s.path,
+          bytes: s.bytes,
+          created_at: Math.floor(now().getTime() / 1000),
+        }),
+      );
+    }
     liveSessionId = session.id;
     try {
       await opts.capture.start({
@@ -120,6 +139,7 @@ export class RecordingSession {
               features.levelDb,
               snoreProb !== null ? snoreProb >= 0.5 : features.centroidHz < HEURISTIC.maxCentroidHz,
             );
+            session.sound?.addSecond(startS + s, second, sampleRate, features.levelDb);
             session.lastLevel = features.levelDb;
             session.lastT = startS + s;
           }
@@ -155,6 +175,7 @@ export class RecordingSession {
     await this.capture.stop();
     this.flush();
     await this.clips?.finish();
+    await this.sound?.finish();
     await this.writes;
     liveSessionId = null;
     return finaliseSession(this.db, this.id, { newId: this.newId, files: this.files });
@@ -164,6 +185,7 @@ export class RecordingSession {
   async discard(): Promise<void> {
     await this.capture.stop();
     await this.clips?.finish();
+    await this.sound?.finish();
     await this.writes;
     liveSessionId = null;
     await deleteSessionAndClips(this.db, this.id, this.files);
@@ -235,6 +257,7 @@ export async function finaliseSession(
     detector: modelCovered ? (session.detector ?? 'model') : HEURISTIC_DETECTOR_ID,
   });
   await keepClipsForEvents(db, sessionId, nightId, analysis.events, opts.files ?? null);
+  await attachSoundToNight(db, sessionId, nightId);
   const logged = await commitPendingLog(db, nightId);
   await deleteSession(db, sessionId);
   return { nightId, partial, logged };
@@ -276,6 +299,10 @@ async function deleteSessionAndClips(db: Db, sessionId: string, files: ClipFiles
   for (const c of await sessionClips(db, sessionId)) {
     if (files) await files.remove(c.path);
     await deleteClipRow(db, c.id);
+  }
+  for (const s of await sessionSoundSegments(db, sessionId)) {
+    if (files) await files.remove(s.path);
+    await deleteSoundSegmentRow(db, s.id);
   }
   await deleteSession(db, sessionId);
 }

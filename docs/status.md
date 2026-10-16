@@ -46,7 +46,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 | Item | Status | Notes |
 | --- | --- | --- |
 | Project on the shared stack | ✅ | Expo SDK 57, React Native, TypeScript, Expo Router |
-| Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). The Kotlin compiles (Android development build on EAS); not yet tested overnight on a phone |
+| Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). The Kotlin compiles (Android builds on EAS). First real night recorded on a Samsung S24 Ultra (preview build, about 4 hours, 16 October 2026); the full 8-hour battery test is still to do |
 | Interrupted recordings | 🟡 | Clock jumps, silent stretches and app kills become partial nights with a cause. Tested in code, not on a phone |
 | 30-night test dataset | 👤 | Needs volunteers. Tools ready in `tools/` |
 | Catalogue of about 40 entries with articles | ✅ | 42 entries. Articles are short drafts (see Content below) |
@@ -68,7 +68,8 @@ Acceptance criteria:
 | Detection | ✅ / ⬜ | The heuristic (v0) is in place, as decided. The model is not trained yet; it plugs in through `OnlineSnoreScorer` |
 | Score, timeline, clips, remedy and factor logging, 7-night history | 🟡 | All built and logic-tested; UI not seen on a phone |
 | Tonight and This Morning screens | 🟡 | Built from the mockups |
-| Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Share gives the audio file only; no card image yet |
+| Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Up to 5 snoring clips plus the 3 loudest "other sounds" a night. Share gives the audio file only; no card image yet |
+| Sound recording (listen back from the timeline) | 🟡 | Beyond the plan, decided 16 October 2026: the parts of the night with sound, AAC 24 kbps, kept 30 nights, on by default. Built and tested in code (Android native encoder, segments, retention, playback); not yet run on a phone. iOS ⬜ (needs the encoder in Swift) |
 | Onboarding, Settings, export, delete, auto-stop, bedtime reminder | 🟡 | Built |
 | Internal test with 5 snorers for 2 weeks, compared with SnoreLab | 👤 | |
 | **Gate:** 85% event agreement, testers say the morning screen told them something new | 👤 | Needs labelled nights and a trained model |
@@ -198,8 +199,7 @@ Raised during the build:
 
 - **Recording view:** no battery estimate.
 - **Clips:** sharing gives the audio file only; no card image yet.
-- **"Keep full-night audio":** shown but disabled until compressed audio exists.
-- **Free-text "Other" remedies:** shown on Tonight but not in the morning log list.
+- **Sound recording:** Android only; iOS needs the same AAC encoder in Swift. Battery has to be measured again with it on (the 8% gate). Clips are still WAV, though they could now use the AAC encoder.
 - **Google sign-in** uses `expo-auth-session`'s Google helper, deprecated in SDK 57; Expo now points to a native Google sign-in library. Its Android flow relies on a custom-scheme redirect that Google turns off by default for new Android clients. Switch before testing Google on a phone.
 - **Email sign-in links** open `nightwatch://auth?token=…`, which many email apps (Gmail included) will not open. Route them through an https page that opens the app (`NIGHTWATCH_APP_LINK_BASE`) before relying on email sign-in.
 - **Sign in with Apple on account deletion:** Apple requires apps to revoke the user's Apple tokens when they delete their account (needs a Sign in with Apple key and a server call). Not done yet; needed before App Store submission. The optional server-to-server notification endpoint can be added at the same time.

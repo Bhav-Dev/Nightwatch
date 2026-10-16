@@ -2,7 +2,8 @@ import type { Db } from './db';
 
 export type SettingKey =
   | 'sensitivity'
-  | 'keep_full_night'
+  /** '0' turns off keeping the night's sound; unset or '1' means on. */
+  | 'sound_recording'
   | 'landing_tab'
   | 'contribution'
   | 'pending_prefilled_for'

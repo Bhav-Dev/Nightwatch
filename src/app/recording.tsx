@@ -12,6 +12,7 @@ import { notifyNightReady } from '../notifications';
 import { useApp } from '../state/AppContext';
 import type { Sensitivity } from '../domain/scoring';
 import { getAudioCapture } from '../native';
+import { NativeSegmentWriter, soundRecordingAvailable } from '../native/soundWriter';
 import { RecordingSession } from '../recording/recordingSession';
 import { colors, radius, space } from '../ui/theme';
 
@@ -46,12 +47,15 @@ export default function Recording() {
         const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
         const hour = Number((await getSetting(db, 'auto_stop_hour')) ?? DEFAULT_AUTO_STOP_HOUR);
         stopAt.current = autoStopAt(new Date(), hour);
+        // Sound recording is on unless switched off in Settings (and needs this build's encoder).
+        const keepSound = soundRecordingAvailable && (await getSetting(db, 'sound_recording')) !== '0';
         const s = await RecordingSession.begin({
           db,
           capture: getAudioCapture(),
           sensitivity,
           newId: randomUUID,
           files: new ExpoClipFiles(),
+          sound: keepSound ? new NativeSegmentWriter() : null,
         });
         if (cancelled) {
           await s.discard();

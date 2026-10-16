@@ -190,11 +190,11 @@ export function logEditable(nightDate: string, now = new Date()): boolean {
   return now < deadline;
 }
 
-/** Deletes a night here and queues the deletion for the server. Clip files are the caller's job. */
+/** Deletes a night here and queues the deletion for the server. Clip and sound files are the caller's job. */
 export async function deleteNight(db: Db, nightId: string): Promise<void> {
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM night WHERE id = ?', [nightId]);
-    for (const t of ['event', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'clip']) {
+    for (const t of ['event', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'clip', 'sound_segment']) {
       await db.runAsync(`DELETE FROM ${t} WHERE night_id = ?`, [nightId]);
     }
     await db.runAsync('INSERT OR IGNORE INTO sync_tombstone (night_id) VALUES (?)', [nightId]);

@@ -39,13 +39,20 @@ export function NightTimeline({
   startedAtS,
   onSelect,
   selected,
+  recorded,
+  playheadS,
   overlay,
   height = 140,
 }: {
   bins: TimelineBin[];
   startedAtS: number;
-  onSelect?: (index: number) => void;
+  /** A tap: the 5-minute bin and the second of the night it landed on. */
+  onSelect?: (index: number, atS: number) => void;
   selected?: number | null;
+  /** Stretches with recorded sound (seconds from the start), marked along the bottom. */
+  recorded?: { startS: number; endS: number }[];
+  /** Where playback is, in seconds from the start; drawn as a line. */
+  playheadS?: number | null;
   /** Optional thin lines drawn under the bars (SpO2, heart rate), each scaled to its own band below the chart. */
   overlay?: { label: string; points: { x: number; y: number }[]; color: string }[];
   height?: number;
@@ -57,6 +64,8 @@ export function NightTimeline({
   const plotH = height - bottomAxis;
   const centreY = plotH / 2;
   const step = width / Math.max(bins.length, 1);
+  const totalS = Math.max(1, bins.length * 300);
+  const xAt = (s: number) => (s / totalS) * width;
   const outline = outlinePath(outlineAmplitudes(bins.map((b) => b.levelDb)), width, centreY, centreY - 2);
   const runs = colourRuns(bins.map((b) => b.intensity));
   const hourTicks: { x: number; label: string }[] = [];
@@ -79,7 +88,12 @@ export function NightTimeline({
             <Rect key={r.start} x={r.start * step} y={0} width={(r.end - r.start) * step} height={plotH} fill={intensityColor[r.key]} />
           ))}
         </G>
-        {selected !== undefined && selected !== null ? (
+        {recorded?.map((r) => (
+          <Rect key={r.startS} x={xAt(r.startS)} y={plotH - 4} width={Math.max(1.5, xAt(r.endS - r.startS))} height={3} rx={1.5} fill={colors.info} opacity={0.8} />
+        ))}
+        {playheadS !== undefined && playheadS !== null ? (
+          <Line x1={xAt(playheadS)} x2={xAt(playheadS)} y1={0} y2={plotH} stroke={colors.accent} strokeWidth={2} />
+        ) : selected !== undefined && selected !== null ? (
           <Line x1={(selected + 0.5) * step} x2={(selected + 0.5) * step} y1={0} y2={plotH} stroke={colors.text} strokeWidth={1} opacity={0.7} />
         ) : null}
         {hourTicks
@@ -114,7 +128,7 @@ export function NightTimeline({
               key={b.index}
               accessibilityRole="button"
               accessibilityLabel={`${new Date((startedAtS + i * 300) * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}, ${Math.round(b.snoreS / 60)} minutes of snoring`}
-              onPress={() => onSelect(i)}
+              onPress={(e) => onSelect(i, i * 300 + Math.min(299, Math.max(0, Math.round((e.nativeEvent.locationX / Math.max(1, step)) * 300))))}
               style={{ flex: 1 }}
             />
           ))}
