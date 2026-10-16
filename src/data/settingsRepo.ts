@@ -7,8 +7,6 @@ export type SettingKey =
   /** Sleep sounds to play while falling asleep: 'white' | 'pink' | 'brown'; unset means off. */
   | 'sleep_sound'
   | 'sleep_sound_minutes'
-  /** Wake-up alarm as "HH:MM", added to the Clock app when recording starts; unset means off. */
-  | 'wake_alarm'
   /** Weather on This Morning: 'on' (location allowed) | 'off'; unset means not asked yet. */
   | 'weather'
   | 'landing_tab'

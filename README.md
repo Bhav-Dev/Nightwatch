@@ -123,7 +123,12 @@ Tonight offers white, pink or brown noise to fall asleep to, with a 15 to 60 min
 
 ## Wake-up alarm
 
-Set on Tonight, under sleep sounds, with the system time dialog (`@expo/ui`). Nightwatch has no alarm of its own. When recording starts, it adds a one-off alarm to the phone's own Clock app, without opening it (`AlarmClock.ACTION_SET_ALARM` with skip-UI, the `SET_ALARM` permission, `setClockAlarm` in the native module). The alarm then rings even if Nightwatch is stopped overnight, in Do Not Disturb, and on battery saver. The recording stops 30 seconds before the alarm instead of at the auto-stop hour, so the alarm is not recorded and the night is ready as it rings. It sends no "Your night is ready" notification, which would wake them a moment early (`src/domain/wakeAlarm.ts`). Turning the alarm off on Tonight affects later nights only; an alarm already in the Clock app stays there. There is no "smart" alarm, because Nightwatch does not measure sleep stages. Android only; on iPhone this would use Apple's AlarmKit (iOS 26).
+The wake-up alarm is the phone's own. Nightwatch has no alarm of its own and stores no alarm time; it reads the phone's next alarm, whichever app set it (`AlarmManager.getNextAlarmClock`, which needs no permission; `nextAlarmTime` in the native module).
+
+- **On Tonight,** under sleep sounds, a row shows tomorrow morning's alarm. Tapping it opens the Clock app's alarms to change it (`ACTION_SHOW_ALARMS`). The row counts an alarm 1 to 18 hours ahead; a bedtime reminder, or a weekday alarm seen on a Saturday, does not count. With no alarm, the row offers "Set". That opens the system time dialog (`@expo/ui`) and adds a one-off alarm to the Clock app straight away, without opening it (`ACTION_SET_ALARM` with skip-UI, the `SET_ALARM` permission). So people who already have alarms get no duplicates, and the Clock app rings the alarm whatever happens to Nightwatch overnight, including in Do Not Disturb and on battery saver.
+- **While recording,** the recording stops 30 seconds before the phone's next alarm when it rings at least an hour in and within the 12-hour limit. Otherwise it stops at the auto-stop hour. Stopping early keeps the alarm out of the recording, and the night is ready as it rings. The alarm is read again every minute, so moving it in the night is followed. Stopping for an alarm sends no "Your night is ready" notification, which would wake them a moment early (`src/domain/wakeAlarm.ts`).
+
+There is no "smart" alarm, because Nightwatch does not measure sleep stages. Android only; on iPhone this would use Apple's AlarmKit (iOS 26).
 
 ## Weather
 

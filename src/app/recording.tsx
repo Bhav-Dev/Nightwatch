@@ -12,7 +12,7 @@ import { notifyNightReady } from '../notifications';
 import { useApp } from '../state/AppContext';
 import type { Sensitivity } from '../domain/scoring';
 import { ClockAlarm, NoisePlayer } from '../../modules/nightwatch-recording-service/src';
-import { ALARM_LABEL, nextAlarm, parseWakeTime, STOP_BEFORE_ALARM_MS } from '../domain/wakeAlarm';
+import { STOP_BEFORE_ALARM_MS, stopForAlarm } from '../domain/wakeAlarm';
 import { DEFAULT_SLEEP_TIMER_MINUTES, SLEEP_SOUND_FADE_S, SLEEP_SOUND_GAIN, SLEEP_SOUNDS, sleepSoundName, type SleepSoundKind } from '../domain/sleepSounds';
 import { getAudioCapture } from '../native';
 import { NativeSegmentWriter, soundRecordingAvailable } from '../native/soundWriter';
@@ -46,9 +46,18 @@ export default function Recording() {
   const [analysing, setAnalysing] = useState(false);
   /** Sleep sounds playing now, and the clock time they fade out by. */
   const [sleep, setSleep] = useState<{ kind: SleepSoundKind; endsAt: Date } | null>(null);
-  /** Tonight's wake-up alarm, and whether the Clock app took it. */
-  const [alarm, setAlarm] = useState<{ at: Date; added: boolean } | null>(null);
-  const wakeAt = useRef<Date | null>(null);
+  /** The phone's alarm the recording stops for (epoch ms), if any. */
+  const [alarmAt, setAlarmAt] = useState<number | null>(null);
+  const startedAt = useRef(0);
+  /** The stop time from Settings, used when there is no alarm to stop for. */
+  const usualStop = useRef<number>(Number.MAX_SAFE_INTEGER);
+
+  /** Stops just before the phone's next alarm, whichever app set it, or else at the usual time. */
+  const followAlarm = useCallback(() => {
+    const alarmStop = ClockAlarm.available ? stopForAlarm(ClockAlarm.next(), startedAt.current, startedAt.current + MAX_RECORDING_MS) : null;
+    stopAt.current = alarmStop ?? usualStop.current;
+    setAlarmAt(alarmStop === null ? null : alarmStop + STOP_BEFORE_ALARM_MS);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +66,9 @@ export default function Recording() {
       try {
         const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
         const hour = Number((await getSetting(db, 'auto_stop_hour')) ?? DEFAULT_AUTO_STOP_HOUR);
-        stopAt.current = autoStopAt(new Date(), hour);
+        startedAt.current = Date.now();
+        usualStop.current = autoStopAt(new Date(startedAt.current), hour);
+        followAlarm();
         // Sound recording is on unless switched off in Settings (and needs this build's encoder).
         const keepSound = soundRecordingAvailable && (await getSetting(db, 'sound_recording')) !== '0';
         const s = await RecordingSession.begin({
@@ -74,16 +85,6 @@ export default function Recording() {
         }
         session.current = s;
         track({ name: 'recording_start' });
-        // The wake-up alarm goes in the phone's Clock app, so it rings whatever happens to this app
-        // overnight. Added once recording is running, and the recording stops just before it.
-        const wake = ClockAlarm.available ? parseWakeTime(await getSetting(db, 'wake_alarm')) : null;
-        if (wake) {
-          const at = nextAlarm(new Date(), wake);
-          const added = ClockAlarm.set(wake.hour, wake.minute, ALARM_LABEL);
-          wakeAt.current = at;
-          stopAt.current = Math.min(at.getTime() - STOP_BEFORE_ALARM_MS, Date.now() + MAX_RECORDING_MS);
-          setAlarm({ at, added });
-        }
         // Sleep sounds chosen on Tonight start with the recording and fade out on their timer.
         const kind = (await getSetting(db, 'sleep_sound')) as SleepSoundKind | null;
         if (NoisePlayer.available && kind && SLEEP_SOUNDS.some((x) => x.kind === kind)) {
@@ -125,7 +126,7 @@ export default function Recording() {
       // Unmounted without Stop: keep what was recorded rather than lose the night.
       if (session.current && !finishing.current) void session.current.finish();
     };
-  }, [db]);
+  }, [db, followAlarm]);
 
   /** Ends sleep sounds early; the analysis is told when they really stopped. */
   const stopSounds = useCallback(() => {
@@ -146,7 +147,7 @@ export default function Recording() {
       if (night) track({ name: 'log_saved', remedies: night.logged.remedies, factors: night.logged.factors });
       if (row) track({ name: 'recording_complete', duration_band: durationBand(row.time_in_bed_s), partial: row.partial === 1 });
       // Not when the alarm is about to ring: a notification just before it would wake them early.
-      if (row && automatic && !wakeAt.current) await notifyNightReady(row.score).catch(() => undefined);
+      if (row && automatic && stopAt.current === usualStop.current) await notifyNightReady(row.score).catch(() => undefined);
       void sync();
       if (night) router.replace('/morning');
       else router.back();
@@ -164,6 +165,13 @@ export default function Recording() {
     }, 5000);
     return () => clearInterval(t);
   }, [stop]);
+
+  // The phone's alarm can change during the night (moved, or one set late): keep following it.
+  useEffect(() => {
+    if (!ClockAlarm.available) return;
+    const t = setInterval(followAlarm, 60_000);
+    return () => clearInterval(t);
+  }, [followAlarm]);
 
 
   if (analysing) {
@@ -198,11 +206,9 @@ export default function Recording() {
           </Pressable>
         </View>
       ) : null}
-      {alarm ? (
-        <Text style={alarm.added ? styles.alarmText : styles.alarmProblem}>
-          {alarm.added
-            ? `Alarm at ${alarm.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, in your Clock app`
-            : 'The alarm could not be added to your Clock app. Set one there.'}
+      {alarmAt ? (
+        <Text style={styles.alarmText}>
+          Stops just before your {new Date(alarmAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} alarm
         </Text>
       ) : null}
       <Text style={styles.note}>You can lock the phone. Recording carries on with the screen off.</Text>
@@ -233,7 +239,6 @@ const styles = StyleSheet.create({
   sleepText: { color: colors.textFaint, fontSize: 14 },
   sleepStop: { color: colors.accent, fontSize: 14, fontWeight: '700', opacity: 0.8 },
   alarmText: { color: colors.textFaint, fontSize: 14, marginTop: space(4) },
-  alarmProblem: { color: colors.worse, fontSize: 14, marginTop: space(4), textAlign: 'center' },
   note: { color: colors.textFaint, fontSize: 13, marginTop: space(4), textAlign: 'center' },
   stop: {
     position: 'absolute',

@@ -4,7 +4,7 @@ import { getCalendars } from 'expo-localization';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { requestNotificationPermissionsAsync } from 'expo-audio';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,7 +21,7 @@ import {
   SLEEP_TIMER_MINUTES,
   type SleepSoundKind,
 } from '../../domain/sleepSounds';
-import { DEFAULT_WAKE_TIME, parseWakeTime, wakeDate, wakeSetting, type WakeTime } from '../../domain/wakeAlarm';
+import { ALARM_LABEL, DEFAULT_WAKE_TIME, tonightsAlarm, wakeDate, type WakeTime } from '../../domain/wakeAlarm';
 import { Button, GearLink, Segmented } from '../../ui/kit';
 import { askForLocation, weatherConfigured } from '../../weather/weatherClient';
 import { useApp } from '../../state/AppContext';
@@ -51,8 +51,8 @@ const TIPS = [
 ];
 
 /** A time of day in the phone's own 12 or 24-hour style. */
-const clockTime = (wake: WakeTime, uses24h: boolean) =>
-  wakeDate(wake).toLocaleTimeString([], { hour: uses24h ? '2-digit' : 'numeric', minute: '2-digit', hour12: !uses24h });
+const clockTime = (time: Date, uses24h: boolean) =>
+  time.toLocaleTimeString([], { hour: uses24h ? '2-digit' : 'numeric', minute: '2-digit', hour12: !uses24h });
 
 /** Free-text remedies are logged as "other:<text>" and sent to the catalogue review queue. */
 const OTHER_PREFIX = 'other:';
@@ -67,7 +67,8 @@ export default function Tonight() {
   const [sleepSound, setSleepSound] = useState<SleepSoundKind | 'off'>('off');
   const [sleepMinutes, setSleepMinutes] = useState<number>(DEFAULT_SLEEP_TIMER_MINUTES);
   const [previewing, setPreviewing] = useState(false);
-  const [wake, setWake] = useState<WakeTime | null>(null);
+  /** The phone's own alarm for tomorrow morning (epoch ms), from its Clock app. */
+  const [alarmAt, setAlarmAt] = useState<number | null>(null);
   const [pickingWake, setPickingWake] = useState(false);
   const uses24h = useMemo(() => getCalendars()[0]?.uses24hourClock ?? true, []);
   /** Offer weather on the morning screen until it has been answered once. */
@@ -89,7 +90,6 @@ export default function Tonight() {
         const kind = (await getSetting(db, 'sleep_sound')) as SleepSoundKind | null;
         setSleepSound(kind && SLEEP_SOUNDS.some((s) => s.kind === kind) ? kind : 'off');
         setSleepMinutes(Number((await getSetting(db, 'sleep_sound_minutes')) ?? DEFAULT_SLEEP_TIMER_MINUTES));
-        setWake(parseWakeTime(await getSetting(db, 'wake_alarm')));
         setOfferWeather(weatherConfigured && (await getSetting(db, 'weather')) === null);
       })();
       // Leaving the screen ends a preview.
@@ -108,9 +108,34 @@ export default function Tonight() {
     await setSetting(db, 'sleep_sound_minutes', String(minutes));
   };
 
-  const chooseWake = async (time: WakeTime | null) => {
-    setWake(time);
-    await setSetting(db, 'wake_alarm', time ? wakeSetting(time) : null);
+  const readAlarm = useCallback(() => {
+    setAlarmAt(ClockAlarm.available ? tonightsAlarm(ClockAlarm.next(), Date.now()) : null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      readAlarm();
+      // Back from the Clock app, where the alarm may have changed.
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') readAlarm();
+      });
+      return () => sub.remove();
+    }, [readAlarm]),
+  );
+
+  /** No alarm yet: one is added to the Clock app, which then rings it whatever happens here. */
+  const addAlarm = (time: WakeTime) => {
+    if (!ClockAlarm.set(time.hour, time.minute, ALARM_LABEL)) {
+      Alert.alert('Alarm not set', 'Your phone’s Clock app did not take the alarm. Set one there instead.');
+      return;
+    }
+    // The Clock app schedules it a moment later.
+    setTimeout(readAlarm, 1000);
+    setTimeout(readAlarm, 3000);
+  };
+
+  const changeAlarm = () => {
+    if (!ClockAlarm.showAll()) Alert.alert('No Clock app', 'Change the alarm in the app you use for alarms.');
   };
 
   const answerWeather = async (yes: boolean) => {
@@ -295,39 +320,36 @@ export default function Tonight() {
               <View style={NoisePlayer.available ? styles.divided : undefined}>
                 <Pressable
                   style={styles.alarmRow}
-                  onPress={() => setPickingWake(true)}
+                  onPress={alarmAt ? changeAlarm : () => setPickingWake(true)}
                   accessibilityRole="button"
-                  accessibilityLabel={wake ? `Wake-up alarm at ${clockTime(wake, uses24h)}. Change` : 'Set a wake-up alarm'}
+                  accessibilityLabel={
+                    alarmAt ? `Wake-up alarm at ${clockTime(new Date(alarmAt), uses24h)}. Change it in the Clock app` : 'Set a wake-up alarm'
+                  }
                 >
                   <Text style={styles.cardTitle}>Wake-up alarm</Text>
                   <View style={styles.alarmValue}>
-                    <Text style={wake ? styles.alarmTime : styles.alarmOff}>{wake ? clockTime(wake, uses24h) : 'Off'}</Text>
+                    <Text style={alarmAt ? styles.alarmTime : styles.alarmSet}>{alarmAt ? clockTime(new Date(alarmAt), uses24h) : 'Set'}</Text>
                     <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
                   </View>
                 </Pressable>
                 <Text style={styles.cardBody}>
-                  {wake
-                    ? 'Added to your Clock app when you start recording. The recording stops just before it rings.'
-                    : 'Adds an alarm to your Clock app, and the recording stops just before it rings.'}
+                  {alarmAt
+                    ? 'Your alarm, from the Clock app; tap to change it there. The recording stops just before it rings.'
+                    : 'No alarm is set for the morning. Set one and it goes in your Clock app; the recording stops just before it rings.'}
                 </Text>
-                {wake ? (
-                  <Pressable onPress={() => chooseWake(null)} accessibilityRole="button" hitSlop={8} style={styles.alarmClear}>
-                    <Text style={styles.change}>Turn off</Text>
-                  </Pressable>
-                ) : null}
               </View>
             ) : null}
           </View>
         ) : null}
         {pickingWake ? (
           <DateTimePicker
-            value={wakeDate(wake ?? DEFAULT_WAKE_TIME)}
+            value={wakeDate(DEFAULT_WAKE_TIME)}
             mode="time"
             presentation="dialog"
             is24Hour={uses24h}
             onValueChange={(_, date) => {
               setPickingWake(false);
-              void chooseWake({ hour: date.getHours(), minute: date.getMinutes() });
+              addAlarm({ hour: date.getHours(), minute: date.getMinutes() });
             }}
             onDismiss={() => setPickingWake(false)}
           />
@@ -409,8 +431,7 @@ const styles = StyleSheet.create({
   alarmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space(1), marginBottom: space(1) },
   alarmValue: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
   alarmTime: { color: colors.accent, fontSize: 20, fontFamily: fonts.heading, fontVariant: ['tabular-nums'] },
-  alarmOff: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.headingSemi },
-  alarmClear: { alignSelf: 'flex-start', marginTop: space(3) },
+  alarmSet: { color: colors.accent, fontSize: 16, fontFamily: fonts.headingSemi },
   tipBody: { color: colors.text, fontSize: 15, lineHeight: 21 },
   footer: { padding: space(5), paddingTop: space(2) },
   primary: {

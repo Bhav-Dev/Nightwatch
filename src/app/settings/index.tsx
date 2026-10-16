@@ -216,7 +216,7 @@ export default function SettingsScreen() {
               ]}
             />
           </View>
-          <Small>Stop automatically at, if no wake-up alarm is set</Small>
+          <Small>Stop automatically at, if no alarm is set</Small>
           <View style={{ marginTop: space(2) }}>
             <Segmented value={stopHour} onChange={(v) => save('auto_stop_hour', v)} options={STOP_HOURS.map((h) => ({ value: h, label: `${h}:00` }))} />
           </View>

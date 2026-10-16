@@ -1,6 +1,8 @@
 package app.nightwatch.recordingservice
 
+import android.app.AlarmManager
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.provider.AlarmClock
 import android.util.Log
@@ -102,31 +104,32 @@ class NightwatchRecordingServiceModule : Module() {
     }
 
     /**
+     * When the phone's next alarm rings (epoch milliseconds), whichever app set it, or null if none
+     * is set. No permission needed: it is what the status bar's alarm icon shows.
+     */
+    Function("nextAlarmTime") {
+      val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      alarms.nextAlarmClock?.triggerTime?.toDouble()
+    }
+
+    /**
      * Adds a one-off alarm to the phone's own Clock app without opening it, so it rings whatever
      * happens to this app overnight. False when no Clock app accepts it.
      */
     Function("setClockAlarm") { hour: Int, minute: Int, label: String ->
-      val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
-        putExtra(AlarmClock.EXTRA_HOUR, hour)
-        putExtra(AlarmClock.EXTRA_MINUTES, minute)
-        putExtra(AlarmClock.EXTRA_MESSAGE, label)
-        putExtra(AlarmClock.EXTRA_SKIP_UI, true)
-      }
-      try {
-        val activity = appContext.currentActivity
-        if (activity != null) {
-          activity.startActivity(intent)
-        } else {
-          context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
-        true
-      } catch (e: ActivityNotFoundException) {
-        Log.w(TAG, "No Clock app accepts alarms", e)
-        false
-      } catch (e: SecurityException) {
-        Log.w(TAG, "Not allowed to set an alarm", e)
-        false
-      }
+      startClock(
+        Intent(AlarmClock.ACTION_SET_ALARM).apply {
+          putExtra(AlarmClock.EXTRA_HOUR, hour)
+          putExtra(AlarmClock.EXTRA_MINUTES, minute)
+          putExtra(AlarmClock.EXTRA_MESSAGE, label)
+          putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+        },
+      )
+    }
+
+    /** Opens the Clock app's list of alarms, to change one there. False when there is no Clock app. */
+    Function("showClockAlarms") {
+      startClock(Intent(AlarmClock.ACTION_SHOW_ALARMS))
     }
 
     OnDestroy {
@@ -138,6 +141,24 @@ class NightwatchRecordingServiceModule : Module() {
       encoderThread.shutdown()
     }
   }
+
+  /** Starts a Clock app screen from the visible activity. False when no app handles it. */
+  private fun startClock(intent: Intent): Boolean =
+    try {
+      val activity = appContext.currentActivity
+      if (activity != null) {
+        activity.startActivity(intent)
+      } else {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      }
+      true
+    } catch (e: ActivityNotFoundException) {
+      Log.w(TAG, "No Clock app handles ${intent.action}", e)
+      false
+    } catch (e: SecurityException) {
+      Log.w(TAG, "Not allowed to open the Clock app", e)
+      false
+    }
 
   private companion object {
     const val TAG = "NightwatchSound"

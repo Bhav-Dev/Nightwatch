@@ -12,8 +12,10 @@ interface NightwatchRecordingServiceModule {
   startNoise?(color: string, gain: number, durationS: number, fadeOutS: number): void;
   stopNoise?(): Promise<void>;
   isNoisePlaying?(): boolean;
-  // The phone's Clock app. Missing on builds made before it existed.
+  // The phone's alarms. Missing on builds made before they existed.
+  nextAlarmTime?(): number | null;
   setClockAlarm?(hour: number, minute: number, label: string): boolean;
+  showClockAlarms?(): boolean;
 }
 
 // Android only. On iOS (and in Expo Go) this is null and the calls below are no-ops.
@@ -65,11 +67,19 @@ export const NoisePlayer = {
   },
 };
 
-/** The phone's own Clock app: adds a one-off alarm there without opening it. */
+/** The phone's own alarms, kept by its Clock app (or whichever alarm app is in use). */
 export const ClockAlarm = {
-  available: typeof native?.setClockAlarm === 'function',
-  /** False when the alarm could not be added (no Clock app takes it). */
+  available: typeof native?.nextAlarmTime === 'function',
+  /** When the next alarm rings (epoch ms), or null if none is set. */
+  next(): number | null {
+    return native?.nextAlarmTime?.() ?? null;
+  },
+  /** Adds a one-off alarm to the Clock app without opening it. False when no Clock app takes it. */
   set(hour: number, minute: number, label: string): boolean {
     return native?.setClockAlarm?.(hour, minute, label) ?? false;
+  },
+  /** Opens the Clock app's alarms. False when there is no Clock app. */
+  showAll(): boolean {
+    return native?.showClockAlarms?.() ?? false;
   },
 };
