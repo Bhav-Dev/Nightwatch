@@ -18,7 +18,7 @@ Partner mode (Household) is not built: the brief holds it for the first update a
 ## Layout
 
 ```
-docs/                      project plan, screen mockups, status against the plan
+docs/                      project plan, screen mockups, status against the plan, design notes
 shared/                    code used by both app and server
   api.ts                   the /v1 API contract
   remedyEffect.ts          the remedy-effect algorithm (eligibility, within-person deltas, community figures)

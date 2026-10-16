@@ -150,6 +150,7 @@ Acceptance criteria:
 | Item | Status |
 | --- | --- |
 | Partner mode (Household) | ⬜ Held for the first update, as the plan says; "coming soon" card in Settings |
+| Night events: classify every sound (snoring, partner, talking, coughs, movement), possible wakes, watch sleep-stage lane, user corrections | ⬜ Proposed, not scheduled. Design in [night-events-design.md](night-events-design.md) |
 | Monthly catalogue review, "what the data says" post, new slices | ⬜ |
 | Localisation and non-UK affiliate programmes | ⬜ (Amazon links already work in 12 marketplaces once tags are set) |
 
