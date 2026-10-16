@@ -9,6 +9,11 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0F1629",
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/ios-icon-dark.png",
+        "tinted": "./assets/ios-icon-tinted.png"
+      },
       "supportsTablet": false,
       "bundleIdentifier": "com.threeft2.nightwatch",
       "usesAppleSignIn": true
@@ -16,7 +21,7 @@
     "android": {
       "package": "com.threeft2.nightwatch",
       "adaptiveIcon": {
-        "backgroundColor": "#0F1629",
+        "backgroundColor": "#2B2F7E",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -51,7 +56,10 @@
       "expo-apple-authentication",
       [
         "expo-notifications",
-        {}
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#5B5FD6"
+        }
       ],
       [
         "@kingstinct/react-native-healthkit",

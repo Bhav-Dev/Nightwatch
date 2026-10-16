@@ -40,6 +40,8 @@ modules/nightwatch-recording-service/   Android foreground service (Kotlin)
 server/                    API (Hono) and nightly job; see server/README.md
 supabase/                  Supabase function wrappers and migrations (same server code)
 tools/                     labelling and detector evaluation; see tools/README.md
+scripts/make-icons.mjs     draws the app icon and renders every icon file (npm run icons)
+assets/icon-src/           the icon as SVG, and its layers for Apple's Icon Composer
 site/methods.html          public methods page
 __tests__/                 app tests (Jest); data-layer tests run on node:sqlite
 ```
@@ -126,6 +128,22 @@ This Morning follows the weather: a sunrise when it is clear, then partly cloudy
 ## Look
 
 A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`): an indigo gradient with a fixed, faint star field (a few stars twinkle unless the system asks for reduced motion), frosted see-through cards, and moonlight gold for the one thing to tap. Tonight has a crescent moon and a greeting; Recording is nearly black with a slowly breathing moon so the screen does not light the room; This Morning has a sunrise that follows the weather. Remedies, Trends and the screens opened from them (remedy detail, remedy test, doctor's report) use the same indigo without the night sky (`sky="plain"`). Headings use Nunito (`@expo-google-fonts/nunito`, loaded in the root layout); icons are Ionicons.
+
+## App icon
+
+A gold crescent moon rising over a lavender sound wave, on indigo. It started as an AI-generated concept and was redrawn as vectors in `scripts/make-icons.mjs`. That one script draws every version, so change the drawing there and run `npm run icons`. It writes:
+
+| File | Used for |
+| --- | --- |
+| `assets/icon.png` | iOS (light), and the default everywhere. Full square, no rounding, no alpha channel, as the App Store requires |
+| `assets/ios-icon-dark.png`, `ios-icon-tinted.png` | iOS 18 and later in dark and tinted mode (`ios.icon`). The tinted icon is greyscale; iOS colours it |
+| `assets/android-icon-foreground.png`, `-background.png` | Android adaptive icon: the moon, wave and sea on transparent, over the sky. The moon and stars sit inside the 66-unit safe zone, so every launcher shape keeps them |
+| `assets/android-icon-monochrome.png` | Android 13 and later themed icons: one colour, recoloured to match the wallpaper |
+| `assets/notification-icon.png` | Notification icon (expo-notifications plugin), white on transparent |
+| `assets/splash-icon.png`, `favicon.png`, `store/play-store-icon.png` | Splash image (not yet configured), web, and the Play Store listing (512 px) |
+| `docs/icon-preview.png` | Every version as a phone shows it, on light and dark home screens |
+
+For iOS 26's Liquid Glass look, Apple's Icon Composer (a Mac app) builds a layered `.icon` file. Import `assets/icon-src/layers/` in order (sky, stars, moon, sea, with the sea in front of the moon so it hides the moon's lower edge). Save the result as `assets/app.icon` and set `"ios": { "icon": "./assets/app.icon" }`. Icon Composer then handles dark, tinted and clear itself. The Recording foreground notification keeps Android's microphone icon, because it is the microphone that is in use.
 
 ## Detection
 
