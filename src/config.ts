@@ -8,6 +8,11 @@
  */
 export const config = {
   apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, ''),
+  /**
+   * Where /v1/weather lives (public, no sign-in). Defaults to the API server; set on its own
+   * for test builds that sign in with the development account.
+   */
+  weatherUrl: (process.env.EXPO_PUBLIC_WEATHER_URL || process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, ''),
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
   googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',

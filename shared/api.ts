@@ -208,3 +208,35 @@ export interface SubscriptionResponse {
 }
 
 export const PAID_ENTITLEMENT = 'insight';
+
+// ---- Weather (public: no sign-in, rate limited per device) ----
+
+/** One hour of the forecast. Values are null when the source left them out. */
+export interface WeatherHour {
+  /** Start of the hour, ISO 8601 UTC. */
+  time: string;
+  tempC: number | null;
+  /** Relative humidity, percent. */
+  humidity: number | null;
+  /** Cloud cover, percent. */
+  cloud: number | null;
+  /** Precipitation over the hour, mm. */
+  precipMm: number | null;
+  /** MET Norway symbol code for the hour, e.g. "lightrain", "clearsky_day". */
+  symbol: string | null;
+}
+
+/**
+ * GET /v1/weather?lat=&lon=: the hourly forecast for the ~10 km area around a point, from MET
+ * Norway, cached per area by the server. The position is rounded before it leaves the phone and
+ * again on the server; it is never stored against a person.
+ */
+export interface WeatherResponse {
+  /** The rounded point the forecast is for. */
+  area: { lat: number; lon: number };
+  hours: WeatherHour[];
+  /** When MET Norway last updated this forecast, ISO 8601 UTC. */
+  updatedAt: string | null;
+  /** Must be shown wherever the weather is: the data's licence (CC BY 4.0) requires it. */
+  attribution: string;
+}

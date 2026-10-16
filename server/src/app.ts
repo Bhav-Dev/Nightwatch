@@ -11,6 +11,7 @@ import { catalogueRoutes } from './routes/catalogue.ts';
 import { profileRoutes } from './routes/profile.ts';
 import { subscriptionRoutes, webhookRoutes } from './routes/subscription.ts';
 import { syncRoutes } from './routes/sync.ts';
+import { weatherRoutes } from './routes/weather.ts';
 
 /**
  * The HTTP API. Every dependency comes in through `deps`, so the same app runs under
@@ -36,6 +37,7 @@ export function createApp(deps: Deps) {
   v1.get('/health', (c) => c.json({ ok: true }));
   v1.route('/', authRoutes(deps));
   v1.route('/', webhookRoutes(deps));
+  v1.route('/', weatherRoutes(deps));
 
   // Everything else needs a session. A token for a deleted account is refused even before expiry.
   v1.use('*', async (c, next) => {

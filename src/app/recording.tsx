@@ -17,6 +17,7 @@ import { getAudioCapture } from '../native';
 import { NativeSegmentWriter, soundRecordingAvailable } from '../native/soundWriter';
 import { RecordingSession } from '../recording/recordingSession';
 import { BreathingMoon, NightSky } from '../ui/NightSky';
+import { fetchWeatherHere } from '../weather/weatherClient';
 import { colors, fonts, radius, space } from '../ui/theme';
 
 const formatElapsed = (s: number) =>
@@ -47,6 +48,7 @@ export default function Recording() {
 
   useEffect(() => {
     let cancelled = false;
+    let weatherTimer: ReturnType<typeof setTimeout> | null = null;
     (async () => {
       try {
         const sensitivity = ((await getSetting(db, 'sensitivity')) ?? 'normal') as Sensitivity;
@@ -76,6 +78,14 @@ export default function Recording() {
           s.setSleepSound(kind, minutes * 60);
           setSleep({ kind, endsAt: new Date(Date.now() + minutes * 60_000) });
         }
+        // Tonight's forecast, once, after a random wait (MET Norway asks apps not to bunch up).
+        if ((await getSetting(db, 'weather')) === 'on') {
+          weatherTimer = setTimeout(() => {
+            void fetchWeatherHere().then((f) => {
+              if (f && session.current === s) s.setForecast(f);
+            });
+          }, Math.random() * 60_000);
+        }
       } catch (e) {
         Alert.alert('Recording could not start', e instanceof Error ? e.message : String(e));
         router.back();
@@ -95,6 +105,7 @@ export default function Recording() {
     return () => {
       cancelled = true;
       clearInterval(tick);
+      if (weatherTimer) clearTimeout(weatherTimer);
       back.remove();
       void NoisePlayer.stop();
       // Unmounted without Stop: keep what was recorded rather than lose the night.

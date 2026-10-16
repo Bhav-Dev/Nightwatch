@@ -15,6 +15,8 @@ export interface Deps {
   jwks: JwksSet;
   /** Where unexpected errors are reported. Defaults to console.error. */
   logError?: (err: unknown) => void;
+  /** HTTP for upstream services (MET Norway's forecast). Defaults to the global fetch. */
+  fetch?: typeof fetch;
 }
 
 export type AppEnv = { Variables: { userId: string } };

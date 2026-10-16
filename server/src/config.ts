@@ -23,6 +23,8 @@ export interface Config {
   revenueCatWebhookAuth: string | null;
   /** Shared secret for triggering the aggregate function over HTTP (Supabase). */
   aggregateSecret: string | null;
+  /** Contact sent to MET Norway with every forecast request (their terms ask for one). */
+  weatherContact: string;
   limits: Limits;
 }
 
@@ -59,6 +61,7 @@ export function loadConfig(env: Env): Config {
     amazonTags,
     revenueCatWebhookAuth: env.REVENUECAT_WEBHOOK_AUTH || null,
     aggregateSecret: env.AGGREGATE_SECRET || null,
+    weatherContact: env.WEATHER_CONTACT || 'https://github.com/Bhav-Dev/Nightwatch',
     limits: DEFAULT_LIMITS,
   };
 }

@@ -18,7 +18,8 @@ import {
   SLEEP_TIMER_MINUTES,
   type SleepSoundKind,
 } from '../../domain/sleepSounds';
-import { GearLink, Segmented } from '../../ui/kit';
+import { Button, GearLink, Segmented } from '../../ui/kit';
+import { askForLocation, weatherConfigured } from '../../weather/weatherClient';
 import { useApp } from '../../state/AppContext';
 import { type LogTick, prefillPendingLog, setPendingTick } from '../../data/logRepo';
 import { type CatalogueItem } from '../../domain/catalogue';
@@ -57,6 +58,8 @@ export default function Tonight() {
   const [sleepSound, setSleepSound] = useState<SleepSoundKind | 'off'>('off');
   const [sleepMinutes, setSleepMinutes] = useState<number>(DEFAULT_SLEEP_TIMER_MINUTES);
   const [previewing, setPreviewing] = useState(false);
+  /** Offer weather on the morning screen until it has been answered once. */
+  const [offerWeather, setOfferWeather] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = useMemo(() => new Date(), []);
   const tip = TIPS[today.getDate() % TIPS.length];
@@ -74,6 +77,7 @@ export default function Tonight() {
         const kind = (await getSetting(db, 'sleep_sound')) as SleepSoundKind | null;
         setSleepSound(kind && SLEEP_SOUNDS.some((s) => s.kind === kind) ? kind : 'off');
         setSleepMinutes(Number((await getSetting(db, 'sleep_sound_minutes')) ?? DEFAULT_SLEEP_TIMER_MINUTES));
+        setOfferWeather(weatherConfigured && (await getSetting(db, 'weather')) === null);
       })();
       // Leaving the screen ends a preview.
       return () => stopPreview();
@@ -89,6 +93,12 @@ export default function Tonight() {
   const chooseSleepMinutes = async (minutes: number) => {
     setSleepMinutes(minutes);
     await setSetting(db, 'sleep_sound_minutes', String(minutes));
+  };
+
+  const answerWeather = async (yes: boolean) => {
+    const granted = yes ? await askForLocation() : false;
+    await setSetting(db, 'weather', granted ? 'on' : 'off');
+    setOfferWeather(false);
   };
 
   const togglePreview = () => {
@@ -262,6 +272,20 @@ export default function Tonight() {
           </View>
         ) : null}
 
+        {offerWeather ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Weather on your morning screen</Text>
+            <Text style={[styles.cardBody, { marginTop: space(1) }]}>
+              See what the morning is like when you wake, and whether cold or humid nights change your snoring. Uses your approximate
+              location, rounded to about 10 km. It is not stored.
+            </Text>
+            <View style={styles.offerButtons}>
+              <Button kind="secondary" label="Not now" onPress={() => answerWeather(false)} style={{ flex: 1 }} />
+              <Button label="Turn on" onPress={() => answerWeather(true)} style={{ flex: 1 }} />
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.tipTitle}>Tip</Text>
           <Text style={styles.tipBody}>{tip}</Text>
@@ -312,6 +336,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: colors.text, fontSize: 17, fontFamily: fonts.headingSemi },
   cardBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  offerButtons: { flexDirection: 'row', gap: space(3), marginTop: space(4) },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
   choose: {
     borderWidth: 1,

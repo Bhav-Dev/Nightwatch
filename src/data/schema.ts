@@ -259,6 +259,26 @@ const MIGRATIONS: string[] = [
   ALTER TABLE night ADD COLUMN sleep_sound TEXT;
   ALTER TABLE night ADD COLUMN sleep_sound_until_s INTEGER;
   `,
+  `
+  -- The forecast fetched when recording started (MET Norway, for a ~10 km area), kept until
+  -- the night is saved. No position is stored, only the rounded area.
+  CREATE TABLE session_weather (
+    session_id TEXT PRIMARY KEY NOT NULL,
+    forecast TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+  -- A night's weather: temperature and humidity while recording, and what the morning was like.
+  CREATE TABLE night_weather (
+    night_id TEXT PRIMARY KEY NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    temp_mean_c REAL,
+    temp_min_c REAL,
+    humidity_mean REAL,
+    morning_symbol TEXT,
+    morning_temp_c REAL,
+    area TEXT,
+    fetched_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

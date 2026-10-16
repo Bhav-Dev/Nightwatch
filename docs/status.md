@@ -70,7 +70,8 @@ Acceptance criteria:
 | Tonight and This Morning screens | 🟡 | Built from the mockups |
 | Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Up to 5 snoring clips plus the 3 loudest "other sounds" a night. Share gives the audio file only; no card image yet |
 | Sleep sounds (white, pink, brown noise with a fade-out timer) | 🟡 | Beyond the plan, decided 16 October 2026. Generated natively, steady sounds only; snoring under them is measured against the sound. Tested in code; not yet heard on a phone. Android only |
-| Night-sky look (theme, moon, dawn morning, Nunito, icons) | 🟡 | 16 October 2026; not yet seen on a phone |
+| Night-sky look (theme, moon, sunrise morning, Nunito, icons) | 🟡 | 16 October 2026; seen on the S24 (the morning was reworked from dusk to a sunrise) |
+| Weather on This Morning, and as a factor | 🟡 | Beyond the plan, decided 16 October 2026. MET Norway via our server's public `/v1/weather` (live on Supabase, cached per ~10 km area); approximate location only; the sky follows the weather; each night's temperature and humidity saved and compared like a factor. Tested in code and the route live-tested; not yet run on a phone |
 | Sound recording (listen back from the timeline) | 🟡 | Beyond the plan, decided 16 October 2026: the parts of the night with sound, AAC 24 kbps, kept 30 nights, on by default. Built and tested in code (Android native encoder, segments, retention, playback); not yet run on a phone. iOS ⬜ (needs the encoder in Swift) |
 | Onboarding, Settings, export, delete, auto-stop, bedtime reminder | 🟡 | Built |
 | Internal test with 5 snorers for 2 weeks, compared with SnoreLab | 👤 | |

@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { NightSummary } from '../../shared/remedyEffect';
 import { track } from '../analytics';
@@ -28,6 +28,10 @@ import {
 } from '../data/nightRepo';
 import { getSetting, setSetting } from '../data/settingsRepo';
 import { nightSoundSegments, type SoundSegmentRow } from '../data/soundRepo';
+import { allNightWeather, nightWeather, type NightWeatherRow, updateMorningWeather } from '../data/weatherRepo';
+import { WEATHER_ATTRIBUTION, WEATHER_LICENSE_URL, weatherAreaKey } from '../../shared/weather';
+import { conditionFor, describeWeather, weatherBands, weatherFactorIds } from '../domain/weather';
+import { fetchWeatherHere } from '../weather/weatherClient';
 import type { CatalogueItem } from '../domain/catalogue';
 import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
@@ -42,7 +46,7 @@ import { useApp } from '../state/AppContext';
 import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
-import { colors, fonts, intensityColor, radius, space } from '../ui/theme';
+import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
 import { LogPicker } from './LogPicker';
 import { useClipPlayer } from './useClipPlayer';
 
@@ -53,6 +57,9 @@ interface Loaded {
   clips: ClipRow[];
   /** The night's recorded sound, in time order (empty when sound recording was off). */
   sounds: SoundSegmentRow[];
+  /** The night's weather, if it was fetched, and every night's (for comparing nights by weather). */
+  weather: NightWeatherRow | null;
+  weatherByNight: Map<string, NightWeatherRow>;
   samples: AlignedSample[];
   hrMean: number | null;
   log: { remedies: string[]; factors: { id: string; value: string | null }[] };
@@ -76,6 +83,8 @@ export function NightView({ nightId }: { nightId?: string }) {
   const [showPrevent, setShowPrevent] = useState(false);
   const [editing, setEditing] = useState(false);
   const advance = useRef<(uri: string) => void>(() => undefined);
+  /** The morning weather refresh runs at most once per visit. */
+  const weatherRefreshed = useRef(false);
   const { toggle, play, seekBy, stop, playingUri, positionS, durationS } = useClipPlayer({ onFinished: (uri) => advance.current(uri) });
   /** The recorded-sound segment playing (null when a clip, or nothing, is playing). */
   const [playingSegId, setPlayingSegId] = useState<string | null>(null);
@@ -111,11 +120,12 @@ export function NightView({ nightId }: { nightId?: string }) {
     }
     const nightCount = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM night', []))?.n ?? 0;
     const prompted = await getSetting(db, 'health_prompted_after');
-    const [bins, events, clips, sounds, samples, summary, log, history, avg7, experiments] = await Promise.all([
+    const [bins, events, clips, sounds, weatherRows, samples, summary, log, history, avg7, experiments] = await Promise.all([
       nightBins(db, night.id),
       nightEvents(db, night.id),
       nightClips(db, night.id),
       nightSoundSegments(db, night.id),
+      allNightWeather(db),
       healthSamples(db, night.id),
       healthSummary(db, night.id),
       nightLog(db, night.id),
@@ -123,12 +133,16 @@ export function NightView({ nightId }: { nightId?: string }) {
       averageScore(db, 7),
       runningExperiments(db),
     ]);
+    const weatherByNight = new Map(weatherRows.map((w) => [w.night_id, w]));
+    const weather = weatherByNight.get(night.id) ?? null;
     setData({
       night,
       bins,
       events,
       clips,
       sounds,
+      weather,
+      weatherByNight,
       samples,
       hrMean: summary?.hr_mean ?? null,
       log,
@@ -138,6 +152,23 @@ export function NightView({ nightId }: { nightId?: string }) {
       // Spec: re-offer Health after the third night if it was skipped.
       healthOffer: !!source && !healthOn && nightCount >= 3 && prompted !== 'done',
     });
+
+    // This morning, once: a fresher look at the weather than the bedtime forecast, if it is old or missing.
+    const nowS = Date.now() / 1000;
+    if (!nightId && !weatherRefreshed.current && nowS - night.ended_at < 12 * 3600 && (!weather || nowS - weather.fetched_at > 3 * 3600)) {
+      weatherRefreshed.current = true;
+      if ((await getSetting(db, 'weather')) !== 'on') return;
+      const forecast = await fetchWeatherHere();
+      const hour = forecast?.hours.find((h) => {
+        const t = Date.parse(h.time) / 1000;
+        return t <= nowS && t + 3600 > nowS;
+      });
+      if (!forecast || !hour) return;
+      const at = Math.floor(Date.now() / 1000);
+      await updateMorningWeather(db, night.id, hour.symbol, hour.tempC, weatherAreaKey(forecast.area), at);
+      const fresh = await nightWeather(db, night.id);
+      setData((d) => (d && d.night.id === night.id && fresh ? { ...d, weather: fresh, weatherByNight: new Map(d.weatherByNight).set(night.id, fresh) } : d));
+    }
   }, [db, nightId]);
 
   useFocusEffect(
@@ -149,9 +180,15 @@ export function NightView({ nightId }: { nightId?: string }) {
 
   const summary = useMemo(() => {
     if (!data) return [];
-    const { night, events, samples, hrMean, log, history, experiments } = data;
+    const { night, events, samples, hrMean, log, history, experiments, weather, weatherByNight } = data;
     const exp = experiments.find((e) => log.remedies.includes(e.remedyId));
     const day = exp ? experimentDay(exp.started, night.date) : null;
+    // Weather is compared like a factor: each night's bands join its history entry (on this phone only).
+    const withWeather = history.map((h) => {
+      const w = weatherByNight.get(h.id);
+      const ids = weatherFactorIds(w ? { tempMeanC: w.temp_mean_c, humidityMean: w.humidity_mean } : null);
+      return ids.length ? { ...h, factors: [...h.factors, ...ids.map((id) => ({ id, value: null }))] } : h;
+    });
     return morningSummary({
       startedAtEpochS: night.started_at,
       pctSnoring: night.pct_snoring,
@@ -159,8 +196,9 @@ export function NightView({ nightId }: { nightId?: string }) {
       health: samples.length ? { samples, hrMean } : null,
       factorsLogged: log.factors.map((f) => ({ id: f.id, name: catalogue.get(f.id)?.name ?? f.id })),
       remediesLogged: log.remedies.map((r) => ({ id: r, name: catalogue.get(r)?.name ?? r })),
-      history,
+      history: withWeather,
       experiment: exp && day ? { remedyId: exp.remedyId, day } : null,
+      weatherBands: weather ? weatherBands({ tempMeanC: weather.temp_mean_c, humidityMean: weather.humidity_mean }) : [],
     });
   }, [data, catalogue]);
 
@@ -178,7 +216,14 @@ export function NightView({ nightId }: { nightId?: string }) {
     );
   }
 
-  const { night, bins, clips, samples, log, avg7 } = data;
+  const { night, bins, clips, samples, log, avg7, weather } = data;
+  // "Light rain, 9°C · overnight 11°C, 82% humidity"
+  const morningWords = weather ? describeWeather(weather.morning_symbol, weather.morning_temp_c) : null;
+  const overnight =
+    weather && weather.temp_mean_c !== null
+      ? `overnight ${Math.round(weather.temp_mean_c)}°C${weather.humidity_mean !== null ? `, ${Math.round(weather.humidity_mean)}% humidity` : ''}`
+      : null;
+  const weatherLine = [morningWords, overnight].filter(Boolean).join(' · ') || null;
   const delta = avg7 === null ? null : Math.round(night.score - avg7);
   const editable = logEditable(night.date);
   const timelineBins = bins.map((b) => ({ index: b.index, snoreS: b.snoreS, levelDb: b.meanDb, intensity: b.snoreS > 0 ? intensityFor(b.maxDb) : null }));
@@ -294,7 +339,8 @@ export function NightView({ nightId }: { nightId?: string }) {
 
   return (
     <Screen
-      sky="dawn"
+      sky={morningSky(conditionFor(weather?.morning_symbol ?? null))}
+      subtitle={weatherLine}
       eyebrow={nightId ? 'Night' : 'This morning'}
       title={new Date(night.started_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       right={nightId ? undefined : <GearLink />}
@@ -497,6 +543,11 @@ export function NightView({ nightId }: { nightId?: string }) {
       {nightId ? null : (
         <Button kind="link" label="Past nights" onPress={() => router.push('/trends')} />
       )}
+      {weather ? (
+        <Pressable onPress={() => Linking.openURL(WEATHER_LICENSE_URL)} accessibilityRole="link" style={{ marginTop: space(2) }}>
+          <Small>{WEATHER_ATTRIBUTION}</Small>
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }

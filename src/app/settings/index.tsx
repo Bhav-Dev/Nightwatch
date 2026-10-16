@@ -18,6 +18,8 @@ import { removeClipFile } from '../../screens/NightView';
 import { useApp } from '../../state/AppContext';
 import { Body, Button, Card, H2, Row, Segmented, Small, ToggleRow } from '../../ui/kit';
 import { NightSky } from '../../ui/NightSky';
+import { askForLocation, locationPermission, weatherConfigured } from '../../weather/weatherClient';
+import { WEATHER_ATTRIBUTION } from '../../../shared/weather';
 import { colors, space } from '../../ui/theme';
 
 const BEDTIMES = ['21:30', '22:00', '22:30', '23:00', '23:30'];
@@ -32,6 +34,7 @@ export default function SettingsScreen() {
   const [stopHour, setStopHour] = useState('11');
   const [storage, setStorage] = useState(0);
   const [soundOn, setSoundOn] = useState(true);
+  const [weatherOn, setWeatherOn] = useState(false);
   const [devPaid, setDevPaid] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -42,6 +45,7 @@ export default function SettingsScreen() {
     setStopHour((await getSetting(db, 'auto_stop_hour')) ?? '11');
     setStorage((await clipStorageBytes(db)) + (await soundStorageBytes(db)));
     setSoundOn((await getSetting(db, 'sound_recording')) !== '0');
+    setWeatherOn((await getSetting(db, 'weather')) === 'on' && (await locationPermission()) === 'granted');
     setDevPaid((await getSetting(db, 'dev_paid')) === '1');
   }, [db]);
 
@@ -105,6 +109,18 @@ export default function SettingsScreen() {
         },
       },
     ]);
+
+  const toggleWeather = async (on: boolean) => {
+    const granted = on ? await askForLocation() : false;
+    if (on && !granted) {
+      Alert.alert('Location is off for Nightwatch', 'Allow approximate location for Nightwatch in your phone’s settings to see the weather.', [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]);
+    }
+    await setSetting(db, 'weather', granted ? 'on' : 'off');
+    await load();
+  };
 
   const deleteSound = () =>
     Alert.alert('Delete all sound recordings?', 'The recorded sound of every night is removed from this phone. Scores, timelines and saved clips stay.', [
@@ -217,6 +233,17 @@ export default function SettingsScreen() {
           />
           <Row label="Storage used by recordings" value={`${(storage / 1_000_000).toFixed(1)} MB`} />
           <Button kind="link" label="Delete sound recordings" onPress={deleteSound} />
+          <ToggleRow
+            label="Weather on This Morning"
+            value={weatherOn}
+            onChange={toggleWeather}
+            disabled={!weatherConfigured}
+            hint={
+              weatherConfigured
+                ? `Uses your approximate location, rounded to about 10 km; it is not stored. ${WEATHER_ATTRIBUTION}.`
+                : 'Not available in this build.'
+            }
+          />
         </Card>
 
         <Card>

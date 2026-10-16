@@ -64,6 +64,7 @@ export const testConfig = (overrides: Partial<Config> = {}): Config => ({
   amazonTags: { GB: 'nightwatch-21' },
   revenueCatWebhookAuth: WEBHOOK_AUTH,
   aggregateSecret: 'aggregate-secret',
+  weatherContact: 'tests@example.com',
   limits: DEFAULT_LIMITS,
   ...overrides,
 });

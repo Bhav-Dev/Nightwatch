@@ -20,9 +20,12 @@ export function Screen({
   scroll = true,
   footer,
   sky = 'night',
+  subtitle,
 }: {
   title?: string;
   eyebrow?: string;
+  /** A line under the title (the morning's weather). */
+  subtitle?: string | null;
   right?: ReactNode;
   children: ReactNode;
   scroll?: boolean;
@@ -44,6 +47,7 @@ export function Screen({
         <View style={{ flex: 1 }}>
           {eyebrow ? <Text style={[styles.eyebrow, { color: tones.eyebrow }]}>{eyebrow}</Text> : null}
           {title ? <Text style={[styles.title, { color: tones.title }]}>{title}</Text> : null}
+          {subtitle ? <Text style={[styles.subtitle, { color: tones.title }]}>{subtitle}</Text> : null}
         </View>
         {right}
       </View>
@@ -230,6 +234,7 @@ export const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: space(5) },
   eyebrow: { color: colors.accent, fontSize: 13, fontFamily: fonts.headingSemi, letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { color: colors.text, fontSize: 28, fontFamily: fonts.heading, marginTop: space(1) },
+  subtitle: { fontSize: 16, fontFamily: fonts.headingSemi, opacity: 0.8, marginTop: space(1) },
   footer: { padding: space(5), paddingTop: space(2) },
   iconButton: { padding: space(1) },
   card: {

@@ -28,7 +28,8 @@
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_RESPIRATORY_RATE",
         "android.permission.health.READ_SLEEP"
-      ]
+      ],
+      "blockedPermissions": ["android.permission.ACCESS_FINE_LOCATION"]
     },
     "plugins": [
       "expo-router",
@@ -69,7 +70,13 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Nightwatch uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

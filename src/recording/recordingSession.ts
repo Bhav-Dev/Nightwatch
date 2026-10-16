@@ -6,6 +6,10 @@ import { commitPendingLog } from '../data/logRepo';
 import { saveNight } from '../data/nightRepo';
 import type { Db } from '../data/db';
 import { attachSoundToNight, deleteSoundSegmentRow, insertSoundSegment, sessionSoundSegments } from '../data/soundRepo';
+import { deleteSessionForecast, saveNightWeather, saveSessionForecast, sessionForecast } from '../data/weatherRepo';
+import type { WeatherResponse } from '../../shared/api';
+import { weatherAreaKey } from '../../shared/weather';
+import { summariseNightWeather } from '../domain/weather';
 import {
   appendFrames,
   appendGap,
@@ -176,6 +180,12 @@ export class RecordingSession {
     this.enqueue(() => setSessionSleepSound(this.db, this.id, kind, kind ? untilS : null));
   }
 
+  /** Keeps the forecast fetched for tonight; the night's weather is worked out from it at Stop. */
+  setForecast(forecast: WeatherResponse): void {
+    const at = Math.floor(this.now().getTime() / 1000);
+    this.enqueue(() => saveSessionForecast(this.db, this.id, forecast, at));
+  }
+
   /**
    * Stops capture, scores the night, saves it with tonight's log and clears the session.
    * Resolves null if nothing was captured (nothing is saved).
@@ -276,6 +286,13 @@ export async function finaliseSession(
   });
   await keepClipsForEvents(db, sessionId, nightId, analysis.events, opts.files ?? null);
   await attachSoundToNight(db, sessionId, nightId);
+  const weather = await sessionForecast(db, sessionId);
+  if (weather) {
+    const startS = session.started_at;
+    const summary = summariseNightWeather(weather.forecast.hours, startS, startS + durationS);
+    await saveNightWeather(db, nightId, summary, weatherAreaKey(weather.forecast.area), weather.fetchedAt);
+    await deleteSessionForecast(db, sessionId);
+  }
   const logged = await commitPendingLog(db, nightId);
   await deleteSession(db, sessionId);
   return { nightId, partial, logged };
@@ -322,6 +339,7 @@ async function deleteSessionAndClips(db: Db, sessionId: string, files: ClipFiles
     if (files) await files.remove(s.path);
     await deleteSoundSegmentRow(db, s.id);
   }
+  await deleteSessionForecast(db, sessionId);
   await deleteSession(db, sessionId);
 }
 

@@ -71,6 +71,7 @@ In development builds, with no server configured, sign-in offers a development a
 | `EXPO_PUBLIC_SITE_URL` | Website for methods, privacy, terms, affiliate disclosure (default `https://nightwatch.app`) |
 | `EXPO_PUBLIC_SUPPORT_EMAIL` | Support address |
 | `EXPO_PUBLIC_SIMULATE_CAPTURE` | `1` swaps the microphone for the simulator |
+| `EXPO_PUBLIC_WEATHER_URL` | Where `/v1/weather` lives, if not the API server (set in the preview profile, whose builds sign in with the development account) |
 
 Server configuration (secrets, Amazon tracking ids, Apple and Google audiences, RevenueCat webhook secret) is in `server/README.md`.
 
@@ -117,6 +118,10 @@ The parts of each night with sound in them are kept, compressed, so the morning 
 ## Sleep sounds
 
 Tonight offers white, pink or brown noise to fall asleep to, with a 15 to 60 minute timer (`src/domain/sleepSounds.ts`). The noise is generated live by `NoisePlayer.kt` (an `AudioTrack` on the media stream, inside the process the recording service keeps alive), so there are no audio files and no loop seam; it fades in over 3 seconds, fades out over the last minute and stops by itself. Only steady sounds are offered: the phone's own microphone hears whatever plays, and rhythmic sounds (waves, music) rise and fall at breathing pace like snoring. The recording session notes which sound played and until when (`sleep_sound`, `sleep_sound_until_s`, copied to the night); during that stretch the detector and the scoring measure each second against the sound's own level rather than the quiet room, and a model's score must clear a higher bar (`MASKED_THRESHOLD_BUMP`). The morning timeline shades the stretch. Echo cancellation was considered and left out: call-style processing suppresses steady low sounds like quiet snoring and rides the gain, which would break the loudness measures. Android only so far.
+
+## Weather
+
+This Morning follows the weather: a sunrise when it is clear, then partly cloudy, cloudy, rain (and thunder), snow and fog skies, with "Light rain, 9°C · overnight 11°C, 82% humidity" under the date. The forecast comes from MET Norway's Locationforecast (free, commercial use allowed, CC BY 4.0, so the credit line shows wherever the weather does) through our server's public `GET /v1/weather` (`server/src/weather.ts`), never from the phone directly: the server caches per area, revalidates with `If-Modified-Since`, sends MET at most 2 requests a second in total, and identifies the app (`WEATHER_CONTACT`). Location is approximate only (precise location is blocked in `app.json`), rounded to a 0.1° area (about 11 km) on the phone and again on the server (`shared/weather.ts`), and not stored. The app fetches once a night, at a random point in the first minute of recording, and once more on This Morning if that forecast is old. At Stop the night's mean and lowest temperature, mean humidity and the morning's conditions are saved (`night_weather`). Weather bands (cold under 5°C, warm from 18°C, humid from 90%, dry to 60%) are compared like factors, among nights that have weather, and the summary says so once there are 5 nights each side ("It was a cold night; your cold nights average 6 points higher."); this stays on the phone. Asked on Tonight, switchable in Settings.
 
 ## Look
 

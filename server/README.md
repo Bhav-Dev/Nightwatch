@@ -97,6 +97,7 @@ On Supabase every variable below is set as a function secret **with a `NIGHTWATC
 | `REVENUECAT_WEBHOOK_AUTH` | both | none (webhook refuses everything) | Must equal the Authorization header set in the RevenueCat dashboard, for example `Bearer <random>` |
 | `API_BASE_PATH` | both | empty (Supabase entry: `/nightwatch-api`) | Prefix before `/v1` |
 | `AGGREGATE_SECRET` | Supabase | none (function refuses everything) | Value of the `x-aggregate-secret` header the schedule sends |
+| `WEATHER_CONTACT` | both | the GitHub repository URL | Sent to MET Norway in the User-Agent of every forecast request; their terms ask for a contact (an email address or website) so they can reach you rather than block you |
 | `PORT`, `HOST` | VPS | `8787`, `127.0.0.1` | Listen address. Keep it on localhost behind Caddy |
 | `DATABASE_POOL_SIZE` | VPS | `10` | Connections per process |
 | `DATABASE_PREPARE` | VPS | `true` | Set to `false` behind a transaction-mode pooler such as PgBouncer |

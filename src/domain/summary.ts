@@ -12,6 +12,7 @@ import { personalDifference, type NightSummary } from '../../shared/remedyEffect
 import { heartRateSpikes, spo2Dips, type AlignedSample } from './health';
 import { shortLabel } from './labels';
 import type { SnoreEvent } from './scoring';
+import { type WeatherBand, WEATHER_KNOWN_ID, weatherFactorId } from './weather';
 
 export interface SummaryInput {
   startedAtEpochS: number;
@@ -24,6 +25,11 @@ export interface SummaryInput {
   history: readonly NightSummary[];
   /** A running experiment on one of tonight's remedies. */
   experiment: { remedyId: string; day: number } | null;
+  /**
+   * Weather bands tonight fell into. History nights carry theirs as factors with ids from
+   * weatherFactorId(), so they are compared like logged factors.
+   */
+  weatherBands?: readonly WeatherBand[];
 }
 
 /** Events no more than this far apart belong to one stretch. */
@@ -113,6 +119,22 @@ export function morningSummary(input: SummaryInput): string[] {
       Math.round(Math.abs(bestFactor.diff)) < 2
         ? `You logged ${bestFactor.name}; your ${bestFactor.name} nights are about the same as your others.`
         : `You logged ${bestFactor.name}; your ${bestFactor.name} nights average ${pointsPhrase(bestFactor.diff, bestFactor.diff > 0 ? 'higher' : 'lower')}.`,
+    );
+  }
+
+  // 3b: the weather, once there are enough nights on each side to compare (only nights with weather).
+  const withWeather = input.history.filter((n) => n.factors.some((f) => f.id === WEATHER_KNOWN_ID));
+  let bestWeather: { band: WeatherBand; diff: number } | null = null;
+  for (const band of input.weatherBands ?? []) {
+    const diff = personalDifference(withWeather, weatherFactorId(band));
+    if (diff !== null && (!bestWeather || Math.abs(diff) > Math.abs(bestWeather.diff))) bestWeather = { band, diff };
+  }
+  if (bestWeather) {
+    const { band, diff } = bestWeather;
+    out.push(
+      Math.round(Math.abs(diff)) < 2
+        ? `It was a ${band} night; your ${band} nights are about the same as your others.`
+        : `It was a ${band} night; your ${band} nights average ${pointsPhrase(diff, diff > 0 ? 'higher' : 'lower')}.`,
     );
   }
 
