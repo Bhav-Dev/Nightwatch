@@ -30,6 +30,8 @@ export interface SummaryInput {
 export const STRETCH_GAP_S = 20 * 60;
 /** A stretch holding this share of events is "mostly". */
 export const STRETCH_SHARE = 0.4;
+/** Less snoring than this in total is described as brief, without a percentage. */
+export const BRIEF_SNORING_S = 5 * 60;
 
 export function clock(startedAtEpochS: number, offsetS: number): string {
   const d = new Date((startedAtEpochS + offsetS) * 1000);
@@ -64,12 +66,21 @@ export function morningSummary(input: SummaryInput): string[] {
 
   // 1
   const stretch = mainStretch(input.events);
+  const snoringS = input.events.reduce((s, e) => s + (e.endS - e.startS), 0);
   if (!stretch) {
     out.push('No snoring was picked up last night.');
-  } else if (stretch.count / input.events.length >= STRETCH_SHARE) {
+  } else if (snoringS < BRIEF_SNORING_S) {
+    // A percentage and a "mostly between" range read oddly for a few seconds of snoring.
+    const first = clock(input.startedAtEpochS, Math.min(...input.events.map((e) => e.startS)));
     out.push(
-      `You snored for ${pct}% of the night, mostly between ${clock(input.startedAtEpochS, stretch.startS)} and ${clock(input.startedAtEpochS, stretch.endS)}.`,
+      input.events.length === 1
+        ? `Snoring was picked up once, briefly, at ${first}.`
+        : `Snoring was picked up ${input.events.length} times, briefly, adding up to under 5 minutes.`,
     );
+  } else if (stretch.count / input.events.length >= STRETCH_SHARE) {
+    const from = clock(input.startedAtEpochS, stretch.startS);
+    const to = clock(input.startedAtEpochS, stretch.endS);
+    out.push(`You snored for ${pct}% of the night, ${from === to ? `mostly around ${from}` : `mostly between ${from} and ${to}`}.`);
   } else {
     out.push(`You snored for ${pct}% of the night, spread across the night.`);
   }

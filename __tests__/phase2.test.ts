@@ -155,6 +155,17 @@ describe('morning summary (20 fixture nights)', () => {
     expect(morningSummary({ ...base, ...input })).toEqual(expected);
   });
 
+  it('describes a few minutes of snoring as brief, without a percentage or a range', () => {
+    expect(morningSummary({ ...base, pctSnoring: 0.001, events: [ev(5 * H, 0.5)] })[0]).toBe('Snoring was picked up once, briefly, at 4:00.');
+    expect(morningSummary({ ...base, pctSnoring: 0.003, events: [ev(5 * H, 1), ev(H, 0.5), ev(3 * H, 1)] })[0]).toBe(
+      'Snoring was picked up 3 times, briefly, adding up to under 5 minutes.',
+    );
+  });
+
+  it('says "around" when the main stretch starts and ends in the same minute', () => {
+    expect(morningSummary({ ...base, events: [ev(H, 0.5), ev(4 * H, 6)] })[0]).toBe('You snored for 38% of the night, mostly around 0:00.');
+  });
+
   it('groups events up to 20 minutes apart into one stretch', () => {
     expect(mainStretch([ev(0, 5), ev(25 * 60, 5), ev(2 * H, 5)])).toMatchObject({ startS: 0, endS: 30 * 60, count: 2 });
   });
