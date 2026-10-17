@@ -133,6 +133,17 @@ Nothing is asked of the user straight after waking. At Stop, a night recap notif
 
 Tonight offers white, pink or brown noise to fall asleep to, with a 15 to 60 minute timer (`src/domain/sleepSounds.ts`). The noise is generated live by `NoisePlayer.kt` (an `AudioTrack` on the media stream, inside the process the recording service keeps alive), so there are no audio files and no loop seam; it fades in over 3 seconds, fades out over the last minute and stops by itself. Only steady sounds are offered: the phone's own microphone hears whatever plays, and rhythmic sounds (waves, music) rise and fall at breathing pace like snoring. The recording session notes which sound played and until when (`sleep_sound`, `sleep_sound_until_s`, copied to the night); during that stretch the detector and the scoring measure each second against the sound's own level rather than the quiet room, and a model's score must clear a higher bar (`MASKED_THRESHOLD_BUMP`). The morning timeline shades the stretch. Echo cancellation was considered and left out: call-style processing suppresses steady low sounds like quiet snoring and rides the gain, which would break the loudness measures. Android only so far.
 
+## What else happened in the night
+
+Beyond snoring, This Morning shows estimates found without a model (`src/domain/activity.ts`; design in `docs/night-events-design.md`):
+
+- **Movement.** Turning over is a short rustle: at least 6 dB over the room's floor, broadband (spectral centroid over 1.5 kHz, above snoring), uneven within the second, not counted as snoring, and over within 15 seconds. Rustles up to 2 seconds apart are one movement. The first and last 2 minutes of the night are skipped, and during sleep sounds a rustle must stand out from the sound. Detected at Stop from the per-second features already kept, and stored in `night_activity`.
+- **Restless stretches:** three or more movements within 10 minutes.
+- **Possibly awake:** the phone was picked up (the app came back to the front while recording; the first 2 minutes and the last 3 are ignored, as settling down and stopping), or a watch said awake for 2 minutes or more. Never stated as certain.
+- **"Turned over, and the snoring stopped":** a movement after at least 2 minutes of snoring in the 10 minutes before it, with the snoring not carrying on a minute past it and then at least 15 minutes of quiet. It becomes a summary sentence ("Snoring stopped after we heard you turn over at 3:10, and it stayed quiet for 40 minutes"), and is the most direct evidence for side sleeping.
+
+They appear as lanes under the timeline, on its time scale (`src/ui/NightLanes.tsx`): Movement (restless stretches shaded), Possibly awake, and Sleep stages from your watch (deep, light, REM, awake), which follows the existing watch overlay and needs Insight. Tapping a lane plays the night from that moment. Sound alone cannot tell deep from light sleep, so without a watch there is no stage lane. None of this changes the score or syncs.
+
 ## Wake-up alarm
 
 The wake-up alarm is the phone's own. Nightwatch has no alarm of its own and stores no alarm time; it reads the phone's next alarm, whichever app set it (`AlarmManager.getNextAlarmClock`, which needs no permission; `nextAlarmTime` in the native module).

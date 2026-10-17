@@ -2,7 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ExpoClipFiles } from '../clips/expoClipFiles';
 import { getNight } from '../data/nightRepo';
@@ -167,6 +167,22 @@ export default function Recording() {
     }, 5000);
     return () => clearInterval(t);
   }, [stop]);
+
+  // Picking the phone up in the night (the app comes back to the front) is a sign of being awake.
+  // The first stretch after Start and the last before Stop are dropped when the night is saved.
+  useEffect(() => {
+    let since: number | null = null;
+    const sub = AppState.addEventListener('change', (state) => {
+      const s = session.current;
+      if (!s) return;
+      if (state === 'active') since = s.elapsedS;
+      else if (since !== null) {
+        s.markPhoneUse(since, s.elapsedS);
+        since = null;
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // The phone's alarm can change during the night (moved, or one set late): keep following it.
   useEffect(() => {

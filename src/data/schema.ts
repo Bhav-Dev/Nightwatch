@@ -310,6 +310,27 @@ const MIGRATIONS: string[] = [
   -- The score before any answers, to show what changed.
   ALTER TABLE night ADD COLUMN detector_score INTEGER;
   `,
+  `
+  -- What else happened in the night, found without a model: movement heard in the audio, and
+  -- when the phone was in use. Kept apart from event, which is snoring only and is what is scored.
+  CREATE TABLE night_activity (
+    id TEXT PRIMARY KEY NOT NULL,
+    night_id TEXT NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('movement', 'phone')),
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    -- Loudness above the night's floor, for movement.
+    peak_db REAL
+  );
+  CREATE INDEX night_activity_night ON night_activity(night_id);
+  -- While recording: when the phone was picked up and used (the app came to the front).
+  CREATE TABLE session_mark (
+    session_id TEXT NOT NULL REFERENCES recording_session(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('phone')),
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

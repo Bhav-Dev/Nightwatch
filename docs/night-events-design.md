@@ -1,6 +1,6 @@
 # Night events: design note
 
-**Status: proposed, not scheduled.** Nothing here is being built yet. It records the agreed direction so it is ready when the work is picked up. Tracked in [status.md](status.md), under "After launch".
+**Status: the first step (section 7, part 1) is built, 17 October 2026; the rest is proposed, not scheduled.** Built: movement from sound, phone pickups, the "possibly awake" rule, the lanes under the timeline including the watch's sleep stages, and the "turned over, snoring stopped" sentence (the correction buttons came with the morning review). One change from section 6: movement and phone use are stored in their own table, `night_activity`, instead of adding a `kind` to `event`, so snoring events, scoring and the user's answers are untouched. Tracked in [status.md](status.md).
 
 The question: today the app detects one thing, snoring. How do we (1) make sure what we count really is snoring, (2) tell the user's snoring from a partner's, (3) show sleep stages, and (4) report other things that happened in the night, such as turning over or waking up?
 

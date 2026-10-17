@@ -202,7 +202,7 @@ export function logEditable(nightDate: string, now = new Date()): boolean {
 export async function deleteNight(db: Db, nightId: string): Promise<void> {
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM night WHERE id = ?', [nightId]);
-    for (const t of ['event', 'event_detected', 'sound_label', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'clip', 'sound_segment', 'night_weather']) {
+    for (const t of ['event', 'event_detected', 'sound_label', 'night_activity', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'clip', 'sound_segment', 'night_weather']) {
       await db.runAsync(`DELETE FROM ${t} WHERE night_id = ?`, [nightId]);
     }
     await db.runAsync('INSERT OR IGNORE INTO sync_tombstone (night_id) VALUES (?)', [nightId]);

@@ -30,6 +30,18 @@ export interface SummaryInput {
    * weatherFactorId(), so they are compared like logged factors.
    */
   weatherBands?: readonly WeatherBand[];
+  /** A movement heard just as the snoring stopped, and how long it stayed quiet (domain/activity). */
+  turnedOver?: { atS: number; quietS: number; toEnd: boolean } | null;
+}
+
+/** "40 minutes", "1 hour", "2 hours 10 minutes" (to the nearest 5 minutes past the first hour). */
+export function durationWords(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  const hours = Math.floor(minutes / 60);
+  const rest = Math.round((minutes - hours * 60) / 5) * 5;
+  const h = `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  return rest === 0 || rest === 60 ? (rest === 60 ? `${hours + 1} hours` : h) : `${h} ${rest} minutes`;
 }
 
 /** Events no more than this far apart belong to one stretch. */
@@ -89,6 +101,17 @@ export function morningSummary(input: SummaryInput): string[] {
     out.push(`You snored for ${pct}% of the night, ${from === to ? `mostly around ${from}` : `mostly between ${from} and ${to}`}.`);
   } else {
     out.push(`You snored for ${pct}% of the night, spread across the night.`);
+  }
+
+  // 1b: turning over and the snoring stopping, the best evidence for side sleeping.
+  if (input.turnedOver) {
+    const { atS, quietS, toEnd } = input.turnedOver;
+    const at = clock(input.startedAtEpochS, atS);
+    out.push(
+      toEnd
+        ? `Snoring stopped after we heard you turn over at ${at}, and it stayed quiet for the rest of the night.`
+        : `Snoring stopped after we heard you turn over at ${at}, and it stayed quiet for ${durationWords(quietS)}.`,
+    );
   }
 
   // 2

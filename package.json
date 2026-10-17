@@ -75,10 +75,12 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/__tests__/helpers/",
-      "<rootDir>/server/"
+      "<rootDir>/server/",
+      "<rootDir>/.claude/"
     ],
     "modulePathIgnorePatterns": [
-      "<rootDir>/server/"
+      "<rootDir>/server/",
+      "<rootDir>/.claude/"
     ]
   }
 }

@@ -2,6 +2,7 @@ import { ClipCollector, selectClips } from '../clips/clipCollector';
 import type { ClipFiles } from '../clips/clipFiles';
 import { encoderFor } from '../clips/codec';
 import { attachClipsToNight, deleteClipRow, getClip, insertClip, markOtherClip, sessionClips } from '../data/clipRepo';
+import { saveNightActivity } from '../data/activityRepo';
 import { commitPendingLog } from '../data/logRepo';
 import { saveNight } from '../data/nightRepo';
 import type { Db } from '../data/db';
@@ -11,6 +12,7 @@ import type { WeatherResponse } from '../../shared/api';
 import { weatherAreaKey } from '../../shared/weather';
 import { summariseNightWeather } from '../domain/weather';
 import {
+  addPhoneUse,
   appendFrames,
   appendGap,
   createSession,
@@ -21,8 +23,10 @@ import {
   type StoredFrame,
   sessionFrames,
   sessionGaps,
+  sessionPhoneUse,
   setSessionSleepSound,
 } from '../data/sessionRepo';
+import { detectMovement, phoneUseInNight } from '../domain/activity';
 import { frameFeatures } from '../domain/audio/features';
 import { HEURISTIC_DETECTOR_ID, type OnlineSnoreScorer } from '../domain/detection/classifier';
 import { classifyNightHeuristic, HEURISTIC } from '../domain/detection/heuristic';
@@ -180,6 +184,11 @@ export class RecordingSession {
     this.enqueue(() => setSessionSleepSound(this.db, this.id, kind, kind ? untilS : null));
   }
 
+  /** Notes a stretch (seconds from the start) when the phone was picked up and used. */
+  markPhoneUse(startS: number, endS: number): void {
+    if (endS > startS) this.enqueue(() => addPhoneUse(this.db, this.id, startS, endS));
+  }
+
   /** Keeps the forecast fetched for tonight; the night's weather is worked out from it at Stop. */
   setForecast(forecast: WeatherResponse): void {
     const at = Math.floor(this.now().getTime() / 1000);
@@ -261,11 +270,12 @@ export async function finaliseSession(
 
   // A model's per-second output wins when it covered the whole night.
   const modelCovered = frames.every((f) => f.snoreProb !== null);
+  const scored = modelCovered
+    ? frames.map((f) => ({ t: f.t, levelDb: f.features.levelDb, snoreProb: f.snoreProb! }))
+    : classifyNightHeuristic(frames, { maskedUntilS });
   const analysis = analyseNight({
     durationS,
-    frames: modelCovered
-      ? frames.map((f) => ({ t: f.t, levelDb: f.features.levelDb, snoreProb: f.snoreProb! }))
-      : classifyNightHeuristic(frames, { maskedUntilS }),
+    frames: scored,
     gaps: gaps.filter((g) => g.endS <= durationS),
     partial,
     sensitivity: session.sensitivity as Sensitivity,
@@ -284,6 +294,16 @@ export async function finaliseSession(
     detector: modelCovered ? (session.detector ?? 'model') : HEURISTIC_DETECTOR_ID,
     sleepSound,
   });
+  // Tossing and turning heard in the audio, and when the phone was in use (docs/night-events-design.md).
+  await saveNightActivity(
+    db,
+    nightId,
+    {
+      movement: detectMovement(frames, scored, { durationS, maskedUntilS }),
+      phone: phoneUseInNight(await sessionPhoneUse(db, sessionId), durationS),
+    },
+    opts.newId,
+  );
   await keepClipsForEvents(db, sessionId, nightId, analysis.events, opts.files ?? null);
   await attachSoundToNight(db, sessionId, nightId);
   const weather = await sessionForecast(db, sessionId);

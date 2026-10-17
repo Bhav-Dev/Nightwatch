@@ -105,10 +105,24 @@ export async function sessionGaps(db: Db, sessionId: string): Promise<SessionGap
   return rows.map((r) => ({ startS: r.start_s, endS: r.end_s, cause: r.cause }));
 }
 
+/** A stretch (seconds from the start) when the phone was picked up and used during recording. */
+export async function addPhoneUse(db: Db, sessionId: string, startS: number, endS: number): Promise<void> {
+  await db.runAsync("INSERT INTO session_mark (session_id, kind, start_s, end_s) VALUES (?, 'phone', ?, ?)", [sessionId, startS, endS]);
+}
+
+export async function sessionPhoneUse(db: Db, sessionId: string): Promise<{ startS: number; endS: number }[]> {
+  const rows = await db.getAllAsync<{ start_s: number; end_s: number }>(
+    "SELECT start_s, end_s FROM session_mark WHERE session_id = ? AND kind = 'phone' ORDER BY start_s",
+    [sessionId],
+  );
+  return rows.map((r) => ({ startS: r.start_s, endS: r.end_s }));
+}
+
 export async function deleteSession(db: Db, sessionId: string): Promise<void> {
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM session_frame WHERE session_id = ?', [sessionId]);
     await db.runAsync('DELETE FROM session_gap WHERE session_id = ?', [sessionId]);
+    await db.runAsync('DELETE FROM session_mark WHERE session_id = ?', [sessionId]);
     await db.runAsync('DELETE FROM recording_session WHERE id = ?', [sessionId]);
   });
 }

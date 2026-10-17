@@ -156,7 +156,8 @@ Acceptance criteria:
 | Item | Status |
 | --- | --- |
 | Partner mode (Household) | ⬜ Held for the first update, as the plan says; "coming soon" card in Settings |
-| Night events: classify every sound (snoring, partner, talking, coughs, movement), possible wakes, watch sleep-stage lane, user corrections | ⬜ Proposed, not scheduled. Design in [night-events-design.md](night-events-design.md) |
+| Night events, first step: movement from sound (tossing and turning, restless stretches), phone pickups, "possibly awake", lanes under the timeline with the watch's sleep stages, "turned over, snoring stopped" | 🟡 Built 17 October 2026 and tested in code; not yet seen on a phone. Design in [night-events-design.md](night-events-design.md) |
+| Night events, later steps: classify every sound with a model (talking, coughs, partner snoring), two-phone partner mode | ⬜ Proposed, not scheduled; needs the labelled nights |
 | Monthly catalogue review, "what the data says" post, new slices | ⬜ |
 | Localisation and non-UK affiliate programmes | ⬜ (Amazon links already work in 12 marketplaces once tags are set) |
 

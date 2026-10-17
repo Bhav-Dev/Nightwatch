@@ -12,7 +12,9 @@ import { track } from '../analytics';
 import { listActiveCatalogue } from '../data/catalogueRepo';
 import { type ClipRow, nightClips, setClipSaved } from '../data/clipRepo';
 import { runningExperiments, type Experiment } from '../data/experimentRepo';
+import { type ActivityRow, nightActivity } from '../data/activityRepo';
 import { healthSamples, healthSummary } from '../data/healthRepo';
+import { possiblyAwake, restlessStretches, turnedOverAndQuiet } from '../domain/activity';
 import { nightSummaries } from '../data/historyRepo';
 import { addLabel, clearLabels, nightLabels, type SoundLabelRow, stretchLoudness } from '../data/labelRepo';
 import {
@@ -49,6 +51,7 @@ import { importHealthForNight } from '../health/importNight';
 import { useApp } from '../state/AppContext';
 import { NightTimeline } from '../ui/charts';
 import { HiveCluster, ScoreCell } from '../ui/Hive';
+import { NightLanes } from '../ui/NightLanes';
 import { iconFor } from '../ui/remedyIcons';
 import { SnoringToggle } from '../ui/SnoringToggle';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
@@ -68,6 +71,8 @@ interface Loaded {
   sounds: SoundSegmentRow[];
   /** The user's "was this snoring?" answers, in order. */
   labels: SoundLabelRow[];
+  /** Movement heard in the audio, and phone use (night_activity). */
+  activity: ActivityRow[];
   nightCount: number;
   /** The night's weather, if it was fetched, and every night's (for comparing nights by weather). */
   weather: NightWeatherRow | null;
@@ -140,7 +145,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     }
     const nightCount = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM night', []))?.n ?? 0;
     const prompted = await getSetting(db, 'health_prompted_after');
-    const [bins, events, clips, sounds, labels, weatherRows, samples, summary, log, history, avg7, experiments] = await Promise.all([
+    const [bins, events, clips, sounds, labels, weatherRows, samples, summary, log, history, avg7, experiments, activity] = await Promise.all([
       nightBins(db, night.id),
       nightEvents(db, night.id),
       nightClips(db, night.id),
@@ -153,6 +158,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       nightSummaries(db),
       averageScore(db, 7),
       runningExperiments(db),
+      nightActivity(db, night.id),
     ]);
     const weatherByNight = new Map(weatherRows.map((w) => [w.night_id, w]));
     const weather = weatherByNight.get(night.id) ?? null;
@@ -163,6 +169,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       clips,
       sounds,
       labels,
+      activity,
       nightCount,
       weather,
       weatherByNight,
@@ -206,8 +213,9 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
 
   const summary = useMemo(() => {
     if (!data) return [];
-    const { night, events, samples, hrMean, log, history, experiments, weather, weatherByNight } = data;
+    const { night, events, samples, hrMean, log, history, experiments, weather, weatherByNight, activity } = data;
     const exp = experiments.find((e) => log.remedies.includes(e.remedyId));
+    const movements = activity.filter((a) => a.kind === 'movement').map((a) => ({ startS: a.start_s, endS: a.end_s }));
     const day = exp ? experimentDay(exp.started, night.date) : null;
     // Weather is compared like a factor: each night's bands join its history entry (on this phone only).
     const withWeather = history.map((h) => {
@@ -225,6 +233,11 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       history: withWeather,
       experiment: exp && day ? { remedyId: exp.remedyId, day } : null,
       weatherBands: weather ? weatherBands({ tempMeanC: weather.temp_mean_c, humidityMean: weather.humidity_mean }) : [],
+      turnedOver: turnedOverAndQuiet(
+        movements,
+        events.map((e) => ({ startS: e.start_s, endS: e.end_s })),
+        night.ended_at - night.started_at,
+      ),
     });
   }, [data, catalogue]);
 
@@ -262,7 +275,12 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       ].filter((l) => l.points.length > 1)
     : undefined;
 
-  const { sounds, events, labels } = data;
+  const { sounds, events, labels, activity } = data;
+  // Tossing and turning, restless stretches and possibly awake, for the lanes under the timeline.
+  const movements = activity.filter((a) => a.kind === 'movement').map((a) => ({ startS: a.start_s, endS: a.end_s, peakDb: a.peak_db ?? 0 }));
+  const phoneUse = activity.filter((a) => a.kind === 'phone').map((a) => ({ startS: a.start_s, endS: a.end_s }));
+  const restless = restlessStretches(movements);
+  const awake = possiblyAwake(phoneUse, samples);
   const snoring = events.map((e) => ({ startS: e.start_s, endS: e.end_s, peakDb: e.peak_db }));
   const snoreClips = clips.filter((c) => c.kind !== 'other');
   const otherClips = clips.filter((c) => c.kind === 'other');
@@ -590,6 +608,14 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
               {sleepSoundName(night.sleep_sound)} played until {clockTimeAt(night.started_at, night.sleep_sound_until_s)}. Snoring then is measured against the sound.
             </Small>
           ) : null}
+          <NightLanes
+            totalS={timelineBins.length * 300}
+            movements={movements}
+            restless={restless}
+            awake={awake}
+            stages={paid ? samples.filter((x) => x.kind === 'sleep_stage') : []}
+            onSeek={playAt}
+          />
           <MomentPanel
             startedAtS={night.started_at}
             moments={moments}
