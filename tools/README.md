@@ -5,6 +5,7 @@ Tools for building the 30-night labelled test set and scoring detectors against 
 ```
 tools/
   labelling/propose.ts      WAV → proposed snore regions (detection v0)
+  labelling/fromApp.ts      app export (.tar) → WAV and proposals per night
   labelling/label.html      browser page: confirm, correct and add regions → labels.json
   labelling/wavStream.ts    chunked WAV reader used by propose
   eval/metrics.ts           frame and event metrics, Phase 1 gate (pure, unit tested)
@@ -35,6 +36,8 @@ Give each volunteer a code (`v01`, `v02`, ...). Do not put names in file names, 
 Aim for 30 nights from 5 to 8 volunteers, 3 to 6 nights each. Record with the phone on the bedside table, as the app would be used. Any sample rate and channel count works (channels are averaged to mono); 16 kHz mono 16-bit matches the app and keeps an 8-hour night to about 920 MB. 8, 16, 24 and 32-bit integer PCM and 32 or 64-bit float WAV are supported, including WAVE_FORMAT_EXTENSIBLE and files whose recorder died before fixing the header size. RF64 (over 4 GB) is not; split such nights.
 
 Name files `<volunteer>-n<k>.wav`, e.g. `v03-n2.wav`. The file name becomes the `source` that ties proposals, labels and predictions together.
+
+Volunteers can instead record with the app itself and send an export; `fromApp.ts` turns it into the WAV and proposals files (see [From an app export](#from-an-app-export) and the volunteer guide, [docs/labelling-volunteers.md](../docs/labelling-volunteers.md)).
 
 ### 3. Propose regions
 
@@ -82,6 +85,45 @@ npx tsx tools/eval/evaluate.ts dataset/manifest.json --json report.json    # als
 ```
 
 For each night the predictions come from, in order: `<predictions dir>/<night id>.json`, the night's `predictions` file in the manifest, or running the built-in detector (v0) on the night's `wav`. It prints per-night and pooled metrics and the gate result. Exit code 0 means the Phase 1 gate passed, 1 failed, 2 bad input.
+
+## From an app export
+
+Internal builds of the app (development, and the EAS `preview` profile) have a Labelling study card in Settings: **Keep the whole night's sound (for labelling)** makes the recorder keep every second of the night, not only the parts with sound, in the same 5-minute AAC segments; **Export nights for labelling** writes the last 1, 3 or 7 nights with sound into one uncompressed tar file and opens the share sheet. The volunteer guide covers the phone side.
+
+```bash
+npx tsx tools/labelling/fromApp.ts incoming/snorehive-labelling-2026-10-17.tar --list
+npx tsx tools/labelling/fromApp.ts incoming/snorehive-labelling-2026-10-17.tar --volunteer v03 --first 2 --out recordings
+npx tsx tools/labelling/fromApp.ts incoming/snorehive-labelling-2026-10-17.tar --volunteer v03 --nights 4,-,5
+```
+
+Nights are taken oldest first. `--first k` numbers them from k (default 1); `--nights` gives one number per night, `-` to skip one. `--list` prints the nights, how much of each was recorded and how many events and answers it has, without converting anything. Existing files are not replaced without `--force`. ffmpeg must be on PATH; the script says so if it is not.
+
+For each night it writes, in `--out` (default: the archive's folder):
+
+- `<volunteer>-n<k>.wav`: 16 kHz mono 16-bit, as long as the recording. Each segment is decoded with ffmpeg and cut or padded to exactly its recorded seconds, so the AAC encoder's padding never shifts later audio. Seconds no segment covers (an interruption, or every quiet stretch if labelling mode was off) are silence. A night less than 90% recorded gets a warning; leave such nights out of the test set. A segment ffmpeg cannot decode becomes silence, with a warning. AAC may shift a segment's audio by a few tens of milliseconds, well under the labelling resolution of 1 second.
+- `<volunteer>-n<k>.proposals.json` in the proposals format below, with `detector` set to `app:<detector id>`: the detector's events from the phone (from before any of the user's answers), plus each stretch the user answered in the app that no event covers. A region an answer touches carries `"answer": "snore"` or `"not_snore"` (the latest answer wins). The proposals format cannot mark a region as already decided, so the labelling page shows every region as undecided and ignores `answer`; the labeller confirms or rejects each one. `levelDb` is measured from the built WAV (`--no-levels` leaves it out).
+
+Because it includes the user's answers, do not list this file as a night's `predictions` in the manifest; `evaluate.ts` then runs v0 on the WAV. v0 (in `propose.ts`, and so in `evaluate.ts`) leaves out seconds that are exactly silent, as the app leaves out an interruption, so the filled-in silence does not lower the night's noise floor. v0 on the decoded WAV can differ slightly from what the phone found on the original audio.
+
+The archive (`snorehive-labelling-<export date>.tar`) holds `export.json` and one folder per night, named by its local start (`2026-10-15-2304/`), with `night.json` and the night's segments (`segment-001.m4a`, ...). `night.json`:
+
+```json
+{
+  "version": 1,
+  "nightId": "3f2c…",
+  "start": "2026-10-15T23:04:12+01:00",
+  "durationS": 28812,
+  "partial": false,
+  "detector": "heuristic-v0",
+  "sleepSound": null,
+  "segments": [{ "file": "segment-001.m4a", "startS": 0, "endS": 300, "bytes": 901234 }],
+  "events": [{ "startS": 1203, "endS": 1460, "peakDb": 21.4, "meanDb": 14.2 }],
+  "answers": [{ "startS": 1203, "endS": 1460, "label": "not_snore", "source": "clip" }],
+  "clips": [{ "startS": 1300, "endS": 1315, "peakS": 1306, "peakDb": 21.4, "kind": "snore", "saved": false }]
+}
+```
+
+Times are seconds from the start of the recording. `events` are the detector's (the `event_detected` copy once the user has answered), and `answers` are in the order given. Names carry dates only, never the user's name or account.
 
 ## Retention of held-out audio
 
@@ -170,4 +212,4 @@ Write `detector` as a name and version (`"ondevice-v1.2"`) so reports say what w
 npx jest __tests__/tools
 ```
 
-`tools.metrics.test.ts` covers the metric definitions; `tools.pipeline.test.ts` writes a synthetic night (`synthesiseNightAudio` + `encodeWav`) to a temp directory and runs the chunked reader, propose, evaluate and split on it.
+`tools.metrics.test.ts` covers the metric definitions; `tools.pipeline.test.ts` writes a synthetic night (`synthesiseNightAudio` + `encodeWav`) to a temp directory and runs the chunked reader, propose, evaluate and split on it. `tools.fromApp.test.ts` covers the gap plan, proposals and night numbers, and exports nights from a test database with the app's own planner and tar writer, then converts the archive (with a WAV decoder standing in for ffmpeg).
