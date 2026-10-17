@@ -12,15 +12,20 @@ interface NightwatchRecordingServiceModule {
   startNoise?(color: string, gain: number, durationS: number, fadeOutS: number): void;
   stopNoise?(): Promise<void>;
   isNoisePlaying?(): boolean;
-  // The phone's alarms. Missing on builds made before they existed.
+  // The phone's alarms. Android only; missing on iOS and on builds made before they existed.
   nextAlarmTime?(): number | null;
   setClockAlarm?(hour: number, minute: number, label: string): boolean;
   showClockAlarms?(): boolean;
 }
 
-// Android only. On iOS (and in Expo Go) this is null and the calls below are no-ops.
+// Android and iOS. In Expo Go (and on iOS builds made before it existed) this is null and the
+// calls below are no-ops.
 const native = requireOptionalNativeModule<NightwatchRecordingServiceModule>('NightwatchRecordingService');
 
+/**
+ * Keeps overnight capture alive with the screen off. On Android this is a microphone foreground
+ * service; on iOS start and stop do nothing, as the audio background mode already does this.
+ */
 export const RecordingService = {
   available: native !== null,
   start(title: string, body: string): void {

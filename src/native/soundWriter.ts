@@ -6,12 +6,12 @@ import { allSoundPaths } from '../data/soundRepo';
 import { SOUND_BITRATE, type SegmentWriter } from '../recording/soundRecorder';
 import { pruneOldSound } from '../recording/soundRetention';
 
-/** True on builds with the native AAC encoder (Android, from this version on). */
+/** True on builds with the native AAC encoder (Android and iOS, from this version on). */
 export const soundRecordingAvailable = SoundEncoder.available;
 
 const soundDir = () => new Directory(Paths.document, 'sounds');
 
-/** MediaMuxer wants a filesystem path, not a file:// URI. */
+/** Android's MediaMuxer wants a filesystem path, not a file:// URI (iOS takes either). */
 const toPath = (uri: string) => decodeURIComponent(uri.replace(/^file:\/\//, ''));
 
 /** Writes sound segments as .m4a files in the app's document directory (never backed up to a server). */
