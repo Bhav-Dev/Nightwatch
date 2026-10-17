@@ -24,7 +24,7 @@ const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '127.0.0.1';
 
 const server = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
-  console.log(`Nightwatch API listening on http://${info.address}:${info.port}`);
+  console.log(`SnoreHive API listening on http://${info.address}:${info.port}`);
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nightwatch",
+    "name": "SnoreHive",
     "slug": "nightwatch",
     "scheme": "nightwatch",
     "version": "0.3.0",
@@ -44,7 +44,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Nightwatch listens for snoring while you sleep. Audio is processed on this phone and is not uploaded.",
+          "microphonePermission": "SnoreHive listens for snoring while you sleep. Audio is processed on this phone and is not uploaded.",
           "recordAudioAndroid": true,
           "enableBackgroundRecording": true,
           "enableBackgroundPlayback": false
@@ -66,7 +66,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "Nightwatch reads sleep, heart rate, heart rate variability, oxygen and breathing rate from Apple Health to show them alongside your snoring. Raw readings stay on this phone.",
+          "NSHealthShareUsageDescription": "SnoreHive reads sleep, heart rate, heart rate variability, oxygen and breathing rate from Apple Health to show them alongside your snoring. Raw readings stay on this phone.",
           "NSHealthUpdateUsageDescription": false,
           "background": false
         }
@@ -84,7 +84,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Nightwatch uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored."
+          "locationWhenInUsePermission": "SnoreHive uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored."
         }
       ],
       [

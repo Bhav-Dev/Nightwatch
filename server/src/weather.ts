@@ -66,7 +66,7 @@ export async function forecastFor(deps: Deps, lat: number, lon: number): Promise
   try {
     res = await doFetch(`${MET_URL}?lat=${area.lat}&lon=${area.lon}`, {
       headers: {
-        'User-Agent': `Nightwatch/1.0 ${deps.config.weatherContact}`,
+        'User-Agent': `SnoreHive/1.0 ${deps.config.weatherContact}`,
         ...(cached?.last_modified ? { 'If-Modified-Since': cached.last_modified } : {}),
       },
     });

@@ -48,9 +48,9 @@ export function mailerFromEnv(env: Record<string, string | undefined>): Mailer {
 export function magicLinkEmail(to: string, link: string, ttlMinutes: number): MailMessage {
   return {
     to,
-    subject: 'Your Nightwatch sign-in link',
+    subject: 'Your SnoreHive sign-in link',
     text: [
-      'Open this link on your phone to sign in to Nightwatch:',
+      'Open this link on your phone to sign in to SnoreHive:',
       '',
       link,
       '',

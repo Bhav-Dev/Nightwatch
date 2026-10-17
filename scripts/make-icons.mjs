@@ -1,13 +1,14 @@
 /**
- * Draws the app icon, a crescent moon rising over a sound wave, and renders every icon file from
- * it: the iOS light, dark and tinted icons, the Android adaptive layers and themed icon, the
- * notification icon, the splash image, the store icon and favicon, the separate layers for
- * Apple's Icon Composer, and a preview sheet. Run `npm run icons` after changing anything here.
+ * Draws the SnoreHive logo, a crescent moon over a sound wave inside a honeycomb cell, and renders
+ * every icon file from it: the iOS light, dark and tinted icons, the Android adaptive layers and
+ * themed icon, the notification icon, the splash image, the store icon and favicon, the separate
+ * layers for Apple's Icon Composer, the shapes the app draws its logo from, and a preview sheet.
+ * Run `npm run icons` after changing anything here.
  *
  * Everything is drawn on a 1024 canvas. Each target places the same drawing with its own scale:
- * Android crops the outer third of its icons, so the moon and stars sit further in there.
+ * Android crops the outer third of its icons, so the cell sits further in there.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
@@ -19,24 +20,25 @@ const f = (n) => String(Math.round(n * 10) / 10);
 
 const COLOUR = {
   sky: ['#222970', '#383690'],
-  sea: ['#3C3F9E', '#4B45A5'],
+  /** The faint honeycomb behind the cell. */
+  comb: '#F6C85F',
+  cell: ['#353C99', '#2A2F7F'],
+  honey: ['#FFE9AE', '#F6C85F', '#E9A23F'],
   wave: ['#9C98EE', '#BAB6FA', '#8F8AE6'],
   moon: ['#FFF2C2', '#F7D990', '#F2B088'],
-  star: '#FCE4A8',
-  glow: '#F6C7A0',
 };
-/** iOS dark mode: the same moon and wave on a night with the lights off. */
-const DARK = { ...COLOUR, sky: ['#0B0D26', '#17183D'], sea: ['#1D1F52', '#221F57'], wave: ['#8985DC', '#A6A2EE', '#7F7AD4'] };
+/** iOS dark mode: the same cell and moon on a night with the lights off. */
+const DARK = { ...COLOUR, sky: ['#0B0D26', '#17183D'], cell: ['#1C2158', '#141845'], wave: ['#8985DC', '#A6A2EE', '#7F7AD4'] };
 /** iOS tinted: greyscale, which iOS recolours with the tint the person picks. */
-const TINTED = { ...COLOUR, sky: '#000000', moon: '#FFFFFF', wave: '#BDBDBD', star: '#E6E6E6' };
+const TINTED = { ...COLOUR, sky: '#000000', comb: null, cell: null, honey: '#A0A0A0', moon: '#FFFFFF', wave: '#C8C8C8' };
 /** Android themed icon and the notification icon: one colour, the shape is all that is used. */
-const WHITE = { ...COLOUR, moon: '#FFFFFF', wave: '#FFFFFF', star: '#FFFFFF' };
+const WHITE = { ...COLOUR, comb: null, cell: null, honey: '#FFFFFF', moon: '#FFFFFF', wave: '#FFFFFF' };
 
-/** The wave: a gentle swell, two crests across the icon. */
+/** The wave: a gentle swell, two crests. */
 const WAVE = { y: 630, amp: 32, length: 500, peakX: 280, width: 40 };
-/** Where the wave stops when it is not a full horizon (themed, notification and splash). */
+/** Where the wave starts and stops. */
 const SHORT_WAVE = [205, 855];
-/** The space between the moon and the wave when there is no sea to hide the moon's lower edge. */
+/** The space between the moon and the wave, which hides the moon's lower edge. */
 const GAP = 14;
 /**
  * A crescent: the moon's edge, and a shadow ellipse that touches it at both horns, as a real
@@ -57,24 +59,49 @@ function crescent({ cx, cy, r, from, to, shadow }) {
 const MOON_SHAPE = { cx: 500, cy: 440, r: 235, from: -86, to: 16, shadow: 1.7 };
 const MOON = crescent(MOON_SHAPE);
 const MOON_GRADIENT = [430, 240, 610, 700];
-const STARS = [
-  { x: 735, y: 298, r: 46 },
-  { x: 222, y: 398, r: 34 },
-  { x: 836, y: 466, r: 22 },
-];
-const DOTS = [
-  { x: 336, y: 210, r: 10 },
-  { x: 600, y: 380, r: 9 },
-];
 
-/** Placements: iOS shows the whole square; Android keeps the moon and stars in its safe zone. */
+/** The honeycomb cell: a pointy-topped hexagon with rounded corners, outlined in honey. */
+const CELL = { cx: 512, cy: 512, r: 340, corner: 64, stroke: 30 };
+/** The moon and wave sit in the cell at this scale, centred a little below the cell's centre. */
+const GLYPH_IN_CELL = { s: 0.7, cx: 512, cy: 530 };
+
+/** Placements: iOS shows the whole square; Android keeps the cell inside its safe zone. */
 const IOS = { s: 1, dx: 0, dy: 0 };
-const ANDROID = { s: 0.9, dx: -4, dy: 44 };
+const ANDROID = { s: 0.8, dx: 0, dy: 0 };
 
-function wavePath(x0, x1, { lift = 0, amp = WAVE.amp, peakX = WAVE.peakX } = {}) {
+function hexPoints(cx, cy, r) {
+  return Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 180) * (60 * i - 90);
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+}
+/** A polygon with each corner rounded off over `rc` along both edges. */
+function roundedPoly(pts, rc) {
+  let d = '';
+  pts.forEach((p, i) => {
+    const toward = (q) => {
+      const [dx, dy] = [q[0] - p[0], q[1] - p[1]];
+      const len = Math.hypot(dx, dy);
+      return [p[0] + (dx / len) * rc, p[1] + (dy / len) * rc];
+    };
+    const [a, b] = [toward(pts[(i + pts.length - 1) % pts.length]), toward(pts[(i + 1) % pts.length])];
+    d += `${i ? ' L' : 'M'}${f(a[0])},${f(a[1])} Q${f(p[0])},${f(p[1])} ${f(b[0])},${f(b[1])}`;
+  });
+  return `${d}Z`;
+}
+const CELL_PATH = roundedPoly(hexPoints(CELL.cx, CELL.cy, CELL.r), CELL.corner);
+/** The cell with its outline: the logo's own box. */
+const CELL_BOX = [
+  CELL.cx - (Math.sqrt(3) / 2) * CELL.r - CELL.stroke / 2,
+  CELL.cy - CELL.r - CELL.stroke / 2,
+  CELL.cx + (Math.sqrt(3) / 2) * CELL.r + CELL.stroke / 2,
+  CELL.cy + CELL.r + CELL.stroke / 2,
+].map((n) => Math.round(n));
+
+function wavePath(x0, x1, { lift = 0 } = {}) {
   const k = (2 * Math.PI) / WAVE.length;
-  const y = (x) => WAVE.y - lift - amp * Math.cos(k * (x - peakX));
-  const slope = (x) => amp * k * Math.sin(k * (x - peakX));
+  const y = (x) => WAVE.y - lift - WAVE.amp * Math.cos(k * (x - WAVE.peakX));
+  const slope = (x) => WAVE.amp * k * Math.sin(k * (x - WAVE.peakX));
   const n = Math.max(1, Math.round((x1 - x0) / (WAVE.length / 8)));
   const h = (x1 - x0) / n;
   let d = `M${f(x0)},${f(y(x0))}`;
@@ -85,11 +112,10 @@ function wavePath(x0, x1, { lift = 0, amp = WAVE.amp, peakX = WAVE.peakX } = {})
   }
   return d;
 }
-
-function sparkle({ x, y, r }) {
-  const c = r * 0.16;
-  return `M${x},${y - r} Q${f(x + c)},${f(y - c)} ${x + r},${y} Q${f(x + c)},${f(y + c)} ${x},${y + r} Q${f(x - c)},${f(y + c)} ${x - r},${y} Q${f(x - c)},${f(y - c)} ${x},${y - r}Z`;
-}
+/** Everything above the wave, less the gap: the moon is cut off just above it. */
+const ABOVE_WAVE = `${wavePath(0, S, { lift: WAVE.width / 2 + GAP })} L${S},0 L0,0Z`;
+/** The moon and wave's own box: the wave's round ends, the moon's top horn. */
+const GLYPH_BOX = [SHORT_WAVE[0] - WAVE.width / 2, 200, SHORT_WAVE[1] + WAVE.width / 2, WAVE.y + WAVE.amp + WAVE.width / 2];
 
 function paint(id, colours, [x1, y1, x2, y2]) {
   if (typeof colours === 'string') return { def: '', fill: colours };
@@ -102,6 +128,8 @@ function paint(id, colours, [x1, y1, x2, y2]) {
 
 const place = ({ s, dx, dy }, inner) =>
   `<g transform="translate(${f(512 + dx)} ${f(512 + dy)}) scale(${s}) translate(-512 -512)">${inner}</g>`;
+const inCell = (inner) =>
+  `<g transform="translate(${GLYPH_IN_CELL.cx} ${GLYPH_IN_CELL.cy}) scale(${GLYPH_IN_CELL.s}) translate(${-(GLYPH_BOX[0] + GLYPH_BOX[2]) / 2} ${-(GLYPH_BOX[1] + GLYPH_BOX[3]) / 2})">${inner}</g>`;
 
 // Layers, bottom to top.
 
@@ -110,44 +138,50 @@ function sky(p) {
   return { defs: g.def, body: `<rect width="${S}" height="${S}" fill="${g.fill}"/>` };
 }
 
-/** Moonlight: a soft halo that follows the crescent, in a faint wash of warm light. */
-function glow(p, at, strength) {
-  const stop = (offset, opacity) => `<stop offset="${offset}" stop-color="${p.glow}" stop-opacity="${f(opacity * 100) / 100}"/>`;
+/** A faint honeycomb across the background, strongest in the middle. */
+function comb(p, opacity) {
+  if (!p.comb) return { body: '' };
+  const R = 74;
+  const w = Math.sqrt(3) * R;
+  const cells = [];
+  for (let row = 0; row * 1.5 * R < S + R; row++) {
+    for (let col = -1; col * w < S + w; col++) cells.push(`<path d="${roundedPoly(hexPoints(col * w + (row % 2 ? w / 2 : 0), row * 1.5 * R, R - 7), 12)}"/>`);
+  }
   return {
     defs:
-      `<radialGradient id="wash" gradientUnits="userSpaceOnUse" cx="470" cy="470" r="430">${stop(0, strength * 0.4)}${stop(1, 0)}</radialGradient>` +
-      '<filter id="halo" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="34"/></filter>',
-    body: place(at, `<circle cx="470" cy="470" r="430" fill="url(#wash)"/><path d="${MOON}" fill="${p.glow}" opacity="${strength}" filter="url(#halo)"/>`),
+      '<radialGradient id="comb-fade" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="560"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0.25"/></radialGradient>' +
+      `<mask id="comb-mask"><rect width="${S}" height="${S}" fill="url(#comb-fade)"/></mask>`,
+    body: `<g mask="url(#comb-mask)" fill="none" stroke="${p.comb}" stroke-opacity="${opacity}" stroke-width="4">${cells.join('')}</g>`,
   };
 }
 
-function stars(p, at, { count = STARS.length, dots = true } = {}) {
-  const body =
-    STARS.slice(0, count).map((st) => `<path d="${sparkle(st)}" fill="${p.star}"/>`).join('') +
-    (dots ? DOTS.map((d) => `<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${p.star}"/>`).join('') : '');
-  return { body: place(at, body) };
-}
-
-/** With no sea in front, the moon is cut off just above the wave instead. */
-function moon(p, at, { clip = false } = {}) {
-  const g = paint('moon', p.moon, MOON_GRADIENT);
-  const above = `${wavePath(-1024, 2048, { lift: WAVE.width / 2 + GAP })} L2048,-1024 L-1024,-1024Z`;
+function cell(p, at) {
+  const fill = p.cell ? paint('cell', p.cell, [0, 170, 0, 860]) : null;
+  const line = paint('honey', p.honey, [300, 170, 720, 860]);
   return {
-    defs: g.def + (clip ? `<clipPath id="above-wave" clipPathUnits="userSpaceOnUse"><path d="${above}"/></clipPath>` : ''),
-    body: place(at, `<path d="${MOON}" fill="${g.fill}"${clip ? ' clip-path="url(#above-wave)"' : ''}/>`),
+    defs: (fill ? fill.def : '') + line.def,
+    body: place(
+      at,
+      (fill ? `<path d="${CELL_PATH}" fill="${fill.fill}"/>` : '') +
+        `<path d="${CELL_PATH}" fill="none" stroke="${line.fill}" stroke-width="${CELL.stroke}" stroke-linejoin="round"/>`,
+    ),
   };
 }
 
-function sea(p, at, { fill = true, short = false } = {}) {
-  const water = paint('sea', p.sea, [0, 600, 0, S]);
+function moon(p, at) {
+  const g = paint('moon', p.moon, MOON_GRADIENT);
+  return {
+    defs: g.def + `<clipPath id="above-wave" clipPathUnits="userSpaceOnUse"><path d="${ABOVE_WAVE}"/></clipPath>`,
+    body: place(at, inCell(`<path d="${MOON}" fill="${g.fill}" clip-path="url(#above-wave)"/>`)),
+  };
+}
+
+function wave(p, at) {
   const line = paint('wave', p.wave, [0, 0, S, 0]);
-  const [x0, x1] = short ? SHORT_WAVE : [-1024, 2048];
-  // A fainter ripple further out, like the wave's echo.
-  const ripple = `<path d="${wavePath(-1024, 2048, { lift: -165, amp: WAVE.amp * 0.6, peakX: WAVE.peakX + WAVE.length * 0.3 })}" fill="none" stroke="${line.fill}" stroke-width="${WAVE.width * 0.5}" opacity="0.16"/>`;
-  const body =
-    (fill ? `<path d="${wavePath(-1024, 2048)} L2048,2048 L-1024,2048Z" fill="${water.fill}"/>${ripple}` : '') +
-    `<path d="${wavePath(x0, x1)}" fill="none" stroke="${line.fill}" stroke-width="${WAVE.width}" stroke-linecap="round"/>`;
-  return { defs: (fill ? water.def : '') + line.def, body: place(at, body) };
+  return {
+    defs: line.def,
+    body: place(at, inCell(`<path d="${wavePath(...SHORT_WAVE)}" fill="none" stroke="${line.fill}" stroke-width="${WAVE.width}" stroke-linecap="round"/>`)),
+  };
 }
 
 function svg(layers) {
@@ -160,33 +194,26 @@ function fit([x0, y0, x1, y1], size) {
   const s = Math.min(size / (x1 - x0), size / (y1 - y0));
   return { s, dx: -s * ((x0 + x1) / 2 - 512), dy: -s * ((y0 + y1) / 2 - 512) };
 }
-// The glyph without the sea: wave ends (with round caps), the moon's top horn, the stars.
-const GLYPH_BOX = [SHORT_WAVE[0] - WAVE.width / 2, 200, SHORT_WAVE[1] + WAVE.width / 2, WAVE.y + WAVE.amp + WAVE.width / 2];
+const mark = (p, at) => [cell(p, at), moon(p, at), wave(p, at)];
 
 const DESIGNS = {
-  ios: svg([sky(COLOUR), glow(COLOUR, IOS, 0.42), stars(COLOUR, IOS), moon(COLOUR, IOS), sea(COLOUR, IOS)]),
-  iosDark: svg([sky(DARK), glow(DARK, IOS, 0.3), stars(DARK, IOS), moon(DARK, IOS), sea(DARK, IOS)]),
-  iosTinted: svg([sky(TINTED), stars(TINTED, IOS), moon(TINTED, IOS, { clip: true }), sea(TINTED, IOS, { fill: false })]),
-  androidBackground: svg([sky(COLOUR)]),
-  androidForeground: svg([glow(COLOUR, ANDROID, 0.42), stars(COLOUR, ANDROID), moon(COLOUR, ANDROID), sea(COLOUR, ANDROID)]),
-  androidMonochrome: svg([stars(WHITE, ANDROID), moon(WHITE, ANDROID, { clip: true }), sea(WHITE, ANDROID, { fill: false, short: true })]),
-  notification: (() => {
-    const at = fit([GLYPH_BOX[0], 240, GLYPH_BOX[2], GLYPH_BOX[3]], S * (88 / 96));
-    return svg([stars(WHITE, at, { count: 1, dots: false }), moon(WHITE, at, { clip: true }), sea(WHITE, at, { fill: false, short: true })]);
-  })(),
-  splash: (() => {
-    // Android 12 and later crop the splash image to a circle two-thirds its width; this fits inside.
-    const at = fit(GLYPH_BOX, S * 0.53);
-    return svg([stars(COLOUR, at), moon(COLOUR, at, { clip: true }), sea(COLOUR, at, { fill: false, short: true })]);
-  })(),
+  ios: svg([sky(COLOUR), comb(COLOUR, 0.09), ...mark(COLOUR, IOS)]),
+  iosDark: svg([sky(DARK), comb(DARK, 0.06), ...mark(DARK, IOS)]),
+  iosTinted: svg([sky(TINTED), ...mark(TINTED, IOS)]),
+  androidBackground: svg([sky(COLOUR), comb(COLOUR, 0.09)]),
+  androidForeground: svg(mark(COLOUR, ANDROID)),
+  androidMonochrome: svg(mark(WHITE, ANDROID)),
+  notification: svg(mark(WHITE, fit(CELL_BOX, S * (88 / 96)))),
+  // Android 12 and later crop the splash image to a circle two-thirds its width; the cell's corners fit inside.
+  splash: svg(mark(COLOUR, { s: 0.92, dx: 0, dy: 0 })),
 };
 
-// Icon Composer layers, bottom to top, at full size. The sea sits in front of the moon.
+// Icon Composer layers, bottom to top, at full size.
 const LAYERS = {
-  '1-sky': svg([sky(COLOUR)]),
-  '2-stars': svg([stars(COLOUR, IOS)]),
+  '1-background': svg([sky(COLOUR), comb(COLOUR, 0.09)]),
+  '2-cell': svg([cell(COLOUR, IOS)]),
   '3-moon': svg([moon(COLOUR, IOS)]),
-  '4-sea': svg([sea(COLOUR, IOS)]),
+  '4-wave': svg([wave(COLOUR, IOS)]),
 };
 
 // PNG output.
@@ -272,17 +299,17 @@ const files = {
 };
 for (const [path, data] of Object.entries(files)) write(path, data);
 write('assets/icon-src/icon.svg', DESIGNS.ios);
+rmSync(join(ROOT, 'assets/icon-src/layers'), { recursive: true, force: true });
 for (const [name, design] of Object.entries(LAYERS)) write(`assets/icon-src/layers/${name}.svg`, design);
 
 // The same drawing for the app to show (src/ui/Logo.tsx), so the logo in the app matches the icon.
 const art = {
-  box: GLYPH_BOX,
+  box: CELL_BOX,
+  cell: { d: CELL_PATH, stroke: CELL.stroke, fill: COLOUR.cell, fillGradient: [0, 170, 0, 860], honey: COLOUR.honey, honeyGradient: [300, 170, 720, 860] },
+  glyph: { ...GLYPH_IN_CELL, box: GLYPH_BOX },
   moon: { d: MOON, cx: MOON_SHAPE.cx, cy: MOON_SHAPE.cy, r: MOON_SHAPE.r, gradient: MOON_GRADIENT, colours: COLOUR.moon },
-  aboveWave: `${wavePath(0, S, { lift: WAVE.width / 2 + GAP })} L${S},0 L0,0Z`,
+  aboveWave: ABOVE_WAVE,
   wave: { d: wavePath(...SHORT_WAVE), width: WAVE.width, gradient: [0, 0, S, 0], colours: COLOUR.wave },
-  stars: STARS.map(sparkle),
-  dots: DOTS,
-  starColour: COLOUR.star,
 };
 write(
   'src/ui/logoArt.ts',
@@ -390,7 +417,7 @@ function panel(ox, dark) {
   );
 
   if (!dark) {
-    out.push(label(ox + 50, 1000, 'Android safe zone: the moon and stars stay inside the dashed circle', muted, 18, 'start'));
+    out.push(label(ox + 50, 1000, 'Android safe zone: the cell stays inside the dashed circle', muted, 18, 'start'));
     const [x, y, w] = [ox + 50, 1020, 200];
     out.push(
       `<image href="${uri('assets/android-icon-background.png')}" x="${x}" y="${y}" width="${w}" height="${w}"/>`,

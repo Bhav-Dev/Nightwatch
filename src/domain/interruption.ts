@@ -12,7 +12,7 @@ export const INTERRUPTION_COPY: Record<InterruptCauseCopy, { cause: string; prev
   },
   app_closed: {
     cause: 'The phone closed the app, usually to save battery or memory.',
-    prevent: 'Plug the phone in, turn off battery saver, and on Android allow Nightwatch to run in the background.',
+    prevent: 'Plug the phone in, turn off battery saver, and on Android allow SnoreHive to run in the background.',
   },
 };
 

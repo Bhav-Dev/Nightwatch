@@ -25,7 +25,7 @@ export default function HealthStep() {
       }
     >
       <Body>
-        If you wear a watch to bed, Nightwatch can show your sleep stages, heart rate and oxygen on the same timeline as your snoring. Health data stays on this phone; only a short nightly summary syncs to your account.
+        If you wear a watch to bed, SnoreHive can show your sleep stages, heart rate and oxygen on the same timeline as your snoring. Health data stays on this phone; only a short nightly summary syncs to your account.
       </Body>
     </Screen>
   );

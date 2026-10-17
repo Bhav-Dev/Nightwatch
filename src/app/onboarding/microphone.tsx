@@ -21,7 +21,7 @@ export default function Microphone() {
       title="Microphone"
       footer={denied ? <Button label="Open Settings" onPress={() => Linking.openSettings()} /> : <Button label="Allow microphone" onPress={ask} />}
     >
-      <Body>Nightwatch listens to hear snoring while you sleep. Audio is processed on this phone; it is never uploaded.</Body>
+      <Body>SnoreHive listens to hear snoring while you sleep. Audio is processed on this phone; it is never uploaded.</Body>
       {soundRecordingAvailable ? (
         <Body muted style={{ marginTop: space(3) }}>
           The parts of each night with sound in them are kept on this phone for {SOUND_KEEP_DAYS} nights, so you can listen back in the morning. You can turn this off in Settings.
@@ -29,7 +29,7 @@ export default function Microphone() {
       ) : null}
       {denied ? (
         <Card style={{ marginTop: space(5) }}>
-          <Body>Microphone access is off. Nightwatch can’t record without it. Turn it on in Settings, then come back.</Body>
+          <Body>Microphone access is off. SnoreHive can’t record without it. Turn it on in Settings, then come back.</Body>
           <Button kind="link" label="I’ve turned it on" onPress={ask} />
         </Card>
       ) : null}

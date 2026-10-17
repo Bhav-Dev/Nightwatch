@@ -47,7 +47,7 @@ describe('weather', () => {
     expect(a.body.hours[0]).toEqual({ time: '2026-10-14T04:00:00Z', tempC: 9.5, humidity: 82, cloud: 90, precipMm: 0.4, symbol: 'lightrain' });
     expect(a.body.attribution).toMatch(/MET Norway/);
     expect(met.calls[0].url).toBe(`${MET_URL}?lat=51.5&lon=-0.1`);
-    expect(met.calls[0].headers['User-Agent']).toBe('Nightwatch/1.0 tests@example.com');
+    expect(met.calls[0].headers['User-Agent']).toBe('SnoreHive/1.0 tests@example.com');
 
     // A neighbour in the same area, before the forecast expires: no second upstream call.
     const b = await h.call('GET', '/v1/weather?lat=51.52&lon=-0.08');

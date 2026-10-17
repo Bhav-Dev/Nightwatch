@@ -206,7 +206,7 @@ function Everyone() {
       {data === undefined && !error ? <Loading /> : null}
       {data === null ? (
         <Card>
-          <Body muted>Community results need a connection to the Nightwatch server.</Body>
+          <Body muted>Community results need a connection to the SnoreHive server.</Body>
         </Card>
       ) : null}
       {data && rows.ranked.length === 0 && rows.early.length === 0 ? (

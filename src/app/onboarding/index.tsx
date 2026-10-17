@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { APP_NAME } from '../../brand';
 import { Button } from '../../ui/kit';
 import { Logo } from '../../ui/Logo';
 import { NightSky } from '../../ui/NightSky';
@@ -13,9 +14,11 @@ export default function Welcome() {
       <NightSky />
       <SafeAreaView style={styles.safe}>
         <View style={styles.body}>
-          <Logo width={240} />
-          <Text style={styles.brand}>Nightwatch</Text>
-          <Text style={styles.line}>Record your snoring, see what changes it, and compare with thousands of other snorers.</Text>
+          <Logo width={190} />
+          <Text style={styles.brand} accessibilityLabel={APP_NAME}>
+            <Text style={{ color: colors.text }}>Snore</Text>Hive
+          </Text>
+          <Text style={styles.line}>Record your snoring, see what changes it, and find what works with a hive of other snorers.</Text>
         </View>
         <Button label="Get started" onPress={() => router.push('/onboarding/sign-in')} />
       </SafeAreaView>

@@ -102,6 +102,9 @@ export const intensityColor = {
   epic: '#FFE6A8',
 } as const;
 
+/** Honey, light to deep: the logo's cell outline and the honeycomb pieces (src/ui/Hive.tsx). */
+export const honey = ['#FFE9AE', '#F6C85F', '#E9A23F'] as const;
+
 export const radius = { card: 24, chip: 999, button: 18 };
 
 export const space = (n: number) => n * 4;

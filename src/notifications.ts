@@ -63,7 +63,7 @@ export function watchNotificationLinks(open: (url: string) => void): () => void 
 /** After an automatic stop in the morning. */
 export async function notifyNightReady(score: number): Promise<void> {
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Your night is ready', body: `Snore score ${score}. Open Nightwatch to see what happened.` },
+    content: { title: 'Your night is ready', body: `Snore score ${score}. Open SnoreHive to see what happened.` },
     trigger: null,
   });
 }

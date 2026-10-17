@@ -13,7 +13,7 @@ describe('auth', () => {
     expect(h.mailer.sent).toHaveLength(1);
     const mail = h.mailer.sent[0];
     expect(mail.to).toBe('sam@example.com');
-    expect(mail.subject).toBe('Your Nightwatch sign-in link');
+    expect(mail.subject).toBe('Your SnoreHive sign-in link');
     expect(mail.text).not.toContain('!');
     const token = /nightwatch:\/\/auth\?token=([A-Za-z0-9_-]+)/.exec(mail.text)![1];
     expect(token.length).toBe(43); // 32 bytes, base64url

@@ -124,7 +124,7 @@ export default function SettingsScreen() {
   const toggleWeather = async (on: boolean) => {
     const granted = on ? await askForLocation() : false;
     if (on && !granted) {
-      Alert.alert('Location is off for Nightwatch', 'Allow approximate location for Nightwatch in your phone’s settings to see the weather.', [
+      Alert.alert('Location is off for SnoreHive', 'Allow approximate location for SnoreHive in your phone’s settings to see the weather.', [
         { text: 'Not now', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
       ]);
@@ -295,7 +295,7 @@ export default function SettingsScreen() {
           <Row label="Privacy policy" onPress={() => Linking.openURL(`${config.siteUrl}/privacy`)} />
           <Row label="Terms" onPress={() => Linking.openURL(`${config.siteUrl}/terms`)} />
           <Row label="Affiliate disclosure" onPress={() => Linking.openURL(`${config.siteUrl}/affiliate-disclosure`)} />
-          <Small style={{ marginTop: space(3) }}>Nightwatch measures snoring and shows patterns. It does not diagnose any condition.</Small>
+          <Small style={{ marginTop: space(3) }}>SnoreHive measures snoring and shows patterns. It does not diagnose any condition.</Small>
         </Card>
       </ScrollView>
     </SafeAreaView>

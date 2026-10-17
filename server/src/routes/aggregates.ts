@@ -11,7 +11,7 @@ import { hasActiveSubscription, rateLimit } from './util.ts';
 const WINDOWS: AggregateWindow[] = ['all', '90d'];
 
 const paywall = () =>
-  new HttpError(402, 'paywall', 'Breakdowns by profile are part of Nightwatch Insight.');
+  new HttpError(402, 'paywall', 'Breakdowns by profile are part of SnoreHive Insight.');
 
 /** True when an If-None-Match header lists this ETag (weak or strong), or is "*". */
 function matchesEtag(header: string | undefined, etag: string): boolean {

@@ -1,4 +1,6 @@
-# Nightwatch
+# SnoreHive
+
+Formerly Nightwatch; renamed on 17 October 2026 for a community of snorers working on it together. Internal names (the app ID `com.threeft2.nightwatch`, the Expo slug and link scheme, the `nightwatch` database schema and the `NIGHTWATCH_*` secrets) are unchanged, so installed apps update in place; the name people see comes from `app.json` and `src/brand.ts`.
 
 Record your snoring, see it against your watch's data, and find out which remedies helped people like you. The product plan and development spec are in [`docs/project-plan.md`](docs/project-plan.md), the screen mockups in [`docs/screens.html`](docs/screens.html) (open in a browser), and progress against every item in the plan in [`docs/status.md`](docs/status.md). This README covers what is built, how to run it, and the decisions taken where the spec was open.
 
@@ -150,7 +152,7 @@ A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`): an indigo gradient 
 
 ## App icon
 
-A gold crescent moon rising over a lavender sound wave, on indigo. It started as an AI-generated concept and was redrawn as vectors in `scripts/make-icons.mjs`. That one script draws every version, so change the drawing there and run `npm run icons`. It writes:
+A crescent moon over a lavender sound wave inside a honeycomb cell outlined in honey, on indigo with a faint comb (option A of three concepts, chosen 17 October 2026). It is drawn as vectors in `scripts/make-icons.mjs`. That one script draws every version, so change the drawing there and run `npm run icons`. It writes:
 
 | File | Used for |
 | --- | --- |
@@ -161,10 +163,10 @@ A gold crescent moon rising over a lavender sound wave, on indigo. It started as
 | `assets/notification-icon.png` | Notification icon (expo-notifications plugin), white on transparent |
 | `assets/splash-icon.png` | Splash screen (expo-splash-screen plugin), on the night sky's colour. Sized to fit the circle Android 12 and later crop splash images to. Expo Router keeps it up until the first screen is ready |
 | `assets/favicon.png`, `store/play-store-icon.png` | Web, and the Play Store listing (512 px) |
-| `src/ui/logoArt.ts` | The same shapes for the app: `Logo` (`src/ui/Logo.tsx`) on the welcome screen, and the crescent in `Moon` on Tonight and Recording |
+| `src/ui/logoArt.ts` | The same shapes for the app: `Logo` (`src/ui/Logo.tsx`) on the welcome screen, the doctor's report header, and the crescent in `Moon` on Tonight and Recording |
 | `docs/icon-preview.png` | Every version as a phone shows it, on light and dark home screens |
 
-For iOS 26's Liquid Glass look, Apple's Icon Composer (a Mac app) builds a layered `.icon` file. Import `assets/icon-src/layers/` in order (sky, stars, moon, sea, with the sea in front of the moon so it hides the moon's lower edge). Save the result as `assets/app.icon` and set `"ios": { "icon": "./assets/app.icon" }`. Icon Composer then handles dark, tinted and clear itself. The Recording foreground notification keeps Android's microphone icon, because it is the microphone that is in use.
+For iOS 26's Liquid Glass look, Apple's Icon Composer (a Mac app) builds a layered `.icon` file. Import `assets/icon-src/layers/` in order (background with the comb, cell, moon, wave). Save the result as `assets/app.icon` and set `"ios": { "icon": "./assets/app.icon" }`. Icon Composer then handles dark, tinted and clear itself. The Recording foreground notification keeps Android's microphone icon, because it is the microphone that is in use.
 
 ## Detection
 

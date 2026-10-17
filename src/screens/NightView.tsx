@@ -49,6 +49,7 @@ import { importHealthForNight } from '../health/importNight';
 import { useApp } from '../state/AppContext';
 import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
+import { ScoreCell } from '../ui/Hive';
 import { SnoringToggle } from '../ui/SnoringToggle';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
 import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
@@ -491,13 +492,17 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       )}
 
       <Card>
-        <Text style={styles.score} accessibilityLabel={`Snore score ${night.score}, ${scoreLabel(night.score)}`}>
-          {night.score}
-        </Text>
-        <Text style={styles.label}>
-          {scoreLabel(night.score)}
-          {delta !== null && delta !== 0 ? `  ${delta > 0 ? '↑' : '↓'} ${Math.abs(delta)} vs your 7-night average` : ''}
-        </Text>
+        <View style={styles.scoreRow}>
+          <ScoreCell score={night.score} />
+          <View style={styles.scoreText}>
+            <Text style={styles.label}>{scoreLabel(night.score)}</Text>
+            {delta !== null && delta !== 0 ? (
+              <Text style={styles.delta}>
+                {delta > 0 ? '↑' : '↓'} {Math.abs(delta)} vs your 7-night average
+              </Text>
+            ) : null}
+          </View>
+        </View>
         <View style={styles.stats}>
           <Stat label="Time snoring" value={`${Math.round(night.pct_snoring * 100)}%`} />
           <Stat label="Time in bed" value={hm(night.time_in_bed_s)} />
@@ -678,8 +683,10 @@ const styles = StyleSheet.create({
   bannerTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
   bannerText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   bannerLink: { color: colors.accent, fontSize: 14, marginTop: space(1), textDecorationLine: 'underline' },
-  score: { color: colors.text, fontSize: 76, fontFamily: fonts.heading },
-  label: { color: colors.accent, fontSize: 18, fontWeight: '700', marginBottom: space(4) },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: space(4), marginBottom: space(4) },
+  scoreText: { flex: 1, gap: space(1) },
+  label: { color: colors.accent, fontSize: 22, fontFamily: fonts.heading },
+  delta: { color: colors.accent, fontSize: 15, fontWeight: '700' },
   stats: { flexDirection: 'row' },
   statValue: { color: colors.text, fontSize: 18, fontWeight: '700', textTransform: 'capitalize' },
   legend: { flexDirection: 'row', gap: space(4), marginTop: space(3) },

@@ -1,8 +1,10 @@
 /**
  * The wake-up alarm is the phone's own: whichever alarm its Clock app (or another alarm app) rings
- * next. Nightwatch reads it, adds one to the Clock app if there is none, and stops the recording
- * just before it. The Clock app rings it whatever happens to Nightwatch overnight.
+ * next. SnoreHive reads it, adds one to the Clock app if there is none, and stops the recording
+ * just before it. The Clock app rings it whatever happens to SnoreHive overnight.
  */
+import { APP_NAME } from '../brand';
+
 export type WakeTime = { hour: number; minute: number };
 
 /** Stopping a little early keeps the alarm out of the recording, and the night is ready as it rings. */
@@ -14,8 +16,8 @@ export const MIN_SLEEP_BEFORE_ALARM_MS = 3600_000;
 /** On Tonight, an alarm further off than this is not tomorrow morning's (a weekday alarm on a Saturday). */
 export const TONIGHT_WINDOW_MS = 18 * 3600_000;
 
-/** The label on alarms Nightwatch adds to the Clock app. */
-export const ALARM_LABEL = 'Nightwatch';
+/** The label on alarms the app adds to the Clock app. */
+export const ALARM_LABEL = APP_NAME;
 
 /** Where the time dialog starts when there is no alarm. */
 export const DEFAULT_WAKE_TIME: WakeTime = { hour: 7, minute: 0 };

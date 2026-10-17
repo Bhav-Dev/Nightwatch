@@ -55,6 +55,21 @@ export async function trendPoints(db: Db, days: number, today = new Date()): Pro
   return rows.map((r) => ({ id: r.id, date: r.date, score: r.score, pctSnoring: r.pct_snoring, counts: r.counts_toward_averages === 1 }));
 }
 
+/**
+ * The last `days` days up to today, oldest first, each with the night started that day (the later
+ * one if there were two), for the honeycomb of nights on Trends.
+ */
+export function nightsByDay(points: readonly TrendPoint[], days: number, today = new Date()): { key: string; night: { id: string; score: number } | null }[] {
+  const byDate = new Map<string, TrendPoint>();
+  for (const p of points) byDate.set(p.date.slice(0, 10), p);
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (days - 1 - i));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const p = byDate.get(key);
+    return { key, night: p ? { id: p.id, score: p.score } : null };
+  });
+}
+
 /** Trailing moving average over the last `window` counted nights at each point (null until there are any). */
 export function movingAverage(points: readonly TrendPoint[], window = 7, key: 'score' | 'pctSnoring' = 'score'): (number | null)[] {
   const out: (number | null)[] = [];

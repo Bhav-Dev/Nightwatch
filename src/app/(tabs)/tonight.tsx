@@ -215,7 +215,7 @@ export default function Tonight() {
 
   const start = async () => {
     if (!(await getAudioCapture().requestPermission())) {
-      Alert.alert('Microphone needed', 'Nightwatch needs the microphone to hear snoring. Audio stays on this phone.', [
+      Alert.alert('Microphone needed', 'SnoreHive needs the microphone to hear snoring. Audio stays on this phone.', [
         { text: 'Not now', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
       ]);

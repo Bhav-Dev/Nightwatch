@@ -4,11 +4,12 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { movingAverage, trendPoints, type TrendPoint } from '../../data/historyRepo';
+import { movingAverage, nightsByDay, trendPoints, type TrendPoint } from '../../data/historyRepo';
 import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
 import { scoreLabel } from '../../domain/scoring';
 import { useApp } from '../../state/AppContext';
 import { TrendChart } from '../../ui/charts';
+import { NIGHT_LEGEND, NightsHive, type HiveDay } from '../../ui/Hive';
 import { Body, Button, Card, GearLink, H2, Locked, Screen, Segmented, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
 
@@ -23,15 +24,19 @@ export default function Trends() {
   const [points, setPoints] = useState<TrendPoint[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
+  const [hive, setHive] = useState<HiveDay[]>([]);
 
   // Free plan: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
 
   const load = useCallback(async () => {
     setPoints(await trendPoints(db, Number(effectiveRange)));
+    // The free plan keeps 7 nights of history, so its hive is one week; Insight shows four.
+    const hiveDays = paid ? 28 : 7;
+    setHive(nightsByDay(await trendPoints(db, hiveDays), hiveDays));
     setSnapshots(await listSnapshots(db));
     setSelected(null);
-  }, [db, effectiveRange]);
+  }, [db, effectiveRange, paid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +64,20 @@ export default function Trends() {
 
   return (
     <Screen sky="plain" eyebrow="Trends" title="Your nights" right={<GearLink />}>
+      <Card>
+        <H2>Your hive of nights</H2>
+        <Small style={{ marginBottom: space(3) }}>One cell a day, a week to a row. Brighter means louder; today is outlined. Tap a night to open it.</Small>
+        <NightsHive days={hive} onOpen={(id) => router.push(`/night/${id}`)} />
+        <View style={styles.hiveLegend}>
+          {NIGHT_LEGEND.map((l) => (
+            <View key={l.label} style={styles.hiveKey}>
+              <View style={[styles.hexKey, { backgroundColor: l.colour }]} />
+              <Text style={styles.legendText}>{l.label}</Text>
+            </View>
+          ))}
+        </View>
+        {!paid ? <Locked label="See four weeks of nights" trigger="history" /> : null}
+      </Card>
       <Segmented<Range>
         value={effectiveRange}
         onChange={(r) => (paid || r === '7' ? setRange(r) : router.push({ pathname: '/paywall', params: { trigger: 'history' } }))}
@@ -129,6 +148,9 @@ export default function Trends() {
 
 const styles = StyleSheet.create({
   legend: { flexDirection: 'row', alignItems: 'center', gap: space(2), marginTop: space(2) },
+  hiveLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: space(3), marginTop: space(3) },
+  hiveKey: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
+  hexKey: { width: 10, height: 10, borderRadius: 3 },
   key: { width: 12, height: 3, borderRadius: 2 },
   legendText: { color: colors.textMuted, fontSize: 12, marginRight: space(3) },
   snapshot: { flexDirection: 'row', alignItems: 'center', paddingVertical: space(2), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
