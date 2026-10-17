@@ -1,4 +1,4 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
@@ -13,6 +13,12 @@ export function useClipPlayer(opts: { onFinished?: (uri: string) => void } = {})
   const pendingSeek = useRef<number | null>(null);
   const currentRef = useRef<string | null>(null);
   const onFinished = useRef(opts.onFinished);
+
+  // On iPhone a finished recording leaves the audio session muted by the silent switch; listening
+  // back to the night should ignore the switch, as the recording did. Nothing changes on Android.
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     onFinished.current = opts.onFinished;
