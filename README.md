@@ -131,7 +131,7 @@ The volunteer guide is `docs/labelling-volunteers.md`. Decisions:
 
 ## Sound recording (listen back from the timeline)
 
-The parts of each night with sound in them are kept, compressed, so the morning timeline can be played from any point; silence is never written (`src/recording/soundRecorder.ts`). A second at least 6 dB above the room's running quiet level starts or extends a segment; each segment begins 3 seconds before the first loud second, runs on through pauses of up to 8 seconds (the gaps between snores), and is capped at 5 minutes so a phone that dies loses at most the segment being written. Segments are AAC-LC at 24 kbps, 16 kHz mono (`.m4a`, about 11 MB per hour of sound), encoded by the platform encoder in `modules/nightwatch-recording-service` (`AacSegmentWriter.kt`: MediaCodec and MediaMuxer, on one background thread). Rows are in `sound_segment`; files in the document directory's `sounds/`. They stay on the phone, are never synced, and are deleted after 30 nights (`soundRetention.ts`, at launch, along with any half-written file). Settings has an on/off switch (on by default), the storage used and "Delete sound recordings". On the morning screen a thin line under the timeline marks recorded stretches; a tap plays from that moment, a playhead follows, and playback carries on into the next stretch. Android only so far: iOS needs the same encoder in Swift, and the switch is shown as unavailable there. Builds made before this feature simply keep no sound.
+The parts of each night with sound in them are kept, compressed, so the morning timeline can be played from any point; silence is never written (`src/recording/soundRecorder.ts`). A second at least 6 dB above the room's running quiet level starts or extends a segment; each segment begins 3 seconds before the first loud second, runs on through pauses of up to 8 seconds (the gaps between snores), and is capped at 5 minutes so a phone that dies loses at most the segment being written. Segments are AAC-LC at 24 kbps, 16 kHz mono (`.m4a`, about 11 MB per hour of sound), encoded by the platform encoder in `modules/nightwatch-recording-service` (`AacSegmentWriter.kt`: MediaCodec and MediaMuxer, on one background thread). Rows are in `sound_segment`; files in the document directory's `sounds/`. They stay on the phone, are never synced, and are deleted after 30 nights (`soundRetention.ts`, at launch, along with any half-written file). Settings has an on/off switch (on by default), the storage used and "Delete sound recordings". On the morning screen a thin line under the timeline marks recorded stretches; a tap plays from that moment, a playhead follows, and playback carries on into the next stretch. On iOS the same module encodes with the system AAC encoder (see "iPhone" below). Builds made before this feature simply keep no sound.
 
 ## Checking the night: Snoring answers, moments and the recap
 
@@ -158,6 +158,24 @@ Beyond snoring, This Morning shows estimates found without a model (`src/domain/
 
 They appear as lanes under the timeline, on its time scale (`src/ui/NightLanes.tsx`): Movement (restless stretches shaded), Possibly awake, and Sleep stages from your watch (deep, light, REM, awake), which follows the existing watch overlay and needs Insight. Tapping a lane plays the night from that moment. Sound alone cannot tell deep from light sleep, so without a watch there is no stage lane. None of this changes the score or syncs.
 
+## iPhone
+
+`modules/nightwatch-recording-service/ios` gives the same JS API as Android (built 17 October 2026; it compiles on EAS but has not run on an iPhone yet):
+
+- **Sound segments** use the system AAC encoder through AVAudioFile (AAC-LC .m4a, 16 kHz mono, 24 kbps), on one serial queue in call order.
+- **Sleep sounds** come from an AVAudioEngine source node, with the same white, pink and brown filters, gain, 3-second fade-in and timed fade-out as Android.
+- **There is no recording service on iOS**, because the audio background mode keeps capture alive.
+- **There are no alarm functions**, so the alarm row is hidden. An iPhone alarm would need Apple's AlarmKit.
+
+**Playing sound while recording.** expo-audio's microphone stream asks for the record category, which silences all playback. So the module swaps AVAudioSession's `setCategory(_:mode:options:)`, as expo-font does for UIFont, and turns that one request into play-and-record (`PlaybackWhileRecording.swift`):
+
+- The measurement mode stays the same.
+- Output goes to the speaker by default, and Bluetooth is used for output only.
+- If play-and-record is refused, the original request goes ahead, so recording never depends on it.
+- Drop it once expo-audio can record in play-and-record itself.
+
+**The silent switch.** Recording sets `playsInSilentMode`, which iOS requires for recording, and listening back on This Morning does the same, so the silent switch doesn't mute either. The preview on Tonight briefly switches the session to playback, then puts it back.
+
 ## Wake-up alarm
 
 The wake-up alarm is the phone's own. Nightwatch has no alarm of its own and stores no alarm time; it reads the phone's next alarm, whichever app set it (`AlarmManager.getNextAlarmClock`, which needs no permission; `nextAlarmTime` in the native module).
@@ -165,7 +183,7 @@ The wake-up alarm is the phone's own. Nightwatch has no alarm of its own and sto
 - **On Tonight,** under sleep sounds, a row shows tomorrow morning's alarm. Tapping it opens the Clock app's alarms to change it (`ACTION_SHOW_ALARMS`). The row counts an alarm 1 to 18 hours ahead; a bedtime reminder, or a weekday alarm seen on a Saturday, does not count. With no alarm, the row offers "Set". That opens the system time dialog (`@expo/ui`) and adds a one-off alarm to the Clock app straight away, without opening it (`ACTION_SET_ALARM` with skip-UI, the `SET_ALARM` permission). So people who already have alarms get no duplicates, and the Clock app rings the alarm whatever happens to Nightwatch overnight, including in Do Not Disturb and on battery saver.
 - **While recording,** the recording stops 30 seconds before the phone's next alarm when it rings at least an hour in and within the 12-hour limit. Otherwise it stops at the auto-stop hour. Stopping early keeps the alarm out of the recording, and the night is ready as it rings. The alarm is read again every minute, so moving it in the night is followed. Stopping for an alarm sends no "Your night is ready" notification, which would wake them a moment early (`src/domain/wakeAlarm.ts`).
 
-There is no "smart" alarm, because Nightwatch does not measure sleep stages. Android only; on iPhone this would use Apple's AlarmKit (iOS 26).
+There is no "smart" alarm, because SnoreHive does not measure sleep stages. Android only; on iPhone this would use Apple's AlarmKit (iOS 26).
 
 ## Weather
 
