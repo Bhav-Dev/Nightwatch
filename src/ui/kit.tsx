@@ -255,7 +255,7 @@ export const styles = StyleSheet.create({
     paddingVertical: space(4),
     alignItems: 'center',
     paddingHorizontal: space(6),
-    boxShadow: '0px 6px 24px rgba(246, 215, 142, 0.28)',
+    boxShadow: '0px 6px 24px rgba(246, 200, 95, 0.28)',
   },
   primaryLabel: { color: colors.accentText, fontSize: 17, fontFamily: fonts.heading },
   secondary: {

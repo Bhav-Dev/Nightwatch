@@ -23,6 +23,8 @@ import { experimentProgress, finishDueExperiments, type ExperimentProgress } fro
 import { useApp } from '../../state/AppContext';
 import { ChangeBar, Sparkline } from '../../ui/charts';
 import { Chip } from '../../ui/Chip';
+import { HiveIcon } from '../../ui/Hive';
+import { iconFor, type IconName } from '../../ui/remedyIcons';
 import { Body, Button, Card, ErrorNote, GearLink, H2, Loading, Screen, Segmented, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
 
@@ -176,6 +178,7 @@ function Everyone() {
   };
 
   const name = (id: string) => catalogue.get(id)?.name ?? id;
+  const icon = (id: string) => iconFor({ id, category: catalogue.get(id)?.category ?? '' });
   const hasShop = (r: AggregateRowDto) => {
     const item = catalogue.get(r.remedy_id);
     return r.status === 'ok' && !!item?.amazon && amazonUrl(item.amazon, region, tags) !== null;
@@ -218,11 +221,11 @@ function Everyone() {
         </Card>
       ) : null}
       {rows.ranked.map((r, i) => (
-        <RemedyRow key={r.remedy_id} rank={i + 1} row={r} name={name(r.remedy_id)} shop={hasShop(r)} />
+        <RemedyRow key={r.remedy_id} rank={i + 1} row={r} name={name(r.remedy_id)} icon={icon(r.remedy_id)} shop={hasShop(r)} />
       ))}
       {rows.early.length ? <H2>Early data</H2> : null}
       {rows.early.map((r) => (
-        <RemedyRow key={r.remedy_id} row={r} name={name(r.remedy_id)} shop={false} muted />
+        <RemedyRow key={r.remedy_id} row={r} name={name(r.remedy_id)} icon={icon(r.remedy_id)} shop={false} muted />
       ))}
       {rows.testing.length ? <H2>Being tested</H2> : null}
       {rows.testing.map((r) => (
@@ -253,35 +256,39 @@ function Everyone() {
   );
 }
 
-function RemedyRow({ row, name, shop, rank, muted }: { row: AggregateRowDto; name: string; shop: boolean; rank?: number; muted?: boolean }) {
+function RemedyRow({ row, name, icon, shop, rank, muted }: { row: AggregateRowDto; name: string; icon: IconName; shop: boolean; rank?: number; muted?: boolean }) {
   const d = row.median_delta ?? 0;
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push(`/remedy/${row.remedy_id}`)} style={styles.card}>
-      <View style={styles.rowTop}>
-        <Text style={styles.name} numberOfLines={1}>
-          {rank ? `${rank}. ` : ''}
-          {name}
-          {shop ? '  🛒' : ''}
-        </Text>
-        {row.trend === 'better' ? <Small>↗ improving</Small> : row.trend === 'worse' ? <Small>↘ fading</Small> : null}
+    <Pressable accessibilityRole="button" onPress={() => router.push(`/remedy/${row.remedy_id}`)} style={[styles.card, styles.withIcon]}>
+      <HiveIcon icon={icon} kind="remedy" size={34} />
+      <View style={{ flex: 1 }}>
+        <View style={styles.rowTop}>
+          <Text style={styles.name} numberOfLines={1}>
+            {rank ? `${rank}. ` : ''}
+            {name}
+            {shop ? '  🛒' : ''}
+          </Text>
+          {row.trend === 'better' ? <Small>↗ improving</Small> : row.trend === 'worse' ? <Small>↘ fading</Small> : null}
+        </View>
+        <View style={styles.rowTop}>
+          <Text style={[styles.delta, { color: muted ? colors.textMuted : d < 0 ? colors.good : colors.worse }]}>
+            {d > 0 ? '+' : ''}
+            {Math.round(d)} points
+          </Text>
+          <ChangeBar median={d} p25={row.p25 ?? d} p75={row.p75 ?? d} muted={muted} />
+        </View>
+        <Small>
+          {row.users} people · {row.nights} nights
+          {row.holds_without_alcohol === true ? ' · ✓ holds without alcohol nights' : row.holds_without_alcohol === false ? ' · may be explained by alcohol nights' : ''}
+        </Small>
       </View>
-      <View style={styles.rowTop}>
-        <Text style={[styles.delta, { color: muted ? colors.textMuted : d < 0 ? colors.good : colors.worse }]}>
-          {d > 0 ? '+' : ''}
-          {Math.round(d)} points
-        </Text>
-        <ChangeBar median={d} p25={row.p25 ?? d} p75={row.p75 ?? d} muted={muted} />
-      </View>
-      <Small>
-        {row.users} people · {row.nights} nights
-        {row.holds_without_alcohol === true ? ' · ✓ holds without alcohol nights' : row.holds_without_alcohol === false ? ' · may be explained by alcohol nights' : ''}
-      </Small>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border, padding: space(4), marginBottom: space(3) },
+  withIcon: { flexDirection: 'row', alignItems: 'flex-start', gap: space(3) },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(3), marginBottom: space(1) },
   name: { color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 },
   delta: { fontSize: 18, fontWeight: '800' },

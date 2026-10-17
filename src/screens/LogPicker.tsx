@@ -3,6 +3,8 @@ import { Modal, Pressable, SectionList, StyleSheet, Text, TextInput, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type CatalogueItem, DEFAULT_FACTOR_CHIPS, DEFAULT_REMEDY_CHIPS } from '../domain/catalogue';
+import { HiveIcon } from '../ui/Hive';
+import { iconFor } from '../ui/remedyIcons';
 import { colors, radius, space } from '../ui/theme';
 
 type LogType = 'remedy' | 'factor';
@@ -118,10 +120,12 @@ function PickerRow({
   on: boolean;
   onSet: (item: CatalogueItem, value: string | null, on: boolean) => void;
 }) {
+  const icon = <HiveIcon icon={iconFor(item)} kind={item.type === 'factor' ? 'factor' : 'remedy'} size={28} />;
   if (item.value_options) {
     // Banded factor: pick a band; tapping the chosen band again clears it.
     return (
-      <View style={styles.row}>
+      <View style={[styles.row, { alignItems: 'flex-start' }]}>
+        {icon}
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.bands}>
@@ -152,6 +156,7 @@ function PickerRow({
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
     >
+      {icon}
       <Text style={[styles.name, { flex: 1 }]}>{item.name}</Text>
       <View style={[styles.check, on && styles.checkOn]}>{on ? <Text style={styles.checkMark}>✓</Text> : null}</View>
     </Pressable>
@@ -177,6 +182,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: space(3),
     minHeight: 52,
     paddingVertical: space(3),
     borderBottomWidth: StyleSheet.hairlineWidth,

@@ -30,8 +30,9 @@ import { type CatalogueItem } from '../../domain/catalogue';
 import { localDateKey } from '../../domain/nightDate';
 import { getAudioCapture } from '../../native';
 import { LogPicker } from '../../screens/LogPicker';
-import { Chip } from '../../ui/Chip';
+import { HiveCluster } from '../../ui/Hive';
 import { Moon, NightSky } from '../../ui/NightSky';
+import { iconFor } from '../../ui/remedyIcons';
 import { colors, fonts, radius, space } from '../../ui/theme';
 
 /** A calm greeting for the time of day. */
@@ -208,9 +209,10 @@ export default function Tonight() {
     setPicker(null);
   };
 
-  const chipLabel = (item: CatalogueItem) => {
+  /** "Alcohol, 2 units" for a factor with a value, else the name. */
+  const nameWithValue = (item: CatalogueItem) => {
     const value = ticks.get(item.id)?.value;
-    return value ? `${item.name} · ${value} units` : item.name;
+    return value ? `${item.name}, ${value} units` : item.name;
   };
 
   const start = async () => {
@@ -266,11 +268,18 @@ export default function Tonight() {
                 ) : null}
               </View>
               {chosen.length ? (
-                <View style={styles.wrap}>
-                  {chosen.map((item) => (
-                    <Chip key={item.id} label={chipLabel(item)} selected onPress={() => setPicker(type)} />
-                  ))}
-                </View>
+                <Pressable
+                  onPress={() => setPicker(type)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${chosen.map(nameWithValue).join(', ')}. Change ${noun}`}
+                  style={styles.hive}
+                >
+                  <HiveCluster
+                    items={chosen.map((item) => ({ key: item.id, icon: iconFor(item), kind: type, badge: ticks.get(item.id)?.value ?? null }))}
+                    showAdd
+                  />
+                  <Text style={styles.names}>{chosen.map(nameWithValue).join(' · ')}</Text>
+                </Pressable>
               ) : (
                 <Pressable style={styles.choose} onPress={() => setPicker(type)} accessibilityRole="button">
                   <Text style={styles.chooseLabel}>+ Choose {noun}</Text>
@@ -416,7 +425,8 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.text, fontSize: 17, fontFamily: fonts.headingSemi },
   cardBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   offerButtons: { flexDirection: 'row', gap: space(3), marginTop: space(4) },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
+  hive: { gap: space(2) },
+  names: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   choose: {
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -439,7 +449,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     paddingVertical: space(4.5),
     alignItems: 'center',
-    boxShadow: '0px 6px 28px rgba(246, 215, 142, 0.32)',
+    boxShadow: '0px 6px 28px rgba(246, 200, 95, 0.32)',
   },
   primaryLabel: { color: colors.accentText, fontSize: 18, fontFamily: fonts.heading },
   hint: { color: colors.textFaint, textAlign: 'center', marginTop: space(2), fontSize: 13 },

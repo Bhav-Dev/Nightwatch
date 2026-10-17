@@ -1,5 +1,5 @@
 /**
- * A calm night sky: deep indigo behind everything, frosted cards, and a warm moonlight gold for
+ * A calm night sky: deep indigo behind everything, frosted cards, and warm honey for
  * the one thing to tap. Surfaces are slightly see-through so the sky shows through them.
  */
 export const colors = {
@@ -11,8 +11,8 @@ export const colors = {
   text: '#F4F1FF',
   textMuted: '#AAB1D6',
   textFaint: '#7E87B2',
-  /** Moonlight gold: the primary action and the brand colour. */
-  accent: '#F6D78E',
+  /** Honey: the primary action and the brand colour. */
+  accent: '#F6C85F',
   accentText: '#1F1A0C',
   /** Improvement (a lower score) in community and personal results. */
   good: '#5FD8B0',
@@ -69,7 +69,7 @@ export const isMorningSky = (v: SkyVariant) => v.startsWith('dawn');
  * What sits directly on the sky. The sunrise is bright at the top, so its header text and icons
  * are dark, and its cards are more solid so their text stays crisp on the warm colours.
  */
-const NIGHT_TONES = { title: '#F4F1FF', eyebrow: '#F6D78E', icon: '#AAB1D6', card: 'rgba(28, 36, 80, 0.62)', statusBar: 'light' as const };
+const NIGHT_TONES = { title: '#F4F1FF', eyebrow: '#F6C85F', icon: '#AAB1D6', card: 'rgba(28, 36, 80, 0.62)', statusBar: 'light' as const };
 const MORNING_TONES = { title: '#2A1F3D', eyebrow: '#8A3F2C', icon: '#3A2E4F', card: 'rgba(28, 26, 66, 0.86)', statusBar: 'dark' as const };
 const COOL_MORNING_TONES = { ...MORNING_TONES, eyebrow: '#3E4C78' };
 

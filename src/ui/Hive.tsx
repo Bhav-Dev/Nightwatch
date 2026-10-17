@@ -1,13 +1,16 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useId, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { scoreLabel } from '../domain/scoring';
+import type { IconName } from './remedyIcons';
 import { colors, fonts, honey } from './theme';
 
 /**
  * Honeycomb pieces, after the logo's cell: a pointy-topped hexagon with softened corners. Used
- * where the hive means something (your score, your nights) and never for things to tap through.
+ * where the hive means something: your score, your nights, and what you tried. Buttons and chips
+ * elsewhere stay rounded so they are easy to tap.
  */
 
 /** A pointy-topped hexagon centred on (cx, cy) with circumradius r, corners rounded over `corner`. */
@@ -123,3 +126,108 @@ export function NightsHive({ days, onOpen }: { days: readonly HiveDay[]; onOpen:
     </View>
   );
 }
+
+export type HiveKind = 'remedy' | 'factor' | 'add';
+
+/**
+ * A remedy or factor as a honeycomb cell with its icon: remedies (what you try) are honey cells,
+ * factors (what happened) outlined cells; 'add' is the faint cell that adds more. `size` is the
+ * cell's width; a value (alcohol's units) shows as a small badge.
+ */
+export function HiveIcon({ icon, kind, size = 36, badge }: { icon: IconName; kind: HiveKind; size?: number; badge?: string | null }) {
+  const id = `cell${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const height = (size * 2) / Math.sqrt(3);
+  const path = hexPath(size / 2, height / 2, height / 2 - 1, height * 0.08);
+  return (
+    <View style={{ width: size, height }}>
+      <Svg width={size} height={height} style={StyleSheet.absoluteFill}>
+        {kind === 'remedy' ? (
+          <>
+            <Defs>
+              <LinearGradient id={id} x1="0" y1="0" x2="0.6" y2="1">
+                {honey.map((c, i) => (
+                  <Stop key={c} offset={i / (honey.length - 1)} stopColor={c} />
+                ))}
+              </LinearGradient>
+            </Defs>
+            <Path d={path} fill={`url(#${id})`} />
+          </>
+        ) : kind === 'factor' ? (
+          <Path d={path} fill="#1E2660" stroke={colors.info} strokeWidth={1.8} />
+        ) : (
+          <Path d={path} fill="none" stroke="rgba(191, 200, 255, 0.4)" strokeWidth={1.4} />
+        )}
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, styles.center]}>
+        <MaterialCommunityIcons name={icon} size={size * 0.46} color={kind === 'remedy' ? colors.accentText : kind === 'factor' ? '#DCE1FF' : colors.textMuted} />
+      </View>
+      {badge ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+export interface HiveItem {
+  key: string;
+  icon: IconName;
+  kind: 'remedy' | 'factor';
+  badge?: string | null;
+}
+
+/**
+ * Chosen remedies or factors as a small hive: a row of cells, as many as fit across; any more go
+ * in a row below shifted half a cell (one fewer, so it stays inside), like a honeycomb.
+ */
+export function HiveCluster({ items, size = 36, showAdd = false }: { items: readonly HiveItem[]; size?: number; showAdd?: boolean }) {
+  const [width, setWidth] = useState(0);
+  const gap = 3;
+  const height = (size * 2) / Math.sqrt(3);
+  const cells: (HiveItem | null)[] = showAdd ? [...items, null] : [...items];
+  const perRow = Math.max(2, Math.floor((width + gap) / (size + gap)));
+  const rows: (HiveItem | null)[][] = [];
+  if (width > 0) {
+    for (let start = 0, r = 0; start < cells.length; r++) {
+      const count = r % 2 ? perRow - 1 : perRow;
+      rows.push(cells.slice(start, start + count));
+      start += count;
+    }
+  }
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ minHeight: height }}>
+      {rows.map((row, r) => (
+        <View
+          key={r}
+          style={{ flexDirection: 'row', gap, marginLeft: r % 2 ? (size + gap) / 2 : 0, marginTop: r === 0 ? 0 : -height * 0.25 + gap * 0.87 }}
+        >
+          {row.map((item) =>
+            item ? (
+              <HiveIcon key={item.key} icon={item.icon} kind={item.kind} size={size} badge={item.badge} />
+            ) : (
+              <HiveIcon key="add" icon="plus" kind="add" size={size} />
+            ),
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  center: { alignItems: 'center', justifyContent: 'center' },
+  badge: {
+    position: 'absolute',
+    right: -4,
+    bottom: 0,
+    minWidth: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.bg,
+    alignItems: 'center',
+  },
+  badgeText: { color: colors.accentText, fontSize: 10, fontWeight: '800' },
+});

@@ -47,9 +47,9 @@ import { morningSummary } from '../domain/summary';
 import { getHealthSource } from '../health';
 import { importHealthForNight } from '../health/importNight';
 import { useApp } from '../state/AppContext';
-import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
-import { ScoreCell } from '../ui/Hive';
+import { HiveCluster, ScoreCell } from '../ui/Hive';
+import { iconFor } from '../ui/remedyIcons';
 import { SnoringToggle } from '../ui/SnoringToggle';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
 import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
@@ -428,6 +428,11 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     ...log.factors.map((f) => catalogue.get(f.id)).filter((c): c is CatalogueItem => !!c),
   ];
   const factorValue = (id: string) => log.factors.find((f) => f.id === id)?.value;
+  /** "Alcohol, 2 units" for a factor with a value, else the name. */
+  const logName = (item: CatalogueItem) => {
+    const v = factorValue(item.id);
+    return v ? `${item.name}, ${v} units` : item.name;
+  };
   const logSelection = new Map<string, string | null>([
     ...log.remedies.map((id): [string, string | null] => [id, null]),
     ...log.factors.map((f): [string, string | null] => [f.id, f.value ?? null]),
@@ -639,12 +644,20 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       <Card>
         <H2 right={editable ? <Button kind="link" label="Edit" onPress={() => setEditing(true)} /> : undefined}>Last night’s log</H2>
         {loggedItems.length === 0 ? <Small>Nothing logged, so this night counts as a “nothing tried” baseline.</Small> : null}
-        <View style={styles.wrap}>
-          {loggedItems.map((item) => {
-            const v = factorValue(item.id);
-            return <Chip key={item.id} label={v ? `${item.name} · ${v} units` : item.name} selected onPress={() => (editable ? setEditing(true) : undefined)} />;
-          })}
-        </View>
+        {loggedItems.length > 0 ? (
+          <Pressable
+            onPress={editable ? () => setEditing(true) : undefined}
+            disabled={!editable}
+            accessibilityRole={editable ? 'button' : undefined}
+            accessibilityLabel={loggedItems.map(logName).join(', ')}
+            style={styles.hive}
+          >
+            <HiveCluster
+              items={loggedItems.map((item) => ({ key: item.id, icon: iconFor(item), kind: item.type === 'factor' ? 'factor' : 'remedy', badge: factorValue(item.id) }))}
+            />
+            <Text style={styles.names}>{loggedItems.map(logName).join(' · ')}</Text>
+          </Pressable>
+        ) : null}
         {!editable ? <Small style={{ marginTop: space(2) }}>The log can be edited until noon the next day.</Small> : null}
       </Card>
       <LogPicker
@@ -697,7 +710,8 @@ const styles = StyleSheet.create({
   clipActions: { flexDirection: 'row', alignItems: 'center', gap: space(3), marginTop: space(1.5) },
   play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
   clipTime: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },
+  hive: { gap: space(2), marginTop: space(1) },
+  names: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   nowPlaying: {
     flexDirection: 'row',
     alignItems: 'center',

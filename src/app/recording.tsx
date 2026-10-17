@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   caption: { color: colors.textFaint, fontSize: 14, fontFamily: fonts.headingSemi, letterSpacing: 1.6, textTransform: 'uppercase', marginTop: space(3) },
   elapsed: { color: colors.textMuted, fontSize: 64, fontWeight: '200', fontVariant: ['tabular-nums'], marginVertical: space(5) },
   meterTrack: { width: '60%', height: 4, borderRadius: 2, backgroundColor: 'rgba(170, 182, 255, 0.12)', overflow: 'hidden' },
-  meterFill: { height: 4, backgroundColor: 'rgba(246, 215, 142, 0.6)' },
+  meterFill: { height: 4, backgroundColor: 'rgba(246, 200, 95, 0.6)' },
   sleepRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), marginTop: space(6) },
   sleepText: { color: colors.textFaint, fontSize: 14 },
   sleepStop: { color: colors.accent, fontSize: 14, fontWeight: '700', opacity: 0.8 },
