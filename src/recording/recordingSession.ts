@@ -80,6 +80,8 @@ export class RecordingSession {
     scorer?: OnlineSnoreScorer | null;
     /** Compresses the parts of the night with sound for playback; null keeps no sound. */
     sound?: SegmentWriter | null;
+    /** Labelling mode (internal builds): keep every second of sound, not only the parts with sound. */
+    keepAllSound?: boolean;
   }): Promise<RecordingSession> {
     const now = opts.now ?? (() => new Date());
     const startedAt = now();
@@ -129,6 +131,7 @@ export class RecordingSession {
           bytes: s.bytes,
           created_at: Math.floor(now().getTime() / 1000),
         }),
+        opts.keepAllSound ?? false,
       );
     }
     liveSessionId = session.id;

@@ -29,7 +29,12 @@ export type SettingKey =
   /** When the night recap arrives: '10:00' | '12:30' | '18:30' | 'off'; unset means 12:30. */
   | 'recap_time'
   /** When we asked for an app store review: a JSON list of epoch seconds. */
-  | 'review_asked_at';
+  | 'review_asked_at'
+  /**
+   * Labelling mode, internal builds only: '1' keeps every second of the night's sound (not only
+   * the parts with sound) so volunteers' nights can be exported and labelled; unset or '0' is off.
+   */
+  | 'labelling_mode';
 
 export async function getSetting(db: Db, key: SettingKey): Promise<string | null> {
   const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);

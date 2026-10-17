@@ -49,9 +49,20 @@ export function wavFeatures(wavPath: string): { sampleRate: number; durationS: n
   return { sampleRate: info.sampleRate, durationS: info.frames / info.sampleRate, frames: buffer.entries() };
 }
 
-/** Runs v0 and the app's event rules over per-second features. */
+/**
+ * A second whose samples are all zero measures -120 dB (the features' floor); a microphone never
+ * gives that. fromApp.ts fills the stretches the phone did not record with such silence.
+ */
+const SILENT_SECOND_DB = -119;
+
+/**
+ * Runs v0 and the app's event rules over per-second features. All-zero seconds are left out, as
+ * the app leaves out an interruption, so silence filled in for unrecorded stretches cannot drag
+ * the night's floor down and make everything else look loud.
+ */
 export function heuristicRegions(frames: { t: number; features: FrameFeatures }[], durationS: number): Region[] {
-  const night = analyseNight({ durationS, frames: classifyNightHeuristic(frames) });
+  const recorded = frames.filter((f) => f.features.levelDb > SILENT_SECOND_DB);
+  const night = analyseNight({ durationS, frames: classifyNightHeuristic(recorded) });
   return night.events.map((e) => ({ startS: e.startS, endS: e.endS, peakDb: Math.round(e.peakDb * 10) / 10 }));
 }
 

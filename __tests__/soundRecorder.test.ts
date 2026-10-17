@@ -42,10 +42,10 @@ class FakeWriter implements SegmentWriter {
   }
 }
 
-function recorder(writer: SegmentWriter = new FakeWriter()) {
+function recorder(writer: SegmentWriter = new FakeWriter(), keepAll = false) {
   let n = 0;
   const segments: SoundSegment[] = [];
-  const rec = new SoundRecorder(writer, () => `s${++n}`, async (s) => void segments.push(s));
+  const rec = new SoundRecorder(writer, () => `s${++n}`, async (s) => void segments.push(s), keepAll);
   const feed = (levels: Record<number, number>, fromT: number, toT: number) => {
     for (let t = fromT; t < toT; t++) rec.addSecond(t, new Float32Array(RATE), RATE, levels[t] ?? QUIET);
   };
@@ -105,6 +105,21 @@ describe('sound recorder', () => {
     expect(segments.map((s) => s.id)).toEqual(['s2']);
   });
 
+  it('keeps every second in labelling mode, in capped segments that end only at a gap', async () => {
+    const { rec, segments, feed } = recorder(new FakeWriter(), true);
+    // A quiet room with one loud moment, then an interruption from 700 s to 760 s.
+    feed(loudBetween(100, 103), 0, 700);
+    feed({}, 760, 800);
+    await rec.finish();
+    expect(segments.map((s) => [s.startS, s.endS])).toEqual([
+      [0, SOUND_MAX_SEGMENT_S],
+      [SOUND_MAX_SEGMENT_S, 2 * SOUND_MAX_SEGMENT_S],
+      [2 * SOUND_MAX_SEGMENT_S, 700],
+      [760, 800],
+    ]);
+    expect(segments.every((s) => s.bytes === (s.endS - s.startS) * RATE * 2)).toBe(true);
+  });
+
   it('converts float samples to 16-bit, clipping overloads', () => {
     expect([...toPcm16(new Float32Array([0, 0.5, -1, 1.5]))]).toEqual([0, 16384, -32767, 32767]);
   });
@@ -141,6 +156,20 @@ describe('sound in a recorded night', () => {
     expect(segments.every((s) => s.codec === 'aac' && s.bytes > 0 && s.end_s > s.start_s)).toBe(true);
     // Silence is not kept: the segments cover less than the whole recording.
     expect(segments.reduce((sum, s) => sum + s.end_s - s.start_s, 0)).toBeLessThan(600);
+  });
+
+  it('keeps the whole night in labelling mode', async () => {
+    const db = openTestDb();
+    await migrate(db);
+    const capture = new FakeCapture();
+    const session = await RecordingSession.begin({ db, capture, sensitivity: 'normal', newId, sound: new FakeWriter(), keepAllSound: true });
+    for (let s = 0; s < 600; s++) capture.listener!.onWindow({ startS: s, samples: synthesiseNightAudio(s, 1), sampleRate: CAPTURE_SAMPLE_RATE });
+    const night = await session.finish();
+    const segments = await nightSoundSegments(db, night!.nightId);
+    expect(segments.map((s) => [s.start_s, s.end_s])).toEqual([
+      [0, 300],
+      [300, 600],
+    ]);
   });
 
   it('throws the sound away with a discarded recording', async () => {
