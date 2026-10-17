@@ -331,6 +331,11 @@ const MIGRATIONS: string[] = [
     end_s INTEGER NOT NULL
   );
   `,
+  `
+  -- 1 once movement and phone use were looked for (nights recorded from 17 October 2026). Older
+  -- nights have none to show, which is not the same as none happening.
+  ALTER TABLE night ADD COLUMN activity_checked INTEGER;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

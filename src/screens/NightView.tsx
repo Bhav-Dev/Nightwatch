@@ -98,6 +98,8 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   /** The second of the night picked on the timeline or with previous and next. */
   const [cursorS, setCursorS] = useState<number | null>(null);
   const [answering, setAnswering] = useState(false);
+  /** The answer being saved (a clip's id, or "moment"), shown on its own pill straight away. */
+  const [pending, setPending] = useState<{ key: string; snoring: boolean } | null>(null);
   /** What the user did on this visit, for choosing a good moment to ask for a review. */
   const engagement = useRef<Engagement>({ plays: 0, answers: 0, corrections: 0 });
   const [overlay, setOverlay] = useState(false);
@@ -346,8 +348,10 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   };
 
   /** The user's answer for a stretch: corrects the night, and is kept as a labelled example. */
-  const answer = async (range: { startS: number; endS: number }, itWas: boolean, source: 'clip' | 'moment', clipPeakDb?: number) => {
+  const answer = async (range: { startS: number; endS: number }, itWas: boolean, source: 'clip' | 'moment', key: string, clipPeakDb?: number) => {
+    if (answering) return;
     setAnswering(true);
+    setPending({ key, snoring: itWas });
     try {
       const wasSnoring = isSnoringAt(snoring, range.startS, range.endS);
       const loudness = await stretchLoudness(db, night.id, range.startS, range.endS, clipPeakDb);
@@ -362,6 +366,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       void maybeAskForReview(db, { night, nightCount: data.nightCount, fromRecap, engagement: engagement.current });
     } finally {
       setAnswering(false);
+      setPending(null);
     }
   };
   const undo = async (range: { startS: number; endS: number }) => {
@@ -388,9 +393,9 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
           <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
           <View style={styles.clipActions}>
             <SnoringToggle
-              snoring={isSnoring}
+              snoring={pending?.key === c.id ? pending.snoring : isSnoring}
               disabled={answering}
-              onPress={() => answer(isSnoring ? clipRange(c) : { startS: c.start_s, endS: c.end_s }, !isSnoring, 'clip', c.peak_db - night.floor_db)}
+              onPress={() => answer(isSnoring ? clipRange(c) : { startS: c.start_s, endS: c.end_s }, !isSnoring, 'clip', c.id, c.peak_db - night.floor_db)}
             />
             <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
             <Button kind="link" label="Share" onPress={() => share(c)} />
@@ -611,14 +616,16 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
               {sleepSoundName(night.sleep_sound)} played until {clockTimeAt(night.started_at, night.sleep_sound_until_s)}. Snoring then is measured against the sound.
             </Small>
           ) : null}
-          <NightLanes
-            totalS={timelineBins.length * 300}
-            movements={movements}
-            restless={restless}
-            awake={awake}
-            stages={paid ? samples.filter((x) => x.kind === 'sleep_stage') : []}
-            onSeek={playAt}
-          />
+          {night.activity_checked === 1 ? (
+            <NightLanes
+              totalS={timelineBins.length * 300}
+              movements={movements}
+              restless={restless}
+              awake={awake}
+              stages={paid ? samples.filter((x) => x.kind === 'sleep_stage') : []}
+              onSeek={playAt}
+            />
+          ) : null}
           <MomentPanel
             startedAtS={night.started_at}
             moments={moments}
@@ -628,7 +635,8 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
             busy={answering}
             onStep={step}
             onPlay={() => (playingSeg || playingClip ? stop() : moment && playAt(moment.startS))}
-            onAnswer={(snoring) => moment && answer(moment, snoring, 'moment')}
+            pendingSnoring={pending?.key === 'moment' ? pending.snoring : null}
+            onAnswer={(snoring) => moment && answer(moment, snoring, 'moment', 'moment')}
             onUndo={() => moment && undo(moment)}
           />
           {moments.length === 0 ? (

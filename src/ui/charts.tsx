@@ -3,10 +3,11 @@
  * marks, bars with rounded data-ends on a shared baseline, recessive grid, text in text
  * colours (never the series colour), and tap-to-inspect instead of hover.
  */
-import { useId, useRef, useState } from 'react';
+import { useContext, useId, useRef, useState } from 'react';
 import { type GestureResponderEvent, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 
+import { ScrollLock } from './scrollLock';
 import { colors, intensityColor } from './theme';
 import { colourRuns, labelX, outlineAmplitudes, outlinePath } from './timelineShape';
 
@@ -76,7 +77,9 @@ export function NightTimeline({
 }) {
   const [width, onLayout] = useWidth();
   const [scrubS, setScrubS] = useState<number | null>(null);
-  const drag = useRef<{ pageX: number; x: number; moved: boolean } | null>(null);
+  /** The touch on the timeline: where it started, and whether it is a scrub or a scroll, once that is clear. */
+  const drag = useRef<{ pageX: number; pageY: number; x: number; moved: boolean; mode: 'scrub' | 'scroll' | null } | null>(null);
+  const lockScroll = useContext(ScrollLock);
   const clipId = `outline-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const bottomAxis = 18;
   const sliderH = onSelect ? 30 : 0;
@@ -108,7 +111,13 @@ export function NightTimeline({
   const finish = (atS: number) => {
     setScrubS(null);
     drag.current = null;
+    lockScroll(false);
     onSelect?.(Math.min(bins.length - 1, Math.floor(atS / 300)), atS);
+  };
+  const cancel = () => {
+    drag.current = null;
+    setScrubS(null);
+    lockScroll(false);
   };
 
   return (
@@ -193,17 +202,33 @@ export function NightTimeline({
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
           // Once a sideways drag has started, the screen does not take it over to scroll.
-          onResponderTerminationRequest={() => !drag.current?.moved}
+          onResponderTerminationRequest={() => drag.current?.mode !== 'scrub'}
           onResponderGrant={(e) => {
-            drag.current = { pageX: e.nativeEvent.pageX, x: e.nativeEvent.locationX, moved: false };
-            setScrubS(sAt(e.nativeEvent.locationX));
+            // Hold the screen still until the first movement shows what this touch is for.
+            lockScroll(true);
+            drag.current = { pageX: e.nativeEvent.pageX, pageY: e.nativeEvent.pageY, x: e.nativeEvent.locationX, moved: false, mode: null };
           }}
-          onResponderMove={(e) => setScrubS(sAt(touchX(e)))}
-          onResponderRelease={(e) => finish(sAt(touchX(e)))}
-          onResponderTerminate={() => {
-            drag.current = null;
-            setScrubS(null);
+          onResponderMove={(e) => {
+            const d = drag.current;
+            if (!d || d.mode === 'scroll') return;
+            if (d.mode === null) {
+              const dx = Math.abs(e.nativeEvent.pageX - d.pageX);
+              const dy = Math.abs(e.nativeEvent.pageY - d.pageY);
+              if (Math.max(dx, dy) < 6) return;
+              d.mode = dx >= dy ? 'scrub' : 'scroll';
+              if (d.mode === 'scroll') {
+                // Up or down: let the screen scroll with this same touch.
+                lockScroll(false);
+                return;
+              }
+            }
+            setScrubS(sAt(touchX(e)));
           }}
+          onResponderRelease={(e) => {
+            if (drag.current?.mode === 'scroll') cancel();
+            else finish(sAt(touchX(e)));
+          }}
+          onResponderTerminate={cancel}
           style={{ position: 'absolute', left: 0, top: 0, width, height: height + sliderH }}
         />
       ) : null}

@@ -1,11 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { createContext, type ReactNode, useCallback, useContext } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NightSky } from './NightSky';
+import { ScrollLock } from './scrollLock';
 import { colors, fonts, onSky, radius, space, type SkyVariant } from './theme';
 
 /** The sky the current screen is drawn on, so cards and header text can suit it. */
@@ -37,6 +38,7 @@ export function Screen({
   sky?: SkyVariant;
 }) {
   const tones = onSky[sky];
+  const [scrollLocked, setScrollLocked] = useState(false);
   // A bright sky (the sunrise) wants dark status bar icons while this screen is showing.
   useFocusEffect(
     useCallback(() => {
@@ -62,10 +64,12 @@ export function Screen({
         <NightSky variant={sky} />
         <SafeAreaView style={styles.safe} edges={['top']}>
           {scroll ? (
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              {header}
-              {children}
-            </ScrollView>
+            <ScrollLock.Provider value={setScrollLocked}>
+              <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" scrollEnabled={!scrollLocked}>
+                {header}
+                {children}
+              </ScrollView>
+            </ScrollLock.Provider>
           ) : (
             <View style={[styles.content, { flex: 1 }]}>
               {header}

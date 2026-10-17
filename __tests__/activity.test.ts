@@ -142,6 +142,8 @@ describe('saving the night', () => {
       ['phone', 5000, 5200],
     ]);
     expect(await db.getFirstAsync('SELECT COUNT(*) AS n FROM session_mark', [])).toEqual({ n: 0 });
+    // Marked as looked at, so This Morning knows "none" means none.
+    expect(await db.getFirstAsync('SELECT activity_checked FROM night WHERE id = ?', [result!.nightId])).toEqual({ activity_checked: 1 });
     await deleteNight(db, result!.nightId);
     expect(await nightActivity(db, result!.nightId)).toEqual([]);
   });

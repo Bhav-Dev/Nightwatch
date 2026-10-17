@@ -26,6 +26,7 @@ export function MomentPanel({
   focusS,
   playing,
   busy,
+  pendingSnoring = null,
   onStep,
   onPlay,
   onAnswer,
@@ -38,6 +39,8 @@ export function MomentPanel({
   focusS: number | null;
   playing: boolean;
   busy: boolean;
+  /** The answer being saved for this moment, shown at once. */
+  pendingSnoring?: boolean | null;
   onStep: (direction: 1 | -1) => void;
   onPlay: () => void;
   onAnswer: (snoring: boolean) => void;
@@ -100,7 +103,7 @@ export function MomentPanel({
       </View>
       {moment ? (
         <View style={[styles.row, { marginTop: space(3) }]}>
-          <SnoringToggle snoring={moment.kind === 'snore'} onPress={() => onAnswer(moment.kind !== 'snore')} disabled={busy} />
+          <SnoringToggle snoring={pendingSnoring ?? moment.kind === 'snore'} onPress={() => onAnswer(moment.kind !== 'snore')} disabled={busy} />
           <Small style={{ flex: 1 }}>{moment.answered ? 'Thanks, your night has been updated.' : 'Was this snoring? Your answer corrects the night.'}</Small>
           {moment.answered ? <Button kind="link" label="Undo" onPress={onUndo} /> : null}
         </View>

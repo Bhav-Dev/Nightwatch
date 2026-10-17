@@ -33,6 +33,8 @@ export interface NightRow {
   sleep_sound_until_s: number | null;
   /** The detector's own score, kept once the user corrects the night; null until then. */
   detector_score: number | null;
+  /** 1 when movement and phone use were looked for (night_activity); null on older nights. */
+  activity_checked: number | null;
 }
 
 export interface SaveNightInput {

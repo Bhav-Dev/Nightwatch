@@ -17,7 +17,7 @@ export function SnoringToggle({ snoring, onPress, disabled = false }: { snoring:
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
-      style={[styles.pill, snoring && styles.on, disabled && { opacity: 0.5 }]}
+      style={[styles.pill, snoring && styles.on]}
     >
       <Ionicons name={snoring ? 'checkmark' : 'add'} size={15} color={snoring ? colors.accentText : colors.text} />
       <Text style={[styles.label, snoring && styles.labelOn]}>Snoring</Text>

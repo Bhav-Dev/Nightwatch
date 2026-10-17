@@ -34,6 +34,7 @@ export async function saveNightActivity(
       p.endS,
     ]);
   }
+  await db.runAsync('UPDATE night SET activity_checked = 1 WHERE id = ?', [nightId]);
 }
 
 export async function nightActivity(db: Db, nightId: string): Promise<ActivityRow[]> {
