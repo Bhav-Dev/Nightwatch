@@ -31,6 +31,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-store-review": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
     "react-native": "0.86.3",
@@ -67,7 +68,8 @@
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/make-icons.mjs",
     "lint": "expo lint",
-    "start:simulated": "cross-env EXPO_PUBLIC_SIMULATE_CAPTURE=1 expo start"
+    "start:simulated": "cross-env EXPO_PUBLIC_SIMULATE_CAPTURE=1 expo start",
+    "update:preview": "cross-env EXPO_PUBLIC_INTERNAL_BUILD=1 EXPO_PUBLIC_WEATHER_URL=https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api npx --yes eas-cli@latest update --channel preview --environment preview --message"
   },
   "private": true,
   "jest": {

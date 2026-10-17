@@ -104,6 +104,12 @@
         "projectId": "564577d1-dadc-4c2b-8ee4-a21646fef1ed"
       }
     },
-    "owner": "vesuviuss-team"
+    "owner": "vesuviuss-team",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/564577d1-dadc-4c2b-8ee4-a21646fef1ed"
+    }
   }
 }

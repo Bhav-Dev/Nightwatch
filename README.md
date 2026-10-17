@@ -79,6 +79,20 @@ In development builds, with no server configured, sign-in offers a development a
 
 Server configuration (secrets, Amazon tracking ids, Apple and Google audiences, RevenueCat webhook secret) is in `server/README.md`.
 
+## Over-the-air updates
+
+Builds include `expo-updates` (from 17 October 2026). Changes that aren't native code, such as screens, text, colours and logic, reach installed builds without a new build:
+
+```bash
+npm run update:preview -- "What changed"   # to preview builds (the internal APK and iPhone builds)
+```
+
+- **The runtime version uses the fingerprint policy,** so an update only reaches builds with the same native code. Anything native needs a new build: a new module, a config plugin, or native settings in app.json.
+- **Each build profile has a channel of the same name.**
+- **The `env` in a build profile applies to builds only,** so `update:preview` passes the same `EXPO_PUBLIC_*` values itself. Keep the two in step.
+- **Builds made before 17 October have no `expo-updates`,** and need one new build.
+- **The free plan covers 1,000 monthly active users.**
+
 ## Backend: Supabase, in a shared project
 
 The backend runs on Supabase, inside an existing project used by other apps. Nightwatch is kept to itself there:

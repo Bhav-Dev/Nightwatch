@@ -203,6 +203,7 @@ Raised during the build:
 | Environments: local, staging, production | ⬜ | Staging can be a second schema (`nightwatch_staging`) with its own role |
 | CI: lint, unit tests, scoring fixtures, build per platform | ✅ | Plus server tests and the NumPy check |
 | Signed release builds from CI, keystore and certificates backed up | 👤 | EAS credentials |
+| Over-the-air updates (EAS Update) | 🟡 | Added 17 October 2026: fingerprint runtime policy, a channel per build profile, `npm run update:preview`. Takes effect from the next build of each platform; the free plan's 15 Android builds for October are used up (they reset on 1 November) |
 | Crash reporting | ⬜ | No Sentry or Crashlytics yet |
 | API error-rate alert, aggregation-job alert | ⬜ | Failures are logged in `nightwatch.aggregate_job_log`; nothing alerts yet |
 | Nightly Postgres backup with a tested restore | 👤 | Supabase backups cover it; check the plan includes point-in-time recovery, and test a restore |
