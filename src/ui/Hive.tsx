@@ -87,11 +87,14 @@ export function NightsHive({ days, onOpen }: { days: readonly HiveDay[]; onOpen:
   const perRow = 7;
   const gap = 4;
   const rows = Math.ceil(days.length / perRow);
-  // Seven cells and the half-cell shift of alternate rows fit the width.
-  const cellW = width > 0 ? (width - gap * (perRow - 1)) / (perRow + (rows > 1 ? 0.5 : 0)) : 0;
+  // Seven cells, plus the half cell (and half gap) that alternate rows are shifted by, fit the
+  // width, leaving room at the edges for the outlines and today's ring.
+  const inset = 2;
+  const shift = rows > 1 ? 0.5 : 0;
+  const cellW = width > 0 ? (width - 2 * inset - gap * (perRow - 1 + shift)) / (perRow + shift) : 0;
   const cellH = (cellW * 2) / Math.sqrt(3);
   const rowStep = cellH * 0.75 + gap * 0.87;
-  const height = rows > 0 ? cellH + (rows - 1) * rowStep : 0;
+  const height = rows > 0 ? 2 * inset + cellH + (rows - 1) * rowStep : 0;
   const recorded = days.filter((d) => d.night).length;
   return (
     <View
@@ -104,8 +107,8 @@ export function NightsHive({ days, onOpen }: { days: readonly HiveDay[]; onOpen:
           {days.map((d, i) => {
             const row = Math.floor(i / perRow);
             const col = i % perRow;
-            const cx = cellW / 2 + col * (cellW + gap) + (row % 2 ? (cellW + gap) / 2 : 0);
-            const cy = cellH / 2 + row * rowStep;
+            const cx = inset + cellW / 2 + col * (cellW + gap) + (row % 2 ? (cellW + gap) / 2 : 0);
+            const cy = inset + cellH / 2 + row * rowStep;
             const last = i === days.length - 1;
             const path = hexPath(cx, cy, cellH / 2 - 1);
             return d.night ? (

@@ -54,7 +54,7 @@ import { HiveCluster, ScoreCell } from '../ui/Hive';
 import { NightLanes } from '../ui/NightLanes';
 import { iconFor } from '../ui/remedyIcons';
 import { SnoringToggle } from '../ui/SnoringToggle';
-import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
+import { BackLink, Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
 import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
 import { LogPicker } from './LogPicker';
 import { MomentPanel } from './MomentPanel';
@@ -458,10 +458,13 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
 
   return (
     <Screen
-      sky={morningSky(conditionFor(weather?.morning_symbol ?? null))}
-      subtitle={weatherLine}
-      eyebrow={nightId ? 'Night' : 'This morning'}
-      title={new Date(night.started_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+      // A past night opened from Trends keeps the sunrise but not that morning's weather.
+      sky={nightId ? 'dawn' : morningSky(conditionFor(weather?.morning_symbol ?? null))}
+      subtitle={nightId ? null : weatherLine}
+      eyebrow={nightId ? 'Selected morning' : 'This morning'}
+      // The morning the night ended on (a night started before midnight belongs to the next morning).
+      title={new Date(night.ended_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+      left={nightId ? <BackLink /> : undefined}
       right={nightId ? undefined : <GearLink />}
       footer={
         playingSeg ? (
@@ -698,7 +701,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       {nightId ? null : (
         <Button kind="link" label="Past nights" onPress={() => router.push('/trends')} />
       )}
-      {weather ? (
+      {weather && !nightId ? (
         <Pressable onPress={() => Linking.openURL(WEATHER_LICENSE_URL)} accessibilityRole="link" style={{ marginTop: space(2) }}>
           <Small>{WEATHER_ATTRIBUTION}</Small>
         </Pressable>

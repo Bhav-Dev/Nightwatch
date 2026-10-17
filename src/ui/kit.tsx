@@ -15,6 +15,7 @@ export const useSky = () => useContext(SkyContext);
 export function Screen({
   title,
   eyebrow,
+  left,
   right,
   children,
   scroll = true,
@@ -26,6 +27,8 @@ export function Screen({
   eyebrow?: string;
   /** A line under the title (the morning's weather). */
   subtitle?: string | null;
+  /** Before the title (a back arrow, on screens opened from another). */
+  left?: ReactNode;
   right?: ReactNode;
   children: ReactNode;
   scroll?: boolean;
@@ -42,8 +45,9 @@ export function Screen({
     }, [tones.statusBar]),
   );
   const header =
-    title || eyebrow || right ? (
+    title || eyebrow || right || left ? (
       <View style={styles.header}>
+        {left}
         <View style={{ flex: 1 }}>
           {eyebrow ? <Text style={[styles.eyebrow, { color: tones.eyebrow }]}>{eyebrow}</Text> : null}
           {title ? <Text style={[styles.title, { color: tones.title }]}>{title}</Text> : null}
@@ -80,6 +84,16 @@ export function GearLink() {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} hitSlop={12} style={styles.iconButton}>
       <Ionicons name="settings-outline" size={22} color={onSky[sky].icon} />
+    </Pressable>
+  );
+}
+
+/** Back to the previous screen, drawn on the sky so the sky can run to the top of the screen. */
+export function BackLink() {
+  const sky = useSky();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} hitSlop={12} style={styles.backButton}>
+      <Ionicons name="chevron-back" size={26} color={onSky[sky].icon} />
     </Pressable>
   );
 }
@@ -237,6 +251,7 @@ export const styles = StyleSheet.create({
   subtitle: { fontSize: 16, fontFamily: fonts.headingSemi, opacity: 0.8, marginTop: space(1) },
   footer: { padding: space(5), paddingTop: space(2) },
   iconButton: { padding: space(1) },
+  backButton: { alignSelf: 'flex-start', marginLeft: -space(2), marginRight: space(1), paddingVertical: space(1), paddingRight: space(1) },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,

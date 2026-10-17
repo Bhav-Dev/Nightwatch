@@ -217,14 +217,21 @@ const chartStyles = StyleSheet.create({
 });
 
 /** One series over time on a single 0–100 axis, with an optional moving average. */
+/**
+ * Nightly values over time with an optional average line. The picked night stands out: a honey
+ * dot with a ring, a guide line and its value in a bubble above it. Nights that do not count
+ * (short ones) are hollow dots. Dates, when given, run along the bottom.
+ */
 export function TrendChart({
   values,
   average,
   max = 100,
-  height = 180,
+  height = 200,
   format = (v: number) => String(Math.round(v)),
   onSelect,
   selected,
+  labels,
+  muted,
 }: {
   values: (number | null)[];
   average?: (number | null)[];
@@ -233,13 +240,20 @@ export function TrendChart({
   format?: (v: number) => string;
   onSelect?: (i: number) => void;
   selected?: number | null;
+  /** A short date for each point, shown along the bottom (a few of them when there are many). */
+  labels?: string[];
+  /** Points drawn hollow: nights left out of the averages. */
+  muted?: boolean[];
 }) {
   const [width, onLayout] = useWidth();
   const left = 28;
-  const pad = 8;
-  const plotW = width - left - pad;
+  const right = 14;
+  const top = 30; // room for the picked night's bubble
+  const bottom = labels ? 24 : 8;
+  const plotW = width - left - right;
+  const plotH = height - top - bottom;
   const x = (i: number) => left + (values.length <= 1 ? plotW / 2 : (i / (values.length - 1)) * plotW);
-  const y = (v: number) => pad + (1 - v / max) * (height - 2 * pad);
+  const y = (v: number) => top + (1 - v / max) * plotH;
   const path = (vs: (number | null)[]) => {
     let d = '';
     let pen = false;
@@ -253,29 +267,90 @@ export function TrendChart({
     });
     return d;
   };
+  const sel = selected !== null && selected !== undefined && values[selected] !== null && values[selected] !== undefined ? selected : null;
+  const selValue = sel !== null ? (values[sel] as number) : null;
+  const bubbleW = 44;
+  const every = labels ? Math.max(1, Math.ceil(labels.length / 5)) : 1;
   return (
     <View onLayout={onLayout}>
       <Svg width={width} height={height}>
         {[0, 0.5, 1].map((f) => (
-          <Line key={f} x1={left} x2={width - pad} y1={y(f * max)} y2={y(f * max)} stroke={colors.border} strokeWidth={1} />
+          <Line key={f} x1={left} x2={width - right} y1={y(f * max)} y2={y(f * max)} stroke={colors.border} strokeWidth={1} />
         ))}
         {[0, 0.5, 1].map((f) => (
           <SvgText key={`t${f}`} x={0} y={y(f * max) + 4} fill={colors.textFaint} fontSize={10}>
             {format(f * max)}
           </SvgText>
         ))}
+        {sel !== null ? <Line x1={x(sel)} x2={x(sel)} y1={top - 4} y2={y(0)} stroke={colors.borderStrong} strokeWidth={1.5} strokeDasharray="4 4" /> : null}
         {average ? <Path d={path(average)} stroke={colors.accent} strokeWidth={2} fill="none" strokeLinejoin="round" /> : null}
         <Path d={path(values)} stroke={colors.info} strokeWidth={2} fill="none" strokeLinejoin="round" opacity={average ? 0.6 : 1} />
         {values.map((v, i) =>
-          v === null ? null : (
-            <Circle key={i} cx={x(i)} cy={y(v)} r={selected === i ? 5 : 3} fill={colors.info} stroke={colors.surface} strokeWidth={2} />
+          v === null || i === sel ? null : (
+            <Circle
+              key={i}
+              cx={x(i)}
+              cy={y(v)}
+              r={4}
+              fill={muted?.[i] ? colors.bg : colors.info}
+              stroke={muted?.[i] ? colors.info : colors.bg}
+              strokeWidth={muted?.[i] ? 1.5 : 2}
+            />
           ),
         )}
+        {sel !== null && selValue !== null ? (
+          <G>
+            <Circle cx={x(sel)} cy={y(selValue)} r={11} fill={colors.accent} opacity={0.22} />
+            <Circle cx={x(sel)} cy={y(selValue)} r={6.5} fill={muted?.[sel] ? colors.bg : colors.accent} stroke={colors.accent} strokeWidth={2.5} />
+            <Rect
+              x={Math.min(width - right - bubbleW, Math.max(left - 4, x(sel) - bubbleW / 2))}
+              y={Math.max(2, y(selValue) - 36)}
+              width={bubbleW}
+              height={22}
+              rx={11}
+              fill={colors.accent}
+            />
+            <SvgText
+              x={Math.min(width - right - bubbleW, Math.max(left - 4, x(sel) - bubbleW / 2)) + bubbleW / 2}
+              y={Math.max(2, y(selValue) - 36) + 15}
+              fill={colors.accentText}
+              fontSize={12}
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {format(selValue)}
+            </SvgText>
+          </G>
+        ) : null}
+        {labels
+          ? labels.map((label, i) =>
+              i % every === 0 || i === labels.length - 1 ? (
+                <SvgText
+                  key={`l${i}`}
+                  x={x(i)}
+                  y={height - 6}
+                  fill={i === sel ? colors.text : colors.textFaint}
+                  fontSize={10}
+                  fontWeight={i === sel ? '700' : '400'}
+                  textAnchor={i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}
+                >
+                  {label}
+                </SvgText>
+              ) : null,
+            )
+          : null}
       </Svg>
       {onSelect ? (
-        <View style={{ position: 'absolute', left, top: 0, right: pad, height, flexDirection: 'row' }}>
-          {values.map((_, i) => (
-            <Pressable key={i} style={{ flex: 1 }} onPress={() => onSelect(i)} accessibilityLabel={`Night ${i + 1}`} />
+        <View style={{ position: 'absolute', left: left - 10, top: 0, right: right - 10, height, flexDirection: 'row' }}>
+          {values.map((v, i) => (
+            <Pressable
+              key={i}
+              style={{ flex: 1 }}
+              onPress={() => onSelect(i)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: i === sel }}
+              accessibilityLabel={`${labels?.[i] ?? `Night ${i + 1}`}${v === null ? '' : `, ${format(v)}`}`}
+            />
           ))}
         </View>
       ) : null}

@@ -49,7 +49,7 @@ export default function RootLayout() {
           <Stack.Screen name="recording" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" />
-          <Stack.Screen name="night/[id]" options={{ ...header, title: '' }} />
+          <Stack.Screen name="night/[id]" />
           <Stack.Screen name="remedy/[id]" options={{ ...header, title: '' }} />
           <Stack.Screen name="experiment/[remedyId]" options={{ ...header, title: 'Remedy test', presentation: 'modal' }} />
           <Stack.Screen name="report" options={{ ...header, title: "Doctor's report" }} />

@@ -14,6 +14,12 @@ import { Body, Button, Card, GearLink, H2, Locked, Screen, Segmented, Small } fr
 import { colors, space } from '../../ui/theme';
 
 type Range = '7' | '30' | '90';
+
+const dateOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)));
+/** Under the chart: the weekday and day for a week ("Sat 17"), the day and month for longer ranges ("17 Oct"). */
+const shortDate = (key: string, week: boolean) =>
+  dateOf(key).toLocaleDateString('en-GB', week ? { weekday: 'short', day: 'numeric' } : { day: 'numeric', month: 'short' });
+const longDate = (key: string) => dateOf(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 type Series = 'score' | 'pct';
 
 export default function Trends() {
@@ -30,12 +36,14 @@ export default function Trends() {
   const effectiveRange: Range = paid ? range : '7';
 
   const load = useCallback(async () => {
-    setPoints(await trendPoints(db, Number(effectiveRange)));
+    const loaded = await trendPoints(db, Number(effectiveRange));
+    setPoints(loaded);
     // The free plan keeps 7 nights of history, so its hive is one week; Insight shows four.
     const hiveDays = paid ? 28 : 7;
     setHive(nightsByDay(await trendPoints(db, hiveDays), hiveDays));
     setSnapshots(await listSnapshots(db));
-    setSelected(null);
+    // The latest night is picked to start with, so the line under the chart always says which night it is.
+    setSelected(loaded.length ? loaded.length - 1 : null);
   }, [db, effectiveRange, paid]);
 
   useFocusEffect(
@@ -93,7 +101,16 @@ export default function Trends() {
           <Body muted>No nights in this range yet.</Body>
         ) : (
           <>
-            <TrendChart values={values} average={avg} max={100} format={(v) => (series === 'score' ? String(Math.round(v)) : `${Math.round(v)}%`)} onSelect={setSelected} selected={selected} />
+            <TrendChart
+              values={values}
+              average={avg}
+              max={100}
+              format={(v) => (series === 'score' ? String(Math.round(v)) : `${Math.round(v)}%`)}
+              onSelect={setSelected}
+              selected={selected}
+              labels={points.map((p) => shortDate(p.date, effectiveRange === '7'))}
+              muted={points.map((p) => !p.counts)}
+            />
             <View style={styles.legend}>
               <View style={[styles.key, { backgroundColor: colors.info }]} />
               <Text style={styles.legendText}>Each night</Text>
@@ -101,14 +118,20 @@ export default function Trends() {
               <Text style={styles.legendText}>7-night average</Text>
             </View>
             {sel ? (
-              <Pressable onPress={() => router.push(`/night/${sel.id}`)} accessibilityRole="button">
-                <Small style={{ marginTop: space(2) }}>
-                  {sel.date.slice(0, 10)}: score {sel.score} ({scoreLabel(sel.score)}), {Math.round(sel.pctSnoring * 100)}% snoring{sel.counts ? '' : ', not counted'}. Open night ›
-                </Small>
+              <Pressable onPress={() => router.push(`/night/${sel.id}`)} accessibilityRole="button" accessibilityHint="Opens this night" style={styles.picked}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pickedDate}>Night of {longDate(sel.date)}</Text>
+                  <Text style={styles.pickedLine}>
+                    Score {sel.score}, {scoreLabel(sel.score).toLowerCase()} · {Math.round(sel.pctSnoring * 100)}% snoring
+                    {sel.counts ? '' : ' · short, not in averages'}
+                  </Text>
+                </View>
+                <Text style={styles.pickedOpen}>Open ›</Text>
               </Pressable>
-            ) : (
-              <Small style={{ marginTop: space(2) }}>{mean !== null ? `Average score ${Math.round(mean)} over ${counted.length} nights.` : ''} Tap a point to see that night.</Small>
-            )}
+            ) : null}
+            <Small style={{ marginTop: space(2) }}>
+              {mean !== null ? `Average score ${Math.round(mean)} over ${counted.length} nights. ` : ''}Tap a point to pick a night.
+            </Small>
           </>
         )}
       </Card>
@@ -148,6 +171,20 @@ export default function Trends() {
 
 const styles = StyleSheet.create({
   legend: { flexDirection: 'row', alignItems: 'center', gap: space(2), marginTop: space(2) },
+  picked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(3),
+    marginTop: space(3),
+    padding: space(3),
+    borderRadius: 14,
+    backgroundColor: 'rgba(246, 200, 95, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(246, 200, 95, 0.35)',
+  },
+  pickedDate: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  pickedLine: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  pickedOpen: { color: colors.accent, fontSize: 15, fontWeight: '700' },
   hiveLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: space(3), marginTop: space(3) },
   hiveKey: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
   hexKey: { width: 10, height: 10, borderRadius: 3 },
