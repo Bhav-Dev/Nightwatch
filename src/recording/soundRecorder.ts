@@ -6,8 +6,9 @@ import { nextQuietLevel } from '../domain/audio/quietLevel';
  * starts a few seconds before the first loud second (so the start of a snore is not cut off),
  * carries on through short pauses (snoring has quiet gaps between breaths), and ends once the
  * room has been quiet for a while. A segment is capped at a few minutes, so a phone that dies
- * mid-night loses at most the segment being written. No React Native imports: the encoder is
- * injected (native AAC in the app, a fake in tests).
+ * mid-night loses at most the segment being written. In labelling mode (internal builds) every
+ * second is kept, quiet or not, in the same capped segments, so whole nights can be labelled.
+ * No React Native imports: the encoder is injected (native AAC in the app, a fake in tests).
  */
 
 /** A second this much louder than the room's quiet level starts or extends a segment. */
@@ -63,6 +64,8 @@ export class SoundRecorder {
     private readonly writer: SegmentWriter,
     private readonly newId: () => string,
     private readonly onSegment: (segment: SoundSegment) => Promise<void>,
+    /** Labelling mode: keep every second, not only the parts with sound. */
+    private readonly keepAll = false,
   ) {}
 
   /** Feed one whole second of audio and its level (dB). */
@@ -71,13 +74,15 @@ export class SoundRecorder {
     const finite = Number.isFinite(levelDb);
     if (finite) this.quietDb = nextQuietLevel(this.quietDb, levelDb);
     const loud = finite && this.quietDb !== null && levelDb - this.quietDb >= SOUND_ABOVE_QUIET_DB;
+    // In labelling mode every second counts as sound, so segments only end at the cap or a gap.
+    const keep = this.keepAll || loud;
 
     // A jump in time (an interruption) ends the open segment where the audio stopped.
     if (this.open && t !== this.open.nextT) this.close();
     if (this.carry && t !== this.carry.nextT) this.carry = null;
 
     if (!this.open) {
-      if (!loud && !this.carry) {
+      if (!keep && !this.carry) {
         this.preRoll.push({ t, pcm });
         if (this.preRoll.length > SOUND_PRE_ROLL_S) this.preRoll.shift();
         return;
@@ -98,7 +103,7 @@ export class SoundRecorder {
     const open = this.open;
     this.writer.write(pcm);
     open.nextT = t + 1;
-    if (loud) open.lastLoudT = t;
+    if (keep) open.lastLoudT = t;
     if (t - open.lastLoudT >= SOUND_HANGOVER_S) {
       this.close();
     } else if (open.nextT - open.startS >= SOUND_MAX_SEGMENT_S) {

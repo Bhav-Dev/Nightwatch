@@ -8,6 +8,7 @@ import { ExpoClipFiles } from '../clips/expoClipFiles';
 import { getNight } from '../data/nightRepo';
 import { getSetting } from '../data/settingsRepo';
 import { durationBand, track } from '../analytics';
+import { config } from '../config';
 import { scheduleNightRecap } from '../nightRecap';
 import { notifyNightReady } from '../notifications';
 import { useApp } from '../state/AppContext';
@@ -72,6 +73,8 @@ export default function Recording() {
         followAlarm();
         // Sound recording is on unless switched off in Settings (and needs this build's encoder).
         const keepSound = soundRecordingAvailable && (await getSetting(db, 'sound_recording')) !== '0';
+        // Labelling mode (internal builds): keep the whole night, quiet seconds too.
+        const keepAllSound = config.internalTools && (await getSetting(db, 'labelling_mode')) === '1';
         const s = await RecordingSession.begin({
           db,
           capture: getAudioCapture(),
@@ -79,6 +82,7 @@ export default function Recording() {
           newId: randomUUID,
           files: new ExpoClipFiles(),
           sound: keepSound ? new NativeSegmentWriter() : null,
+          keepAllSound,
         });
         if (cancelled) {
           await s.discard();
