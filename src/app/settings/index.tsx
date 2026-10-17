@@ -12,7 +12,8 @@ import { getSetting, setSetting } from '../../data/settingsRepo';
 import { allSoundPaths, deleteAllSoundRows, soundStorageBytes } from '../../data/soundRepo';
 import { config } from '../../config';
 import { removeSoundFile, soundRecordingAvailable } from '../../native/soundWriter';
-import { cancelBedtimeNudge, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
+import { DEFAULT_RECAP_TIME, parseRecapTime, type RecapTime } from '../../domain/recap';
+import { cancelBedtimeNudge, cancelRecap, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
 import { SOUND_KEEP_DAYS } from '../../recording/soundRecorder';
 import { removeClipFile } from '../../screens/NightView';
 import { useApp } from '../../state/AppContext';
@@ -23,6 +24,7 @@ import { WEATHER_ATTRIBUTION } from '../../../shared/weather';
 import { colors, space } from '../../ui/theme';
 
 const BEDTIMES = ['21:30', '22:00', '22:30', '23:00', '23:30'];
+const RECAP_LABELS: Record<RecapTime, string> = { '10:00': 'Mid-morning', '12:30': 'Lunchtime', '18:30': 'Evening', off: 'Off' };
 const STOP_HOURS = ['9', '10', '11', '12'];
 
 export default function SettingsScreen() {
@@ -31,6 +33,7 @@ export default function SettingsScreen() {
   const [sensitivity, setSensitivity] = useState('normal');
   const [landing, setLanding] = useState('auto');
   const [bedtime, setBedtime] = useState<string | null>(null);
+  const [recap, setRecap] = useState<RecapTime>(DEFAULT_RECAP_TIME);
   const [stopHour, setStopHour] = useState('11');
   const [storage, setStorage] = useState(0);
   const [soundOn, setSoundOn] = useState(true);
@@ -42,6 +45,7 @@ export default function SettingsScreen() {
     setSensitivity((await getSetting(db, 'sensitivity')) ?? 'normal');
     setLanding((await getSetting(db, 'landing_tab')) ?? 'auto');
     setBedtime(await getSetting(db, 'bedtime_reminder'));
+    setRecap(parseRecapTime(await getSetting(db, 'recap_time')));
     setStopHour((await getSetting(db, 'auto_stop_hour')) ?? '11');
     setStorage((await clipStorageBytes(db)) + (await soundStorageBytes(db)));
     setSoundOn((await getSetting(db, 'sound_recording')) !== '0');
@@ -69,6 +73,13 @@ export default function SettingsScreen() {
       await cancelBedtimeNudge();
     }
     await setSetting(db, 'bedtime_reminder', v);
+    await load();
+  };
+
+  const setRecapTime = async (v: RecapTime) => {
+    if (v === 'off') await cancelRecap();
+    else if (!(await requestNotificationPermission())) return Alert.alert('Notifications are off', 'Turn them on in Settings to get the night recap.');
+    await setSetting(db, 'recap_time', v);
     await load();
   };
 
@@ -250,6 +261,13 @@ export default function SettingsScreen() {
           <H2>Notifications</H2>
           <ToggleRow label="Bedtime reminder" value={bedtime !== null} onChange={(v) => setReminder(v ? '22:30' : null)} />
           {bedtime ? <Segmented value={bedtime} onChange={(v) => setReminder(v)} options={BEDTIMES.map((b) => ({ value: b, label: b }))} /> : null}
+          <Body style={{ marginTop: space(4), fontWeight: '700' }}>Night recap</Body>
+          <Small>Later in the day, a look back at your night and its loudest moments to check. Never straight after you wake up.</Small>
+          <Segmented
+            value={recap}
+            onChange={(v) => setRecapTime(v as RecapTime)}
+            options={(['10:00', '12:30', '18:30', 'off'] as const).map((v) => ({ value: v, label: RECAP_LABELS[v] }))}
+          />
         </Card>
 
         <Card>

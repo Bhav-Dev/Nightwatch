@@ -28,6 +28,9 @@ interface ExportNight {
   factors: { id: string; value: string | null }[];
   health: { spo2_min: number | null; spo2_dips: number | null; hr_mean: number | null; sleep_efficiency: number | null } | null;
   events: { start_s: number; end_s: number; peak_db: number; intensity: string }[];
+  /** The user's "was this snoring?" answers; `events` and `score` already include them. */
+  answers: { start_s: number; end_s: number; label: string }[];
+  score_before_answers: number | null;
 }
 
 /** Everything the user has, without audio: nights, logs, events, Health summaries, profile, experiments. */
@@ -40,6 +43,7 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
     const factors = await db.getAllAsync<{ factor_id: string; value: string | null }>('SELECT factor_id, value FROM factor_log WHERE night_id = ?', [id]);
     const health = await db.getFirstAsync<ExportNight['health']>('SELECT spo2_min, spo2_dips, hr_mean, sleep_efficiency FROM health_summary WHERE night_id = ?', [id]);
     const events = await db.getAllAsync<ExportNight['events'][number]>('SELECT start_s, end_s, peak_db, intensity FROM event WHERE night_id = ? ORDER BY start_s', [id]);
+    const answers = await db.getAllAsync<ExportNight['answers'][number]>('SELECT start_s, end_s, label FROM sound_label WHERE night_id = ? ORDER BY created_at', [id]);
     out.push({
       id,
       date: n.date as string,
@@ -57,6 +61,8 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
       factors: factors.map((f) => ({ id: f.factor_id, value: f.value })),
       health,
       events,
+      answers,
+      score_before_answers: (n.detector_score as number | null) ?? null,
     });
   }
   const profile = await db.getFirstAsync<Record<string, unknown>>('SELECT * FROM profile WHERE id = 1', []);
@@ -82,7 +88,7 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
 export async function deleteAllLocalData(db: Db): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const t of [
-      'event', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'pending_log', 'experiment', 'snapshot',
+      'event', 'event_detected', 'sound_label', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'pending_log', 'experiment', 'snapshot',
       'clip', 'sound_segment', 'night_weather', 'session_weather', 'session_frame', 'session_gap', 'recording_session', 'sync_tombstone', 'cache', 'night', 'profile',
     ]) {
       await db.runAsync(`DELETE FROM ${t}`, []);

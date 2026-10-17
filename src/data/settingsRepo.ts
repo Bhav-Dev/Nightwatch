@@ -25,7 +25,11 @@ export type SettingKey =
   | 'contribution_seen'
   | 'health_enabled'
   | 'auto_stop_hour'
-  | 'contribution_opted_in';
+  | 'contribution_opted_in'
+  /** When the night recap arrives: '10:00' | '12:30' | '18:30' | 'off'; unset means 12:30. */
+  | 'recap_time'
+  /** When we asked for an app store review: a JSON list of epoch seconds. */
+  | 'review_asked_at';
 
 export async function getSetting(db: Db, key: SettingKey): Promise<string | null> {
   const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);

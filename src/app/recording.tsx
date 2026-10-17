@@ -8,6 +8,7 @@ import { ExpoClipFiles } from '../clips/expoClipFiles';
 import { getNight } from '../data/nightRepo';
 import { getSetting } from '../data/settingsRepo';
 import { durationBand, track } from '../analytics';
+import { scheduleNightRecap } from '../nightRecap';
 import { notifyNightReady } from '../notifications';
 import { useApp } from '../state/AppContext';
 import type { Sensitivity } from '../domain/scoring';
@@ -148,6 +149,7 @@ export default function Recording() {
       if (row) track({ name: 'recording_complete', duration_band: durationBand(row.time_in_bed_s), partial: row.partial === 1 });
       // Not when the alarm is about to ring: a notification just before it would wake them early.
       if (row && automatic && stopAt.current === usualStop.current) await notifyNightReady(row.score).catch(() => undefined);
+      if (row) await scheduleNightRecap(db, row.id).catch(() => undefined);
       void sync();
       if (night) router.replace('/morning');
       else router.back();

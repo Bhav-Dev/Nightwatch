@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -13,6 +14,7 @@ import { type ClipRow, nightClips, setClipSaved } from '../data/clipRepo';
 import { runningExperiments, type Experiment } from '../data/experimentRepo';
 import { healthSamples, healthSummary } from '../data/healthRepo';
 import { nightSummaries } from '../data/historyRepo';
+import { addLabel, clearLabels, nightLabels, type SoundLabelRow, stretchLoudness } from '../data/labelRepo';
 import {
   averageScore,
   type EventRow,
@@ -37,7 +39,9 @@ import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
 import { clipsForDisplay } from '../domain/clipList';
 import { clockTimeAt, INTERRUPTION_COPY } from '../domain/interruption';
+import { buildMoments, momentAt, neighbour } from '../domain/moments';
 import { intensityFor, scoreLabel, type Bin } from '../domain/scoring';
+import { isSnoringAt } from '../domain/scoring/corrections';
 import { sleepSoundName } from '../domain/sleepSounds';
 import { morningSummary } from '../domain/summary';
 import { getHealthSource } from '../health';
@@ -45,9 +49,13 @@ import { importHealthForNight } from '../health/importNight';
 import { useApp } from '../state/AppContext';
 import { Chip } from '../ui/Chip';
 import { NightTimeline } from '../ui/charts';
+import { SnoringToggle } from '../ui/SnoringToggle';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
 import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
 import { LogPicker } from './LogPicker';
+import { MomentPanel } from './MomentPanel';
+import { maybeAskForReview, type Engagement } from './reviewAsk';
+import { cancelRecap } from '../notifications';
 import { useClipPlayer } from './useClipPlayer';
 
 interface Loaded {
@@ -57,6 +65,9 @@ interface Loaded {
   clips: ClipRow[];
   /** The night's recorded sound, in time order (empty when sound recording was off). */
   sounds: SoundSegmentRow[];
+  /** The user's "was this snoring?" answers, in order. */
+  labels: SoundLabelRow[];
+  nightCount: number;
   /** The night's weather, if it was fetched, and every night's (for comparing nights by weather). */
   weather: NightWeatherRow | null;
   weatherByNight: Map<string, NightWeatherRow>;
@@ -73,12 +84,16 @@ const hm = (s: number) => `${Math.floor(s / 3600)}h ${String(Math.floor((s % 360
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** This Morning for the latest night, or any past night by id. */
-export function NightView({ nightId }: { nightId?: string }) {
+export function NightView({ nightId, fromRecap = false }: { nightId?: string; fromRecap?: boolean }) {
   const db = useSQLiteContext();
   const { paid, sync } = useApp();
   const [data, setData] = useState<Loaded | null | undefined>(undefined);
   const [catalogue, setCatalogue] = useState<Map<string, CatalogueItem>>(new Map());
-  const [selectedBin, setSelectedBin] = useState<number | null>(null);
+  /** The second of the night picked on the timeline or with previous and next. */
+  const [cursorS, setCursorS] = useState<number | null>(null);
+  const [answering, setAnswering] = useState(false);
+  /** What the user did on this visit, for choosing a good moment to ask for a review. */
+  const engagement = useRef<Engagement>({ plays: 0, answers: 0, corrections: 0 });
   const [overlay, setOverlay] = useState(false);
   const [showPrevent, setShowPrevent] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -94,7 +109,11 @@ export function NightView({ nightId }: { nightId?: string }) {
     advance.current = (uri) => {
       const sounds = data?.sounds ?? [];
       const i = sounds.findIndex((s) => s.path === uri);
-      if (i < 0) return; // a clip finished: nothing to carry on to
+      if (i < 0) {
+        // A clip finished: nothing to carry on to, and a calm moment to maybe ask for a review.
+        if (data) void maybeAskForReview(db, { night: data.night, nightCount: data.nightCount, fromRecap, engagement: engagement.current });
+        return;
+      }
       const next = sounds[i + 1];
       if (next) {
         setPlayingSegId(next.id);
@@ -120,11 +139,12 @@ export function NightView({ nightId }: { nightId?: string }) {
     }
     const nightCount = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM night', []))?.n ?? 0;
     const prompted = await getSetting(db, 'health_prompted_after');
-    const [bins, events, clips, sounds, weatherRows, samples, summary, log, history, avg7, experiments] = await Promise.all([
+    const [bins, events, clips, sounds, labels, weatherRows, samples, summary, log, history, avg7, experiments] = await Promise.all([
       nightBins(db, night.id),
       nightEvents(db, night.id),
       nightClips(db, night.id),
       nightSoundSegments(db, night.id),
+      nightLabels(db, night.id),
       allNightWeather(db),
       healthSamples(db, night.id),
       healthSummary(db, night.id),
@@ -141,6 +161,8 @@ export function NightView({ nightId }: { nightId?: string }) {
       events,
       clips,
       sounds,
+      labels,
+      nightCount,
       weather,
       weatherByNight,
       samples,
@@ -176,6 +198,8 @@ export function NightView({ nightId }: { nightId?: string }) {
     useCallback(() => {
       void load();
       if (!nightId) track({ name: 'morning_viewed' });
+      // The night changes with the user's answers, so a new visit starts afresh.
+      engagement.current = { plays: 0, answers: 0, corrections: 0 };
     }, [load, nightId]),
   );
 
@@ -237,16 +261,37 @@ export function NightView({ nightId }: { nightId?: string }) {
       ].filter((l) => l.points.length > 1)
     : undefined;
 
-  const { sounds } = data;
-  /** The recorded sound at a second of the night, or the next one starting in the same 5 minutes. */
-  const soundAt = (i: number, atS: number) =>
-    sounds.find((s) => atS >= s.start_s && atS < s.end_s) ?? sounds.find((s) => s.start_s >= atS && s.start_s < (i + 1) * 300) ?? null;
+  const { sounds, events, labels } = data;
+  const snoring = events.map((e) => ({ startS: e.start_s, endS: e.end_s, peakDb: e.peak_db }));
+  const snoreClips = clips.filter((c) => c.kind !== 'other');
+  const otherClips = clips.filter((c) => c.kind === 'other');
+  const moments = buildMoments({
+    snoring,
+    other: [
+      ...otherClips.map((c) => ({ startS: c.start_s, endS: c.end_s, peakDb: Math.max(0, c.peak_db - night.floor_db) })),
+      ...labels.filter((l) => l.label === 'not_snore').map((l) => ({ startS: l.start_s, endS: l.end_s, peakDb: l.peak_db })),
+    ],
+    recorded: sounds.map((s) => ({ startS: s.start_s, endS: s.end_s })),
+    answered: labels.map((l) => ({ startS: l.start_s, endS: l.end_s })),
+  });
 
-  const onSelectTime = (i: number, atS: number) => {
-    setSelectedBin(i);
+  /** The recorded sound at a second of the night, or the next one starting in the same 5 minutes. */
+  const soundAt = (atS: number) =>
+    sounds.find((s) => atS >= s.start_s && atS < s.end_s) ?? sounds.find((s) => s.start_s >= atS && s.start_s < atS + 300) ?? null;
+  /** On nights without recorded sound: the clip for a moment, else the loudest in that 5 minutes. */
+  const clipAt = (atS: number) => {
+    const m = momentAt(moments, atS);
+    const inMoment = m ? clips.filter((c) => c.start_s < m.endS && c.end_s > m.startS).sort((a, b) => b.peak_db - a.peak_db)[0] : undefined;
+    return inMoment ?? binClip(Math.floor(atS / 300));
+  };
+
+  /** Picks a second of the night and plays from it. */
+  const playAt = (atS: number) => {
+    setCursorS(atS);
+    engagement.current.plays++;
     if (sounds.length > 0) {
-      // Nights with recorded sound: play the night from the moment tapped.
-      const seg = soundAt(i, atS);
+      // Nights with recorded sound: play the night from that moment.
+      const seg = soundAt(atS);
       if (seg) {
         setPlayingSegId(seg.id);
         play(seg.path, Math.max(0, atS - seg.start_s));
@@ -256,24 +301,65 @@ export function NightView({ nightId }: { nightId?: string }) {
       }
       return;
     }
-    // Older nights: the loudest clip in that 5 minutes; a stretch with no clip stops playback.
+    // Older nights: the clip there; a stretch with no clip stops playback.
     setPlayingSegId(null);
-    const c = binClip(i);
-    if (c) toggle(c.path);
+    const c = clipAt(atS);
+    if (c) play(c.path, Math.max(0, atS - c.start_s));
     else stop();
   };
+  const onSelectTime = (_i: number, atS: number) => playAt(atS);
   const playClip = (path: string) => {
     setPlayingSegId(null);
+    engagement.current.plays++;
     toggle(path);
   };
   const playingSeg = playingUri && playingSegId ? (sounds.find((s) => s.id === playingSegId && s.path === playingUri) ?? null) : null;
   const playingClip = playingUri && !playingSeg ? (clips.find((c) => c.path === playingUri) ?? null) : null;
   const playheadS = playingSeg ? playingSeg.start_s + positionS : playingClip ? playingClip.start_s + positionS : null;
-  const snoreClips = clips.filter((c) => c.kind !== 'other');
-  const otherClips = clips.filter((c) => c.kind === 'other');
+  // Just after a jump the player may not have caught up yet, so the picked second wins for a moment.
+  const focusS = playheadS !== null && (cursorS === null || Math.abs(playheadS - cursorS) >= 1.5) ? playheadS : cursorS;
+  const moment = focusS !== null ? momentAt(moments, focusS) : null;
+  const selectedBin = focusS !== null ? Math.min(bins.length - 1, Math.floor(focusS / 300)) : null;
+
+  const step = (direction: 1 | -1) => {
+    const m = neighbour(moments, focusS ?? -1, direction);
+    if (m) playAt(m.startS);
+  };
+
+  /** The user's answer for a stretch: corrects the night, and is kept as a labelled example. */
+  const answer = async (range: { startS: number; endS: number }, itWas: boolean, source: 'clip' | 'moment', clipPeakDb?: number) => {
+    setAnswering(true);
+    try {
+      const wasSnoring = isSnoringAt(snoring, range.startS, range.endS);
+      const loudness = await stretchLoudness(db, night.id, range.startS, range.endS, clipPeakDb);
+      await addLabel(db, { id: randomUUID(), nightId: night.id, startS: range.startS, endS: range.endS, label: itWas ? 'snore' : 'not_snore', ...loudness, source });
+      engagement.current.answers++;
+      if (wasSnoring !== itWas) engagement.current.corrections++;
+      track({ name: 'snoring_answered', snoring: itWas, source });
+      // They have looked back at the night already, so the recap is not needed.
+      void cancelRecap();
+      await load();
+      void sync();
+      void maybeAskForReview(db, { night, nightCount: data.nightCount, fromRecap, engagement: engagement.current });
+    } finally {
+      setAnswering(false);
+    }
+  };
+  const undo = async (range: { startS: number; endS: number }) => {
+    await clearLabels(db, night.id, range.startS, range.endS);
+    await load();
+    void sync();
+  };
+  /** "Not snoring" on a clip covers the whole stretch of snoring it is part of. */
+  const clipRange = (c: ClipRow) =>
+    events
+      .filter((e) => e.start_s < c.end_s && e.end_s > c.start_s)
+      .reduce((r, e) => ({ startS: Math.min(r.startS, e.start_s), endS: Math.max(r.endS, e.end_s) }), { startS: c.start_s, endS: c.end_s });
 
   const clipRows = (list: ClipRow[]) =>
-    clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => (
+    clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => {
+      const isSnoring = isSnoringAt(snoring, c.start_s, c.end_s);
+      return (
       <View key={c.id} style={styles.clipRow}>
         <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => playClip(c.path)} style={styles.play}>
           <Ionicons name={playingUri === c.path ? 'pause' : 'play'} size={18} color={colors.text} />
@@ -281,11 +367,19 @@ export function NightView({ nightId }: { nightId?: string }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.clipTime}>{time}</Text>
           <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
+          <View style={styles.clipActions}>
+            <SnoringToggle
+              snoring={isSnoring}
+              disabled={answering}
+              onPress={() => answer(isSnoring ? clipRange(c) : { startS: c.start_s, endS: c.end_s }, !isSnoring, 'clip', c.peak_db - night.floor_db)}
+            />
+            <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
+            <Button kind="link" label="Share" onPress={() => share(c)} />
+          </View>
         </View>
-        <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
-        <Button kind="link" label="Share" onPress={() => share(c)} />
       </View>
-    ));
+      );
+    });
 
   const share = async (c: ClipRow) => {
     if (!(await Sharing.isAvailableAsync())) return Alert.alert('Sharing is not available on this device');
@@ -409,6 +503,9 @@ export function NightView({ nightId }: { nightId?: string }) {
           <Stat label="Time in bed" value={hm(night.time_in_bed_s)} />
           <Stat label="Loudest" value={night.event_count > 0 ? intensityFor(night.max_db) : '–'} />
         </View>
+        {night.detector_score !== null && labels.length > 0 && night.detector_score !== night.score ? (
+          <Small style={{ marginTop: space(3) }}>Was {night.detector_score} before your answers about what was snoring.</Small>
+        ) : null}
         {night.counts_toward_averages === 0 ? <Small style={{ marginTop: space(3) }}>Under 3 hours, so this night is left out of your averages.</Small> : null}
       </Card>
 
@@ -451,6 +548,10 @@ export function NightView({ nightId }: { nightId?: string }) {
             selected={selectedBin}
             recorded={sounds.map((s) => ({ startS: s.start_s, endS: s.end_s }))}
             playheadS={playheadS}
+            cursorS={cursorS}
+            highlight={moment}
+            moments={moments}
+            onStep={step}
             soundUntilS={night.sleep_sound ? night.sleep_sound_until_s : null}
             overlay={overlayLines}
           />
@@ -479,14 +580,23 @@ export function NightView({ nightId }: { nightId?: string }) {
               {sleepSoundName(night.sleep_sound)} played until {clockTimeAt(night.started_at, night.sleep_sound_until_s)}. Snoring then is measured against the sound.
             </Small>
           ) : null}
-          {selectedBin !== null && !playingSeg ? (
+          <MomentPanel
+            startedAtS={night.started_at}
+            moments={moments}
+            moment={moment}
+            focusS={focusS}
+            playing={playingSeg !== null || playingClip !== null}
+            busy={answering}
+            onStep={step}
+            onPlay={() => (playingSeg || playingClip ? stop() : moment && playAt(moment.startS))}
+            onAnswer={(snoring) => moment && answer(moment, snoring, 'moment')}
+            onUndo={() => moment && undo(moment)}
+          />
+          {moments.length === 0 ? (
             <Small style={{ marginTop: space(2) }}>
-              {clockTimeAt(night.started_at, selectedBin * 300)}: {Math.round(bins[selectedBin].snoreS / 60)} min snoring
-              {sounds.length > 0 ? ' · quiet, nothing recorded here' : binClip(selectedBin) ? (playingUri ? ' · playing' : '') : ' · no clip here'}
-            </Small>
-          ) : !playingSeg ? (
-            <Small style={{ marginTop: space(2) }}>
-              {sounds.length > 0 ? 'Tap anywhere on the timeline to listen from that moment.' : 'Tap the timeline to hear the loudest moment there.'}
+              {selectedBin !== null
+                ? `${clockTimeAt(night.started_at, selectedBin * 300)}: quiet, nothing recorded here`
+                : 'A quiet night: nothing loud enough to keep.'}
             </Small>
           ) : null}
           {hasHealth && !paid ? <Locked label="See oxygen and heart rate on the same timeline" trigger="overlay" /> : null}
@@ -577,6 +687,7 @@ const styles = StyleSheet.create({
   swatch: { width: 10, height: 10, borderRadius: 2 },
   legendText: { color: colors.textMuted, fontSize: 12, textTransform: 'capitalize' },
   clipRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
+  clipActions: { flexDirection: 'row', alignItems: 'center', gap: space(3), marginTop: space(1.5) },
   play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
   clipTime: { color: colors.text, fontSize: 16, fontWeight: '600' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space(2) },

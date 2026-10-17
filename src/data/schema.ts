@@ -279,6 +279,37 @@ const MIGRATIONS: string[] = [
     fetched_at INTEGER NOT NULL
   );
   `,
+  `
+  -- The user's answers to "was this snoring?", one row per answer, applied in order. They are
+  -- also the labelled examples the detector will be trained and checked on (kept on this phone).
+  CREATE TABLE sound_label (
+    id TEXT PRIMARY KEY NOT NULL,
+    night_id TEXT NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    label TEXT NOT NULL CHECK (label IN ('snore', 'not_snore')),
+    peak_db REAL NOT NULL,
+    mean_db REAL NOT NULL,
+    -- What the answer was given on: a clip, or a moment picked on the timeline.
+    source TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX sound_label_night ON sound_label(night_id, created_at);
+  -- The detector's own events, copied here the first time a night is corrected. The event table
+  -- then holds the corrected night, rebuilt from these plus the answers.
+  CREATE TABLE event_detected (
+    id TEXT PRIMARY KEY NOT NULL,
+    night_id TEXT NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    peak_db REAL NOT NULL,
+    mean_db REAL NOT NULL,
+    intensity TEXT NOT NULL
+  );
+  CREATE INDEX event_detected_night ON event_detected(night_id);
+  -- The score before any answers, to show what changed.
+  ALTER TABLE night ADD COLUMN detector_score INTEGER;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

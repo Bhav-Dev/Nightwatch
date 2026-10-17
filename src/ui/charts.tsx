@@ -3,8 +3,8 @@
  * marks, bars with rounded data-ends on a shared baseline, recessive grid, text in text
  * colours (never the series colour), and tap-to-inspect instead of hover.
  */
-import { useId, useState } from 'react';
-import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native';
+import { useId, useRef, useState } from 'react';
+import { type GestureResponderEvent, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { colors, intensityColor } from './theme';
@@ -33,6 +33,8 @@ export interface TimelineBin {
 /**
  * The night as a loudness outline mirrored around a centre line, in 5-minute bins: its height is
  * how loud each stretch was, and stretches with snoring are filled with their loudest intensity.
+ * Below it, a slider: drag along the timeline or the slider to scrub through the night (the time
+ * shows while dragging) and let go to pick that moment. Moments are marked on the slider track.
  */
 export function NightTimeline({
   bins,
@@ -41,19 +43,31 @@ export function NightTimeline({
   selected,
   recorded,
   playheadS,
+  cursorS,
+  highlight,
+  moments,
+  onStep,
   soundUntilS,
   overlay,
   height = 140,
 }: {
   bins: TimelineBin[];
   startedAtS: number;
-  /** A tap: the 5-minute bin and the second of the night it landed on. */
+  /** A tap, or the end of a drag: the 5-minute bin and the second of the night it landed on. */
   onSelect?: (index: number, atS: number) => void;
   selected?: number | null;
   /** Stretches with recorded sound (seconds from the start), marked along the bottom. */
   recorded?: { startS: number; endS: number }[];
   /** Where playback is, in seconds from the start; drawn as a line. */
   playheadS?: number | null;
+  /** The picked second, where the slider's thumb sits when nothing is playing. */
+  cursorS?: number | null;
+  /** The picked moment, shaded on the timeline. */
+  highlight?: { startS: number; endS: number } | null;
+  /** Moments to mark on the slider track. */
+  moments?: { startS: number; kind: 'snore' | 'other' | 'sound' }[];
+  /** Screen reader swipe up or down: the next or previous moment. */
+  onStep?: (direction: 1 | -1) => void;
   /** Sleep sounds played until this second: shaded behind the outline. */
   soundUntilS?: number | null;
   /** Optional thin lines drawn under the bars (SpO2, heart rate), each scaled to its own band below the chart. */
@@ -61,14 +75,18 @@ export function NightTimeline({
   height?: number;
 }) {
   const [width, onLayout] = useWidth();
+  const [scrubS, setScrubS] = useState<number | null>(null);
+  const drag = useRef<{ pageX: number; x: number; moved: boolean } | null>(null);
   const clipId = `outline-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const bottomAxis = 18;
+  const sliderH = onSelect ? 30 : 0;
   const overlayH = overlay?.length ? 36 * overlay.length : 0;
   const plotH = height - bottomAxis;
   const centreY = plotH / 2;
   const step = width / Math.max(bins.length, 1);
   const totalS = Math.max(1, bins.length * 300);
   const xAt = (s: number) => (s / totalS) * width;
+  const sAt = (x: number) => Math.min(totalS - 1, Math.max(0, Math.round((x / Math.max(1, width)) * totalS)));
   const outline = outlinePath(outlineAmplitudes(bins.map((b) => b.levelDb)), width, centreY, centreY - 2);
   const runs = colourRuns(bins.map((b) => b.intensity));
   const hourTicks: { x: number; label: string }[] = [];
@@ -76,15 +94,35 @@ export function NightTimeline({
     const t = new Date((startedAtS + i * 300) * 1000);
     if (t.getMinutes() < 5) hourTicks.push({ x: i * step, label: `${t.getHours()}:00` });
   }
+  const clock = (s: number) => new Date((startedAtS + s) * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const lineS = scrubS ?? playheadS ?? null;
+  const thumbS = scrubS ?? playheadS ?? cursorS ?? (selected !== undefined && selected !== null ? selected * 300 + 150 : null);
+  const sliderY = height + sliderH / 2;
+
+  const touchX = (e: GestureResponderEvent) => {
+    const d = drag.current;
+    if (!d) return e.nativeEvent.locationX;
+    if (Math.abs(e.nativeEvent.pageX - d.pageX) > 6) d.moved = true;
+    return d.x + (e.nativeEvent.pageX - d.pageX);
+  };
+  const finish = (atS: number) => {
+    setScrubS(null);
+    drag.current = null;
+    onSelect?.(Math.min(bins.length - 1, Math.floor(atS / 300)), atS);
+  };
+
   return (
     <View onLayout={onLayout}>
-      <Svg width={width} height={height + overlayH}>
+      <Svg width={width} height={height + sliderH + overlayH}>
         <Defs>
           <ClipPath id={clipId}>
             <Path d={outline} />
           </ClipPath>
         </Defs>
         {soundUntilS ? <Rect x={0} y={0} width={xAt(soundUntilS)} height={plotH} rx={6} fill={colors.info} opacity={0.08} /> : null}
+        {highlight ? (
+          <Rect x={xAt(highlight.startS)} y={0} width={Math.max(3, xAt(highlight.endS - highlight.startS))} height={plotH} rx={2} fill={colors.text} opacity={0.12} />
+        ) : null}
         <Line x1={0} x2={width} y1={centreY} y2={centreY} stroke={colors.border} strokeWidth={1} />
         <Path d={outline} fill={colors.textFaint} opacity={0.35} />
         <G clipPath={`url(#${clipId})`}>
@@ -95,9 +133,9 @@ export function NightTimeline({
         {recorded?.map((r) => (
           <Rect key={r.startS} x={xAt(r.startS)} y={plotH - 4} width={Math.max(1.5, xAt(r.endS - r.startS))} height={3} rx={1.5} fill={colors.info} opacity={0.8} />
         ))}
-        {playheadS !== undefined && playheadS !== null ? (
-          <Line x1={xAt(playheadS)} x2={xAt(playheadS)} y1={0} y2={plotH} stroke={colors.accent} strokeWidth={2} />
-        ) : selected !== undefined && selected !== null ? (
+        {lineS !== null ? (
+          <Line x1={xAt(lineS)} x2={xAt(lineS)} y1={0} y2={plotH} stroke={colors.accent} strokeWidth={2} />
+        ) : selected !== undefined && selected !== null && !highlight ? (
           <Line x1={(selected + 0.5) * step} x2={(selected + 0.5) * step} y1={0} y2={plotH} stroke={colors.text} strokeWidth={1} opacity={0.7} />
         ) : null}
         {hourTicks
@@ -107,8 +145,21 @@ export function NightTimeline({
               {t.label}
             </SvgText>
           ))}
+        {onSelect ? (
+          <G>
+            <Line x1={6} x2={width - 6} y1={sliderY} y2={sliderY} stroke={colors.border} strokeWidth={4} strokeLinecap="round" />
+            {moments
+              ?.filter((m) => m.kind !== 'sound')
+              .map((m) => (
+                <Rect key={m.startS} x={xAt(m.startS) - 1} y={sliderY - 4} width={2} height={8} rx={1} fill={m.kind === 'snore' ? colors.accent : colors.textMuted} />
+              ))}
+            {thumbS !== null ? (
+              <Circle cx={Math.min(width - 9, Math.max(9, xAt(thumbS)))} cy={sliderY} r={scrubS !== null ? 10 : 8} fill={colors.text} stroke={colors.accent} strokeWidth={2} />
+            ) : null}
+          </G>
+        ) : null}
         {overlay?.map((o, k) => {
-          const top = height + k * 36 + 6;
+          const top = height + sliderH + k * 36 + 6;
           const ys = o.points.map((p) => p.y);
           const lo = Math.min(...ys);
           const hi = Math.max(...ys);
@@ -121,26 +172,49 @@ export function NightTimeline({
         })}
       </Svg>
       {overlay?.map((o, k) => (
-        <Text key={o.label} style={{ position: 'absolute', left: 0, top: height + k * 36 - 6, color: colors.textMuted, fontSize: 11 }}>
+        <Text key={o.label} style={{ position: 'absolute', left: 0, top: height + sliderH + k * 36 - 6, color: colors.textMuted, fontSize: 11 }}>
           {o.label}
         </Text>
       ))}
-      {onSelect ? (
-        <View style={{ position: 'absolute', left: 0, top: 0, width, height: plotH, flexDirection: 'row' }}>
-          {bins.map((b, i) => (
-            <Pressable
-              key={b.index}
-              accessibilityRole="button"
-              accessibilityLabel={`${new Date((startedAtS + i * 300) * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}, ${Math.round(b.snoreS / 60)} minutes of snoring`}
-              onPress={(e) => onSelect(i, i * 300 + Math.min(299, Math.max(0, Math.round((e.nativeEvent.locationX / Math.max(1, step)) * 300))))}
-              style={{ flex: 1 }}
-            />
-          ))}
+      {scrubS !== null ? (
+        <View pointerEvents="none" style={[chartStyles.bubble, { left: Math.min(width - 64, Math.max(0, xAt(scrubS) - 32)) }]}>
+          <Text style={chartStyles.bubbleText}>{clock(scrubS)}</Text>
         </View>
+      ) : null}
+      {onSelect ? (
+        <View
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel="Timeline"
+          accessibilityHint="Swipe up or down to move between moments. Drag to scrub through the night."
+          accessibilityValue={{ text: thumbS !== null ? clock(thumbS) : 'Nothing picked' }}
+          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+          onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'increment' ? 1 : -1)}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          // Once a sideways drag has started, the screen does not take it over to scroll.
+          onResponderTerminationRequest={() => !drag.current?.moved}
+          onResponderGrant={(e) => {
+            drag.current = { pageX: e.nativeEvent.pageX, x: e.nativeEvent.locationX, moved: false };
+            setScrubS(sAt(e.nativeEvent.locationX));
+          }}
+          onResponderMove={(e) => setScrubS(sAt(touchX(e)))}
+          onResponderRelease={(e) => finish(sAt(touchX(e)))}
+          onResponderTerminate={() => {
+            drag.current = null;
+            setScrubS(null);
+          }}
+          style={{ position: 'absolute', left: 0, top: 0, width, height: height + sliderH }}
+        />
       ) : null}
     </View>
   );
 }
+
+const chartStyles = StyleSheet.create({
+  bubble: { position: 'absolute', top: -6, width: 64, alignItems: 'center', backgroundColor: colors.surfaceRaised, borderRadius: 8, paddingVertical: 2 },
+  bubbleText: { color: colors.text, fontSize: 12, fontWeight: '700' },
+});
 
 /** One series over time on a single 0–100 axis, with an optional moving average. */
 export function TrendChart({

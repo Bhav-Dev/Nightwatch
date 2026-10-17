@@ -1,13 +1,15 @@
 import { Nunito_700Bold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import { randomUUID } from 'expo-crypto';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 
 import { ExpoClipFiles } from '../clips/expoClipFiles';
 import type { Db } from '../data/db';
 import { initDatabase } from '../data/init';
 import { tidySoundFiles } from '../native/soundWriter';
+import { watchNotificationLinks } from '../notifications';
 import { recoverAbandonedSessions } from '../recording/recordingSession';
 import { AppProvider } from '../state/AppContext';
 import { colors } from '../ui/theme';
@@ -26,6 +28,12 @@ const header = {
   headerTintColor: colors.text,
   headerShadowVisible: false,
 } as const;
+
+/** A tapped notification (the night recap) opens the screen it points at. */
+function NotificationLinks() {
+  useEffect(() => watchNotificationLinks((url) => router.push(url as Parameters<typeof router.push>[0])), []);
+  return null;
+}
 
 export default function RootLayout() {
   // Headings use Nunito; wait for it (a moment on first launch) so text never jumps.
@@ -47,6 +55,7 @@ export default function RootLayout() {
           <Stack.Screen name="report" options={{ ...header, title: "Doctor's report" }} />
           <Stack.Screen name="auth" />
         </Stack>
+        <NotificationLinks />
       </AppProvider>
     </SQLiteProvider>
   );

@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-/** Bedtime nudge and "your night is ready". Both optional; recording works without them. */
+/** Bedtime nudge, "your night is ready" and the night recap. All optional; recording works without them. */
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
@@ -25,6 +25,36 @@ export async function scheduleBedtimeNudge(hour: number, minute: number): Promis
 
 export async function cancelBedtimeNudge(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(BEDTIME_ID).catch(() => undefined);
+}
+
+const RECAP_ID = 'night-recap';
+/** Where tapping the recap goes. */
+export const RECAP_URL = '/morning?from=recap';
+
+/** The night recap later in the day; a newer night's recap replaces it. Never asks for permission. */
+export async function scheduleRecap(at: Date, content: { title: string; body: string }): Promise<void> {
+  await cancelRecap();
+  if (!(await Notifications.getPermissionsAsync()).granted) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: RECAP_ID,
+    content: { ...content, data: { url: RECAP_URL } },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
+  });
+}
+
+export async function cancelRecap(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(RECAP_ID).catch(() => undefined);
+}
+
+/** Opens the screen a tapped notification points at (the recap), including when it launched the app. */
+export function watchNotificationLinks(open: (url: string) => void): () => void {
+  const go = (r: Notifications.NotificationResponse | null) => {
+    const url = r?.notification.request.content.data?.url;
+    if (typeof url === 'string') open(url);
+  };
+  go(Notifications.getLastNotificationResponse());
+  const sub = Notifications.addNotificationResponseReceivedListener(go);
+  return () => sub.remove();
 }
 
 /** After an automatic stop in the morning. */

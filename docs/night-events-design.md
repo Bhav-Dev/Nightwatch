@@ -29,7 +29,7 @@ How:
 
 - **Multi-class model.** The trained model (Phase 1, v1) becomes a multi-class audio classifier rather than snore/not-snore. YAMNet, the planned starting model, already has AudioSet classes for snoring, breathing, cough, speech and rustling. Fine-tune it on the labelled nights. The spec already lists most of these as sounds the model must reject.
 - **Two checks must agree.** A second counts as snoring only when the model says snoring *and* the existing breathing-rhythm check (`src/domain/detection/heuristic.ts`) agrees. Disagreement goes to an "unsure" bucket: not scored, but shown.
-- **Show what was left out.** The app already keeps the three loudest "other sounds" (`selectClips`). Each event and clip gets a one-tap correction: *That wasn't snoring*, *That was my partner*, *Right*. A correction:
+- **Show what was left out.** The app already keeps the three loudest "other sounds" (`selectClips`). Each event and clip gets a one-tap correction. The snoring yes/no part is built (17 October 2026: the Snoring tick, `src/domain/scoring/corrections.ts`, stored in `sound_label`); *That was my partner* is not. A correction:
   - fixes that night's score straight away;
   - tunes the detector to that person and room;
   - with consent, becomes training data.

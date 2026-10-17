@@ -1,5 +1,5 @@
 /**
- * The 10 analytics events from the spec. Counts and flags only: no health values, no scores,
+ * The 10 analytics events from the spec, plus three for the morning review flow. Counts and flags only: no health values, no scores,
  * no remedy names, nothing that could identify a night. The sink is pluggable so a vendor can
  * be chosen later without touching call sites; until then events go nowhere (or the console in
  * development).
@@ -14,7 +14,10 @@ export type AnalyticsEvent =
   | { name: 'contribution_toggled'; on: boolean }
   | { name: 'paywall_shown'; trigger: string }
   | { name: 'trial_started'; plan: 'yearly' | 'monthly' }
-  | { name: 'subscription_converted'; plan: 'yearly' | 'monthly' };
+  | { name: 'subscription_converted'; plan: 'yearly' | 'monthly' }
+  | { name: 'snoring_answered'; snoring: boolean; source: 'clip' | 'moment' }
+  | { name: 'recap_opened' }
+  | { name: 'review_asked' };
 
 export type AnalyticsSink = (event: AnalyticsEvent) => void;
 
