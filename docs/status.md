@@ -37,7 +37,8 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
    - an 8-hour screen-off recording under 8% battery on both phones;
    - a phone call during recording should show "Recording stopped at…".
 5. 👤 **Labelled test set:** record the 30 nights with 5 to 8 volunteers, label them with `tools/`, then train the detection model (Phase 1 gate).
-6. Then the Phase 1 to 3 gates with testers, and Phase 4 (launch).
+6. 👤 **Morning review on a phone** (Snoring answers, scrubber, recap, review prompt): needs a new build, since `expo-store-review` is native. Test list and follow-ups in [morning-review-plan.md](morning-review-plan.md).
+7. Then the Phase 1 to 3 gates with testers, and Phase 4 (launch).
 
 ## Phases and gates
 
@@ -207,6 +208,7 @@ Raised during the build:
 ## Known gaps in what is built
 
 - **Recording view:** no battery estimate.
+- **Snoring answers:** the loudness of a stretch the user adds as snoring is estimated (per-second levels are not kept), and the answers themselves are not synced. See [morning-review-plan.md](morning-review-plan.md).
 - **Clips:** sharing gives the audio file only; no card image yet.
 - **Sleep sounds:** Android only (iOS needs the noise player in Swift). Playing them all night is not offered; an echo-cancellation test (pink noise and a snoring video, with and without the platform canceller) would show whether that could work.
 - **Sound recording:** Android only; iOS needs the same AAC encoder in Swift. Battery has to be measured again with it on (the 8% gate). Clips are still WAV, though they could now use the AAC encoder.

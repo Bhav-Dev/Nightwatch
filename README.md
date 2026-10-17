@@ -123,6 +123,8 @@ Every clip, and every moment picked on the timeline, has a Snoring tick: on when
 
 The timeline is a scrubber: drag along it or the slider under it (the time shows while dragging) and let go to play from there. The night is a list of moments (`src/domain/moments.ts`): each stretch of snoring, each loud sound not counted as snoring, and other recorded sound. Under the timeline, the picked moment has previous and next, play, and the Snoring tick; moments are marked on the slider.
 
+Notes, the phone test list and follow-ups are in [`docs/morning-review-plan.md`](docs/morning-review-plan.md).
+
 Nothing is asked of the user straight after waking. At Stop, a night recap notification is scheduled for later in the day (`src/domain/recap.ts`: mid-morning, lunchtime by default, or evening, at least 90 minutes after stopping and never after 9pm; a newer night replaces it; it is cancelled once the user has answered for that night). Tapping it opens This Morning. The app store review prompt (`src/domain/reviewPrompt.ts`, via expo-store-review) is only asked at such a leisurely moment: after the third night, at least 2 hours after stopping or from the recap, once the user has played or answered twice on that visit, not when most answers were corrections, not after a short night, at most every 120 days and 3 times a year. It is tried after a clip plays to its end or an answer is saved.
 
 ## Sleep sounds
