@@ -9,7 +9,8 @@
 - **"Not snoring" on a clip covers the whole stretch of snoring the clip is part of**, not only the clip's 15 seconds.
 - **Clips stay in their card after an answer.** A clip that was counted as snoring stays under "Loudest moments" when it is unticked, so rows do not move under the user's finger. The pill shows the current answer.
 - **Answers stay on the phone.** The corrected night (score, time snoring, event count) syncs; the answers themselves do not, so a new phone keeps the corrected numbers but not the per-moment answers. The export includes them.
-- **The recap needs notification permission.** It never asks at Stop. Without permission, nothing is scheduled; choosing a recap time in Settings asks.
+- **The recap needs notification permission.** It never asks at Stop. Without permission, nothing is scheduled; choosing a recap time in Settings asks. It is on by default (12:30), which is fine as it can be turned off in Settings (decided 17 October 2026). Permission is asked in setup (step 3, Notifications), whose text now mentions the recap.
+- **A tapped recap is cleared once handled**, so a later remount (Android can rebuild the screen) does not open This Morning again.
 - **The recap's count** is the number of kept clips (at most 8), not every moment, so it never reads like a long to-do list.
 - **The review prompt is rate-limited by the stores too.** iOS shows the sheet at most 3 times a year and always in development builds; Android only shows it for apps installed from Google Play (internal testing track or internal app sharing), never in a sideloaded build.
 - **Analytics:** three events beyond the spec's 10: `snoring_answered`, `recap_opened`, `review_asked`. Counts and flags only.

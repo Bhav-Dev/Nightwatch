@@ -50,7 +50,10 @@ export async function cancelRecap(): Promise<void> {
 export function watchNotificationLinks(open: (url: string) => void): () => void {
   const go = (r: Notifications.NotificationResponse | null) => {
     const url = r?.notification.request.content.data?.url;
-    if (typeof url === 'string') open(url);
+    if (typeof url !== 'string') return;
+    // Handled: otherwise a later remount (Android can rebuild the screen) would open it again.
+    Notifications.clearLastNotificationResponse();
+    open(url);
   };
   go(Notifications.getLastNotificationResponse());
   const sub = Notifications.addNotificationResponseReceivedListener(go);

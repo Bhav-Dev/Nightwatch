@@ -26,7 +26,10 @@ export default function NotificationsStep() {
         </>
       }
     >
-      <Body>A reminder at bedtime, and a note in the morning when your night is ready. You can change the time or turn them off in Settings.</Body>
+      <Body>
+        A reminder at bedtime, a note when your night is ready, and a look back at the night later in the day. You can change the times or
+        turn them off in Settings.
+      </Body>
     </Screen>
   );
 }
