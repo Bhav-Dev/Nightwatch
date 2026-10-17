@@ -70,6 +70,15 @@ export function nightsByDay(points: readonly TrendPoint[], days: number, today =
   });
 }
 
+/** Nights started between two local dates (yyyy-mm-dd, inclusive) for a custom range on Trends, oldest first. */
+export async function trendPointsBetween(db: Db, fromKey: string, toKey: string): Promise<TrendPoint[]> {
+  const rows = await db.getAllAsync<{ id: string; date: string; score: number; pct_snoring: number; counts_toward_averages: number }>(
+    'SELECT id, date, score, pct_snoring, counts_toward_averages FROM night WHERE substr(date, 1, 10) BETWEEN ? AND ? ORDER BY started_at',
+    [fromKey, toKey],
+  );
+  return rows.map((r) => ({ id: r.id, date: r.date, score: r.score, pctSnoring: r.pct_snoring, counts: r.counts_toward_averages === 1 }));
+}
+
 /** Trailing moving average over the last `window` counted nights at each point (null until there are any). */
 export function movingAverage(points: readonly TrendPoint[], window = 7, key: 'score' | 'pctSnoring' = 'score'): (number | null)[] {
   const out: (number | null)[] = [];

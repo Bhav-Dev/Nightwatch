@@ -242,7 +242,7 @@ export default function Tonight() {
         <View style={styles.hero}>
           <Moon size={128} />
           <Text style={styles.greeting}>{greeting(today)}</Text>
-          <Text style={styles.date}>{today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+          <Text style={styles.date}>{today.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
 
         {plans.map(({ experiment, plan }) => (

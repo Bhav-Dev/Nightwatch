@@ -463,7 +463,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       subtitle={nightId ? null : weatherLine}
       eyebrow={nightId ? 'Selected morning' : 'This morning'}
       // The morning the night ended on (a night started before midnight belongs to the next morning).
-      title={new Date(night.ended_at * 1000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+      title={new Date(night.ended_at * 1000).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
       left={nightId ? <BackLink /> : undefined}
       right={nightId ? undefined : <GearLink />}
       footer={

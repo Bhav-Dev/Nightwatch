@@ -1,11 +1,13 @@
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { randomUUID } from 'expo-crypto';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { movingAverage, nightsByDay, trendPoints, type TrendPoint } from '../../data/historyRepo';
+import { movingAverage, nightsByDay, trendPoints, trendPointsBetween, type TrendPoint } from '../../data/historyRepo';
 import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
+import { localDateKey } from '../../domain/nightDate';
 import { scoreLabel } from '../../domain/scoring';
 import { useApp } from '../../state/AppContext';
 import { TrendChart } from '../../ui/charts';
@@ -13,13 +15,32 @@ import { NIGHT_LEGEND, NightsHive, type HiveDay } from '../../ui/Hive';
 import { Body, Button, Card, GearLink, H2, Locked, Screen, Segmented, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
 
-type Range = '7' | '30' | '90';
+type Range = '7' | '30' | '90' | 'custom';
 
+// Dates follow the phone's own language and region settings.
 const dateOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)));
 /** Under the chart: the weekday and day for a week ("Sat 17"), the day and month for longer ranges ("17 Oct"). */
 const shortDate = (key: string, week: boolean) =>
-  dateOf(key).toLocaleDateString('en-GB', week ? { weekday: 'short', day: 'numeric' } : { day: 'numeric', month: 'short' });
-const longDate = (key: string) => dateOf(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  dateOf(key).toLocaleDateString(undefined, week ? { weekday: 'short', day: 'numeric' } : { day: 'numeric', month: 'short' });
+const longDate = (key: string) => dateOf(key).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+/** "15 Oct – 17 Oct 2026", with both years when they differ. */
+function rangeLabel(fromKey: string, toKey: string): string {
+  const day = { day: 'numeric', month: 'short' } as const;
+  const withYear = { ...day, year: 'numeric' } as const;
+  const sameYear = fromKey.slice(0, 4) === toKey.slice(0, 4);
+  return `${dateOf(fromKey).toLocaleDateString(undefined, sameYear ? day : withYear)} – ${dateOf(toKey).toLocaleDateString(undefined, withYear)}`;
+}
+/** How the range on screen compares with a snapshot: "4 lower", "2 higher" or "no change". */
+const changeWords = (diff: number) => {
+  const n = Math.round(Math.abs(diff));
+  return n === 0 ? 'no change' : `${n} ${diff < 0 ? 'lower' : 'higher'}`;
+};
+const changeColour = (diff: number) => (Math.round(diff) < 0 ? colors.good : Math.round(diff) > 0 ? colors.worse : colors.textMuted);
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return localDateKey(d);
+};
 type Series = 'score' | 'pct';
 
 export default function Trends() {
@@ -31,12 +52,19 @@ export default function Trends() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [hive, setHive] = useState<HiveDay[]>([]);
+  /** The custom range (local dates, inclusive); two weeks to start with. */
+  const [custom, setCustom] = useState({ from: daysAgo(13), to: daysAgo(0) });
+  const [picking, setPicking] = useState<'from' | 'to' | null>(null);
 
   // Free plan: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
+  /** The dates the chart covers, which a snapshot saves. */
+  const shown = effectiveRange === 'custom' ? custom : { from: daysAgo(Number(effectiveRange) - 1), to: daysAgo(0) };
+  const weekLabels =
+    effectiveRange === '7' || (effectiveRange === 'custom' && dateOf(custom.to).getTime() - dateOf(custom.from).getTime() < 7 * 86_400_000);
 
   const load = useCallback(async () => {
-    const loaded = await trendPoints(db, Number(effectiveRange));
+    const loaded = effectiveRange === 'custom' ? await trendPointsBetween(db, custom.from, custom.to) : await trendPoints(db, Number(effectiveRange));
     setPoints(loaded);
     // The free plan keeps 7 nights of history, so its hive is one week; Insight shows four.
     const hiveDays = paid ? 28 : 7;
@@ -44,7 +72,7 @@ export default function Trends() {
     setSnapshots(await listSnapshots(db));
     // The latest night is picked to start with, so the line under the chart always says which night it is.
     setSelected(loaded.length ? loaded.length - 1 : null);
-  }, [db, effectiveRange, paid]);
+  }, [db, effectiveRange, paid, custom]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,9 +89,7 @@ export default function Trends() {
   const snapshot = async () => {
     if (!paid) return router.push({ pathname: '/paywall', params: { trigger: 'snapshot' } });
     if (points.length === 0) return;
-    const from = points[0].date.slice(0, 10);
-    const to = points[points.length - 1].date.slice(0, 10);
-    const s = await saveSnapshot(db, { id: randomUUID(), name: `${effectiveRange}-night baseline to ${to}`, from, to });
+    const s = await saveSnapshot(db, { id: randomUUID(), name: rangeLabel(shown.from, shown.to), from: shown.from, to: shown.to });
     if (!s) Alert.alert('Nothing to save', 'There are no full nights in this range yet.');
     await load();
   };
@@ -93,8 +119,40 @@ export default function Trends() {
           { value: '7', label: '7 nights' },
           { value: '30', label: '30', locked: !paid },
           { value: '90', label: '90', locked: !paid },
+          { value: 'custom', label: 'Custom', locked: !paid },
         ]}
       />
+      {effectiveRange === 'custom' ? (
+        <View style={styles.customRow}>
+          {(['from', 'to'] as const).map((end) => (
+            <Pressable
+              key={end}
+              onPress={() => setPicking(end)}
+              accessibilityRole="button"
+              accessibilityLabel={`${end === 'from' ? 'From' : 'To'} ${longDate(custom[end])}. Change`}
+              style={styles.dateBox}
+            >
+              <Text style={styles.dateLabel}>{end === 'from' ? 'From' : 'To'}</Text>
+              <Text style={styles.dateValue}>{longDate(custom[end])}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {picking ? (
+        <DateTimePicker
+          value={dateOf(custom[picking])}
+          mode="date"
+          presentation="dialog"
+          minimumDate={picking === 'to' ? dateOf(custom.from) : undefined}
+          maximumDate={picking === 'from' ? dateOf(custom.to) : new Date()}
+          onValueChange={(_, date) => {
+            const end = picking;
+            setPicking(null);
+            setCustom((c) => ({ ...c, [end]: localDateKey(date) }));
+          }}
+          onDismiss={() => setPicking(null)}
+        />
+      ) : null}
       <Card>
         <H2 right={<Segmented<Series> value={series} onChange={setSeries} options={[{ value: 'score', label: 'Score' }, { value: 'pct', label: '% snoring' }]} />}>{''}</H2>
         {points.length === 0 ? (
@@ -108,7 +166,7 @@ export default function Trends() {
               format={(v) => (series === 'score' ? String(Math.round(v)) : `${Math.round(v)}%`)}
               onSelect={setSelected}
               selected={selected}
-              labels={points.map((p) => shortDate(p.date, effectiveRange === '7'))}
+              labels={points.map((p) => shortDate(p.date, weekLabels))}
               muted={points.map((p) => !p.counts)}
             />
             <View style={styles.legend}>
@@ -120,9 +178,11 @@ export default function Trends() {
             {sel ? (
               <Pressable onPress={() => router.push(`/night/${sel.id}`)} accessibilityRole="button" accessibilityHint="Opens this night" style={styles.picked}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.pickedDate}>Night of {longDate(sel.date)}</Text>
+                  <Text style={styles.pickedDate}>
+                    Night of {longDate(sel.date)} · <Text style={styles.pickedScore}>{sel.score}</Text>
+                  </Text>
                   <Text style={styles.pickedLine}>
-                    Score {sel.score}, {scoreLabel(sel.score).toLowerCase()} · {Math.round(sel.pctSnoring * 100)}% snoring
+                    {Math.round(sel.pctSnoring * 100)}% snoring · {scoreLabel(sel.score)}
                     {sel.counts ? '' : ' · short, not in averages'}
                   </Text>
                 </View>
@@ -144,11 +204,16 @@ export default function Trends() {
             {snapshots.map((s) => (
               <View key={s.id} style={styles.snapshot}>
                 <View style={{ flex: 1 }}>
-                  <Body>{s.name}</Body>
-                  <Small>
-                    {s.from_date} to {s.to_date} · average {Math.round(s.avg_score)}
-                    {latestAvg !== null ? ` · now ${Math.round(latestAvg)} (${latestAvg - s.avg_score > 0 ? '+' : ''}${Math.round(latestAvg - s.avg_score)})` : ''}
-                  </Small>
+                  <Text style={styles.snapTitle}>{rangeLabel(s.from_date, s.to_date)}</Text>
+                  <Text style={styles.snapLine}>
+                    Average {Math.round(s.avg_score)}
+                    {latestAvg !== null ? (
+                      <>
+                        {' · '}this range {Math.round(latestAvg)},{' '}
+                        <Text style={{ color: changeColour(latestAvg - s.avg_score) }}>{changeWords(latestAvg - s.avg_score)}</Text>
+                      </>
+                    ) : null}
+                  </Text>
                 </View>
                 <Button kind="link" label="Delete" onPress={async () => { await deleteSnapshot(db, s.id); await load(); }} />
               </View>
@@ -185,6 +250,21 @@ const styles = StyleSheet.create({
   pickedDate: { color: colors.text, fontSize: 15, fontWeight: '700' },
   pickedLine: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   pickedOpen: { color: colors.accent, fontSize: 15, fontWeight: '700' },
+  pickedScore: { color: colors.accent, fontWeight: '800' },
+  snapTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  snapLine: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
+  customRow: { flexDirection: 'row', gap: space(3), marginTop: space(3) },
+  dateBox: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: space(2.5),
+    paddingHorizontal: space(3),
+  },
+  dateLabel: { color: colors.textFaint, fontSize: 12 },
+  dateValue: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 2 },
   hiveLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: space(3), marginTop: space(3) },
   hiveKey: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
   hexKey: { width: 10, height: 10, borderRadius: 3 },
