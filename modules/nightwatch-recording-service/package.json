@@ -2,6 +2,6 @@
   "name": "nightwatch-recording-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Android foreground service (microphone type) that keeps overnight capture alive with the screen off. No-op on iOS, where the audio background mode does this.",
+  "description": "Native parts of overnight recording: AAC sound segments and sleep sounds on Android and iOS, the Android microphone foreground service that keeps capture alive with the screen off (iOS uses the audio background mode instead), and Clock app alarms on Android.",
   "main": "src/index.ts"
 }
