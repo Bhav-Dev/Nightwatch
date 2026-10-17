@@ -115,6 +115,20 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
 
 Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring ("Other sounds", so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. Clips could now use the native AAC encoder below; they are still WAV.
 
+## Labelling study (internal builds)
+
+Development and preview builds have a "Labelling study" card in Settings, so volunteers can record nights for the labelled test set with the app itself:
+
+- **"Keep the whole night's sound (for labelling)"** makes the recorder keep every second of the night, not only the parts with sound, in the same 5-minute AAC segments. That is about 11 MB an hour, and it needs "Record sounds during the night" on.
+- **"Export nights for labelling"** writes the last 1, 3 or 7 nights with sound into one uncompressed tar archive (`snorehive-labelling-<date>.tar`), says how big it is, and opens the share sheet. Each night is a folder holding its .m4a segments and a `night.json`: local start time, duration, segment times, the detector's events, the user's answers and clips.
+- **On the laptop,** `tools/labelling/fromApp.ts` turns the archive into `<volunteer>-n<k>.wav` and `.proposals.json` for `label.html` (it needs ffmpeg).
+
+The volunteer guide is `docs/labelling-volunteers.md`. Decisions:
+
+- Answered stretches go into the proposals as undecided regions with an `answer` field, because the format has no decided state.
+- v0 in `propose.ts` and `evaluate.ts` ignores exactly-silent seconds, so filled-in gaps don't pull the noise floor down. The app's own detector is unchanged.
+- The tar writer and reader live in `src/data/tar.ts` and are shared by the app and the tools.
+
 ## Sound recording (listen back from the timeline)
 
 The parts of each night with sound in them are kept, compressed, so the morning timeline can be played from any point; silence is never written (`src/recording/soundRecorder.ts`). A second at least 6 dB above the room's running quiet level starts or extends a segment; each segment begins 3 seconds before the first loud second, runs on through pauses of up to 8 seconds (the gaps between snores), and is capped at 5 minutes so a phone that dies loses at most the segment being written. Segments are AAC-LC at 24 kbps, 16 kHz mono (`.m4a`, about 11 MB per hour of sound), encoded by the platform encoder in `modules/nightwatch-recording-service` (`AacSegmentWriter.kt`: MediaCodec and MediaMuxer, on one background thread). Rows are in `sound_segment`; files in the document directory's `sounds/`. They stay on the phone, are never synced, and are deleted after 30 nights (`soundRetention.ts`, at launch, along with any half-written file). Settings has an on/off switch (on by default), the storage used and "Delete sound recordings". On the morning screen a thin line under the timeline marks recorded stretches; a tap plays from that moment, a playhead follows, and playback carries on into the next stretch. Android only so far: iOS needs the same encoder in Swift, and the switch is shown as unavailable there. Builds made before this feature simply keep no sound.

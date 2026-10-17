@@ -36,7 +36,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 4. 👤 **Phase 0 gate:**
    - an 8-hour screen-off recording under 8% battery on both phones;
    - a phone call during recording should show "Recording stopped at…".
-5. 👤 **Labelled test set:** record the 30 nights with 5 to 8 volunteers, label them with `tools/`, then train the detection model (Phase 1 gate).
+5. 👤 **Labelled test set:** record the 30 nights with 5 to 8 volunteers, label them with `tools/`, then train the detection model (Phase 1 gate). Volunteers can record with the internal build and send exports; see [labelling-volunteers.md](labelling-volunteers.md).
 6. 👤 **Morning review on a phone** (Snoring answers, scrubber, recap, review prompt): needs a new build, since `expo-store-review` is native. Test list and follow-ups in [morning-review-plan.md](morning-review-plan.md).
    - Everything built since 16 October (SnoreHive look, honeycomb icons, wake-up alarm, night events, the report) is in one checklist with a 20-minute daytime test: [phone-test-plan.md](phone-test-plan.md).
 7. Then the Phase 1 to 3 gates with testers, and Phase 4 (launch).
@@ -51,6 +51,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 | Native audio capture on both platforms | 🟡 | expo-audio PCM stream, plus our Android foreground-service module (`modules/nightwatch-recording-service`). The Kotlin compiles (Android builds on EAS). First real night recorded on a Samsung S24 Ultra (preview build, about 4 hours, 16 October 2026); the full 8-hour battery test is still to do |
 | Interrupted recordings | 🟡 | Clock jumps, silent stretches and app kills become partial nights with a cause. Tested in code, not on a phone |
 | 30-night test dataset | 👤 | Needs volunteers. Tools ready in `tools/` |
+| Recording nights for the labelled set with the app: whole-night labelling mode, "Export nights for labelling" (one tar file through the share sheet) and `tools/labelling/fromApp.ts` (export to WAV and proposals); volunteer guide in [labelling-volunteers.md](labelling-volunteers.md) | 🟡 | 17 October 2026. Internal builds only. Tested in code, including a round trip from the app's export to the labelling files with a stand-in decoder; not yet run on a phone, and the ffmpeg step not yet run. Covers step 4 of morning-review-plan.md (answers exported for training) |
 | Catalogue of about 40 entries with articles | ✅ | 42 entries. Articles are short drafts (see Content below) |
 | **Gate:** 8-hour screen-off recording under 8% battery, both platforms | 👤 | Needs phones |
 
