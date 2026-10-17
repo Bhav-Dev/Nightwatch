@@ -13,7 +13,7 @@ const WATCHDOG_MS = 5_000;
  * Capture on top of expo-audio's AudioStream (16 kHz mono int16 PCM in ~100 ms buffers).
  *
  * - iOS keeps the stream alive with the screen off through the "audio" background mode
- *   (enabled by the expo-audio config plugin).
+ *   (enabled by the expo-audio config plugin); RecordingService start and stop do nothing there.
  * - Android needs a microphone foreground service for that; the local
  *   nightwatch-recording-service module provides it and must be started while visible.
  * - Neither platform tells a stream it was interrupted. Session offsets come from the wall
@@ -37,6 +37,8 @@ export class ExpoAudioCapture implements AudioCapture {
 
   async start(listener: CaptureListener): Promise<void> {
     await setAudioModeAsync({
+      // iOS refuses allowsRecording without it (and it is already the default on Android).
+      playsInSilentMode: true,
       allowsRecording: true,
       allowsBackgroundRecording: true,
       shouldPlayInBackground: false,
