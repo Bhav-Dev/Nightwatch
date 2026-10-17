@@ -11,6 +11,7 @@ import { deleteAllLocalData, exportAll } from '../../data/exportData';
 import { getSetting, setSetting } from '../../data/settingsRepo';
 import { allSoundPaths, deleteAllSoundRows, soundStorageBytes } from '../../data/soundRepo';
 import { config } from '../../config';
+import { planLabellingArchive, writeLabellingArchive } from '../../native/labellingArchive';
 import { removeSoundFile, soundRecordingAvailable } from '../../native/soundWriter';
 import { DEFAULT_RECAP_TIME, parseRecapTime, type RecapTime } from '../../domain/recap';
 import { cancelBedtimeNudge, cancelRecap, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
@@ -26,6 +27,14 @@ import { colors, space } from '../../ui/theme';
 const BEDTIMES = ['21:30', '22:00', '22:30', '23:00', '23:30'];
 const RECAP_LABELS: Record<RecapTime, string> = { '10:00': 'Mid-morning', '12:30': 'Lunchtime', '18:30': 'Evening', off: 'Off' };
 const STOP_HOURS = ['9', '10', '11', '12'];
+const EXPORT_NIGHTS = [
+  { value: '1', label: 'Last night' },
+  { value: '3', label: 'Last 3' },
+  { value: '7', label: 'Last 7' },
+];
+
+const formatSize = (bytes: number) =>
+  bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${(bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0)} MB`;
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -39,6 +48,9 @@ export default function SettingsScreen() {
   const [soundOn, setSoundOn] = useState(true);
   const [weatherOn, setWeatherOn] = useState(false);
   const [devPaid, setDevPaid] = useState(false);
+  const [labellingOn, setLabellingOn] = useState(false);
+  const [exportNights, setExportNights] = useState('3');
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -51,6 +63,7 @@ export default function SettingsScreen() {
     setSoundOn((await getSetting(db, 'sound_recording')) !== '0');
     setWeatherOn((await getSetting(db, 'weather')) === 'on' && (await locationPermission()) === 'granted');
     setDevPaid((await getSetting(db, 'dev_paid')) === '1');
+    setLabellingOn((await getSetting(db, 'labelling_mode')) === '1');
   }, [db]);
 
   useFocusEffect(
@@ -59,7 +72,7 @@ export default function SettingsScreen() {
     }, [load]),
   );
 
-  const save = async (key: 'sensitivity' | 'landing_tab' | 'auto_stop_hour' | 'sound_recording', value: string | null) => {
+  const save = async (key: 'sensitivity' | 'landing_tab' | 'auto_stop_hour' | 'sound_recording' | 'labelling_mode', value: string | null) => {
     await setSetting(db, key, value);
     await load();
   };
@@ -101,6 +114,47 @@ export default function SettingsScreen() {
       await Sharing.shareAsync(csvFile.uri, { mimeType: 'text/csv', dialogTitle: 'Export nights (CSV)' });
       await Sharing.shareAsync(jsonFile.uri, { mimeType: 'application/json', dialogTitle: 'Export everything (JSON)' });
     } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Internal builds: the last nights' sound and what the app knew, as one file for the labelling tools. */
+  const exportForLabelling = async () => {
+    setBusy('labelling');
+    try {
+      const plan = await planLabellingArchive(db, Number(exportNights));
+      if (!plan) {
+        Alert.alert('No recorded sound to export', 'Record a night with “Record sounds during the night” on, then export it.');
+        return;
+      }
+      const one = plan.nights.length === 1;
+      const confirmed = await new Promise<boolean>((resolve) =>
+        Alert.alert(
+          one ? 'Export 1 night?' : `Export ${plan.nights.length} nights?`,
+          `The file is ${formatSize(plan.totalBytes)} and holds the recorded sound of ${one ? 'that night' : 'those nights'}. Send it only to the person running the labelling study.`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Export', onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) },
+        ),
+      );
+      if (!confirmed) return;
+      setExportProgress(0);
+      let shown = 0;
+      const uri = await writeLabellingArchive(plan, (fraction) => {
+        const pct = Math.floor(fraction * 100);
+        if (pct !== shown) {
+          shown = pct;
+          setExportProgress(fraction);
+        }
+      });
+      setExportProgress(null);
+      await Sharing.shareAsync(uri, { mimeType: 'application/x-tar', UTI: 'public.tar-archive', dialogTitle: 'Export nights for labelling' });
+    } catch (e) {
+      Alert.alert('Could not export the nights', e instanceof Error ? e.message : String(e));
+    } finally {
+      setExportProgress(null);
       setBusy(null);
     }
   };
@@ -256,6 +310,35 @@ export default function SettingsScreen() {
             }
           />
         </Card>
+
+        {config.internalTools ? (
+          <Card>
+            <H2>Labelling study</H2>
+            <Small>For volunteers recording nights to help train the snoring detector. Only in test builds.</Small>
+            <ToggleRow
+              label="Keep the whole night’s sound (for labelling)"
+              value={soundRecordingAvailable && soundOn && labellingOn}
+              onChange={(v) => save('labelling_mode', v ? '1' : '0')}
+              disabled={!soundRecordingAvailable || !soundOn}
+              hint={
+                !soundRecordingAvailable
+                  ? 'Not available on this phone yet.'
+                  : !soundOn
+                    ? 'Turn on “Record sounds during the night” first.'
+                    : `Keeps every second of each night, not only the parts with sound, so whole nights can be labelled. About 11 MB an hour; deleted after ${SOUND_KEEP_DAYS} nights like other recordings. Starts with the next recording.`
+              }
+            />
+            <Small style={{ marginTop: space(3) }}>Nights to export</Small>
+            <View style={{ marginTop: space(2) }}>
+              <Segmented value={exportNights} onChange={setExportNights} options={EXPORT_NIGHTS} />
+            </View>
+            <Row
+              label="Export nights for labelling"
+              value={exportProgress !== null ? `Writing ${Math.round(exportProgress * 100)}%` : busy === 'labelling' ? 'Preparing' : ''}
+              onPress={busy ? undefined : exportForLabelling}
+            />
+          </Card>
+        ) : null}
 
         <Card>
           <H2>Notifications</H2>

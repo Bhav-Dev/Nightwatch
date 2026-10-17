@@ -65,7 +65,7 @@ describe('export for labelling', () => {
     const first = (await nightEvents(db, 'b'))[0];
     await addLabel(db, { id: newId(), nightId: 'b', startS: first.start_s, endS: first.end_s, label: 'not_snore', peakDb: 0, meanDb: 0, source: 'clip', now: 1 });
     await addLabel(db, { id: newId(), nightId: 'b', startS: 7000, endS: 7030, label: 'snore', peakDb: 9, meanDb: 6, source: 'moment', now: 2 });
-    await insertClip(db, { id: 'c1', session_id: null, night_id: 'b', start_s: 100, end_s: 115, peak_s: 106, peak_db: 18.04, codec: 'aac', sample_rate: 16000, path: 'x', bytes: 1, created_at: 0 });
+    await insertClip(db, { id: 'c1', session_id: null, night_id: 'b', start_s: 100, end_s: 115, peak_s: 106, peak_db: 18.04, codec: 'wav', sample_rate: 16000, path: 'x', bytes: 1, created_at: 0 });
 
     const plan = (await planLabellingExport(db, { count: 3, fileSize, now }))!;
     expect(plan.fileName).toBe('snorehive-labelling-2026-10-17.tar');
