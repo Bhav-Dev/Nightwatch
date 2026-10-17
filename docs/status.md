@@ -38,6 +38,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
    - a phone call during recording should show "Recording stopped at…".
 5. 👤 **Labelled test set:** record the 30 nights with 5 to 8 volunteers, label them with `tools/`, then train the detection model (Phase 1 gate).
 6. 👤 **Morning review on a phone** (Snoring answers, scrubber, recap, review prompt): needs a new build, since `expo-store-review` is native. Test list and follow-ups in [morning-review-plan.md](morning-review-plan.md).
+   - Everything built since 16 October (SnoreHive look, honeycomb icons, wake-up alarm, night events, the report) is in one checklist with a 20-minute daytime test: [phone-test-plan.md](phone-test-plan.md).
 7. Then the Phase 1 to 3 gates with testers, and Phase 4 (launch).
 
 ## Phases and gates
