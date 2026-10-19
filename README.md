@@ -190,6 +190,14 @@ They appear as lanes under the timeline, on its time scale (`src/ui/NightLanes.t
 
 **The silent switch.** Recording sets `playsInSilentMode`, which iOS requires for recording, and listening back on This Morning does the same, so the silent switch doesn't mute either. The preview on Tonight briefly switches the session to playback, then puts it back.
 
+**TestFlight.** `npm run testflight` builds on EAS and uploads to TestFlight. It signs in to Apple with the App Store Connect API key in `credentials/AuthKey.p8` (not committed) and the ids in `.env.local`. Notes:
+
+- The first run must be interactive, because EAS only creates the distribution certificate and provisioning profile after asking.
+- Capability syncing is off (`EXPO_NO_CAPABILITY_SYNC=1`). With an API key, Apple rejects EAS's request to turn on Push Notifications.
+- The App ID `com.threeft2.nightwatch` therefore has its capabilities ticked by hand in the Apple developer portal: HealthKit, Push Notifications and Sign in with Apple, matching the entitlements from `npx expo config --type introspect`.
+- Push Notifications is only there because expo-notifications adds `aps-environment`. The app sends local notifications only.
+- If a plugin adds an entitlement, tick it in the portal too.
+
 ## Wake-up alarm
 
 The wake-up alarm is the phone's own. Nightwatch has no alarm of its own and stores no alarm time; it reads the phone's next alarm, whichever app set it (`AlarmManager.getNextAlarmClock`, which needs no permission; `nextAlarmTime` in the native module).

@@ -4,6 +4,10 @@
  * (EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID, EXPO_APPLE_TEAM_ID), so no Apple password or 2FA code is
  * needed. The first run asks to create the distribution certificate and provisioning profile;
  * answer yes. Later runs can add --non-interactive.
+ *
+ * Capability syncing is off: with an API key, Apple rejects EAS's request to turn on Push
+ * Notifications. The App ID's capabilities are set by hand in the Apple developer portal
+ * instead (HealthKit, Push Notifications, Sign in with Apple; see README, iPhone).
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -34,6 +38,6 @@ if (missing.length) {
 const result = spawnSync(
   'npx',
   ['--yes', 'eas-cli@latest', 'build', '--platform', 'ios', '--profile', 'testflight', '--auto-submit', ...process.argv.slice(2)],
-  { cwd: root, stdio: 'inherit', shell: process.platform === 'win32', env: { ...process.env, ...fromFile, EXPO_ASC_API_KEY_PATH: keyPath } },
+  { cwd: root, stdio: 'inherit', shell: process.platform === 'win32', env: { ...process.env, ...fromFile, EXPO_ASC_API_KEY_PATH: keyPath, EXPO_NO_CAPABILITY_SYNC: '1' } },
 );
 process.exit(result.status ?? 1);
