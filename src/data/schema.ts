@@ -336,6 +336,12 @@ const MIGRATIONS: string[] = [
   -- nights have none to show, which is not the same as none happening.
   ALTER TABLE night ADD COLUMN activity_checked INTEGER;
   `,
+  `
+  -- The morning check-in, on this phone only: how rested the person felt (1 worn out to 5
+  -- refreshed) and how their partner slept (1 badly, 2 OK, 3 well). Null when not answered.
+  ALTER TABLE night ADD COLUMN rested INTEGER;
+  ALTER TABLE night ADD COLUMN partner_slept INTEGER;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

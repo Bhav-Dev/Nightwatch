@@ -15,7 +15,8 @@ import { runningExperiments, type Experiment } from '../data/experimentRepo';
 import { type ActivityRow, nightActivity } from '../data/activityRepo';
 import { healthSamples, healthSummary } from '../data/healthRepo';
 import { possiblyAwake, restlessStretches, turnedOverAndQuiet } from '../domain/activity';
-import { nightSummaries } from '../data/historyRepo';
+import { enrichedHistory } from '../data/historyRepo';
+import type { AutoFactor } from '../domain/autoFactors';
 import { addLabel, clearLabels, nightLabels, type SoundLabelRow, stretchLoudness } from '../data/labelRepo';
 import {
   averageScore,
@@ -28,13 +29,16 @@ import {
   nightLog,
   type NightRow,
   setNightTick,
+  setCheckIn,
   setTypical,
 } from '../data/nightRepo';
+import { SLEPT_ALONE_ID } from '../domain/checkIn';
+import { CheckInCard } from './CheckInCard';
 import { getSetting, setSetting } from '../data/settingsRepo';
 import { nightSoundSegments, type SoundSegmentRow } from '../data/soundRepo';
 import { allNightWeather, nightWeather, type NightWeatherRow, updateMorningWeather } from '../data/weatherRepo';
 import { WEATHER_ATTRIBUTION, WEATHER_LICENSE_URL, weatherAreaKey } from '../../shared/weather';
-import { conditionFor, describeWeather, weatherBands, weatherFactorIds } from '../domain/weather';
+import { conditionFor, describeWeather, weatherBands } from '../domain/weather';
 import { fetchWeatherHere } from '../weather/weatherClient';
 import type { CatalogueItem } from '../domain/catalogue';
 import { experimentDay } from '../domain/experiment';
@@ -157,7 +161,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       healthSamples(db, night.id),
       healthSummary(db, night.id),
       nightLog(db, night.id),
-      nightSummaries(db),
+      enrichedHistory(db),
       averageScore(db, 7),
       runningExperiments(db),
       nightActivity(db, night.id),
@@ -215,16 +219,14 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
 
   const summary = useMemo(() => {
     if (!data) return [];
-    const { night, events, samples, hrMean, log, history, experiments, weather, weatherByNight, activity } = data;
+    const { night, events, samples, hrMean, log, history, experiments, weather, activity } = data;
     const exp = experiments.find((e) => log.remedies.includes(e.remedyId));
     const movements = activity.filter((a) => a.kind === 'movement').map((a) => ({ startS: a.start_s, endS: a.end_s }));
     const day = exp ? experimentDay(exp.started, night.date) : null;
-    // Weather is compared like a factor: each night's bands join its history entry (on this phone only).
-    const withWeather = history.map((h) => {
-      const w = weatherByNight.get(h.id);
-      const ids = weatherFactorIds(w ? { tempMeanC: w.temp_mean_c, humidityMean: w.humidity_mean } : null);
-      return ids.length ? { ...h, factors: [...h.factors, ...ids.map((id) => ({ id, value: null }))] } : h;
-    });
+    // The weather and the night's own factors are already in each history entry (enrichedHistory).
+    const tonightsAuto = (history.find((h) => h.id === night.id)?.factors ?? [])
+      .filter((f) => f.id.startsWith('auto:'))
+      .map((f) => f.id.slice('auto:'.length) as AutoFactor);
     return morningSummary({
       startedAtEpochS: night.started_at,
       pctSnoring: night.pct_snoring,
@@ -232,7 +234,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       health: samples.length ? { samples, hrMean } : null,
       factorsLogged: log.factors.map((f) => ({ id: f.id, name: catalogue.get(f.id)?.name ?? f.id })),
       remediesLogged: log.remedies.map((r) => ({ id: r, name: catalogue.get(r)?.name ?? r })),
-      history: withWeather,
+      history,
       experiment: exp && day ? { remedyId: exp.remedyId, day } : null,
       weatherBands: weather ? weatherBands({ tempMeanC: weather.temp_mean_c, humidityMean: weather.humidity_mean }) : [],
       turnedOver: turnedOverAndQuiet(
@@ -240,6 +242,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
         events.map((e) => ({ startS: e.start_s, endS: e.end_s })),
         night.ended_at - night.started_at,
       ),
+      autoFactors: tonightsAuto,
     });
   }, [data, catalogue]);
 
@@ -421,6 +424,12 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     void sync();
   };
 
+  /** The morning check-in; kept on this phone, so there is nothing to sync. */
+  const checkIn = async (field: 'rested' | 'partner_slept', value: number | null) => {
+    setData((d) => (d && d.night.id === night.id ? { ...d, night: { ...d.night, [field]: value } } : d));
+    await setCheckIn(db, night.id, field, value);
+  };
+
   const answerTypical = async (typical: boolean) => {
     await setTypical(db, night.id, typical);
     await load();
@@ -544,6 +553,17 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
         ) : null}
         {night.counts_toward_averages === 0 ? <Small style={{ marginTop: space(3) }}>Under 3 hours, so this night is left out of your averages.</Small> : null}
       </Card>
+
+      {night.source === 'local' ? (
+        <CheckInCard
+          rested={night.rested}
+          partner={night.partner_slept}
+          askPartner={!log.factors.some((f) => f.id === SLEPT_ALONE_ID)}
+          editable={editable}
+          onRested={(v) => void checkIn('rested', v)}
+          onPartner={(v) => void checkIn('partner_slept', v)}
+        />
+      ) : null}
 
       {night.typical === null && night.source === 'local' && (
         <Card>

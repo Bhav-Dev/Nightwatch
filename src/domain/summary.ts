@@ -12,6 +12,7 @@ import { personalDifference, type NightSummary } from '../../shared/remedyEffect
 import { heartRateSpikes, spo2Dips, type AlignedSample } from './health';
 import { shortLabel } from './labels';
 import type { SnoreEvent } from './scoring';
+import { type AutoFactor, AUTO_FACTOR_WORDS, autoFactorId } from './autoFactors';
 import { type WeatherBand, WEATHER_KNOWN_ID, weatherFactorId } from './weather';
 
 export interface SummaryInput {
@@ -32,6 +33,11 @@ export interface SummaryInput {
   weatherBands?: readonly WeatherBand[];
   /** A movement heard just as the snoring stopped, and how long it stayed quiet (domain/activity). */
   turnedOver?: { atS: number; quietS: number; toEnd: boolean } | null;
+  /**
+   * Factors read from tonight itself (bedtime, length, weekend, room noise). History nights carry
+   * theirs as factors with ids from autoFactorId(), so they are compared like logged factors.
+   */
+  autoFactors?: readonly AutoFactor[];
 }
 
 /** "40 minutes", "1 hour", "2 hours 10 minutes" (to the nearest 5 minutes past the first hour). */
@@ -158,6 +164,21 @@ export function morningSummary(input: SummaryInput): string[] {
       Math.round(Math.abs(diff)) < 2
         ? `It was a ${band} night; your ${band} nights are about the same as your others.`
         : `It was a ${band} night; your ${band} nights average ${pointsPhrase(diff, diff > 0 ? 'higher' : 'lower')}.`,
+    );
+  }
+
+  // 3c: the strongest of the factors read from the night itself, once there is enough to compare.
+  let bestAuto: { factor: AutoFactor; diff: number } | null = null;
+  for (const factor of input.autoFactors ?? []) {
+    const diff = personalDifference(input.history, autoFactorId(factor));
+    if (diff !== null && (!bestAuto || Math.abs(diff) > Math.abs(bestAuto.diff))) bestAuto = { factor, diff };
+  }
+  if (bestAuto) {
+    const words = AUTO_FACTOR_WORDS[bestAuto.factor];
+    out.push(
+      Math.round(Math.abs(bestAuto.diff)) < 2
+        ? `${words.tonight}; your ${words.nights} are about the same as your others.`
+        : `${words.tonight}; your ${words.nights} average ${pointsPhrase(bestAuto.diff, bestAuto.diff > 0 ? 'higher' : 'lower')}.`,
     );
   }
 

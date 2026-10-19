@@ -5,10 +5,15 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { movingAverage, nightsByDay, trendPoints, trendPointsBetween, type TrendPoint } from '../../data/historyRepo';
+import { enrichedHistory, movingAverage, nightsByDay, trendPoints, trendPointsBetween, type TrendPoint } from '../../data/historyRepo';
 import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
 import { localDateKey } from '../../domain/nightDate';
+import { AUTO_FACTOR_WORDS, type AutoFactor } from '../../domain/autoFactors';
+import { restedLabel } from '../../domain/checkIn';
+import { patterns, type Pattern } from '../../domain/patterns';
 import { scoreLabel } from '../../domain/scoring';
+import { WEATHER_KNOWN_ID } from '../../domain/weather';
+import { listActiveCatalogue } from '../../data/catalogueRepo';
 import { useApp } from '../../state/AppContext';
 import { TrendChart } from '../../ui/charts';
 import { NIGHT_LEGEND, NightsHive, type HiveDay } from '../../ui/Hive';
@@ -35,13 +40,41 @@ const changeWords = (diff: number) => {
   const n = Math.round(Math.abs(diff));
   return n === 0 ? 'no change' : `${n} ${diff < 0 ? 'lower' : 'higher'}`;
 };
+/** "6 points higher" or "about the same" for a pattern's score difference. */
+const patternWords = (diff: number) => {
+  const n = Math.round(Math.abs(diff));
+  return n < 2 ? 'about the same' : `${n} points ${diff > 0 ? 'higher' : 'lower'}`;
+};
+function patternName(id: string, names: ReadonlyMap<string, string>): string {
+  if (id.startsWith('auto:')) return AUTO_FACTOR_WORDS[id.slice('auto:'.length) as AutoFactor]?.name ?? id;
+  return WEATHER_NAMES[id] ?? names.get(id) ?? id;
+}
 const changeColour = (diff: number) => (Math.round(diff) < 0 ? colors.good : Math.round(diff) > 0 ? colors.worse : colors.textMuted);
+/** The rested answers' running average over the last 7 answered nights (null until there is one). */
+function restedAverage(points: readonly TrendPoint[]): (number | null)[] {
+  const recent: number[] = [];
+  return points.map((p) => {
+    if (p.rested !== null) {
+      recent.push(p.rested);
+      if (recent.length > 7) recent.shift();
+    }
+    return recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : null;
+  });
+}
+
+const WEATHER_NAMES: Record<string, string> = {
+  'weather:cold': 'Cold nights (under 5°C)',
+  'weather:warm': 'Warm nights (18°C or more)',
+  'weather:humid': 'Humid nights (90% or more)',
+  'weather:dry': 'Dry nights (60% or less)',
+};
+
 const daysAgo = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return localDateKey(d);
 };
-type Series = 'score' | 'pct';
+type Series = 'score' | 'pct' | 'rested';
 
 export default function Trends() {
   const db = useSQLiteContext();
@@ -55,6 +88,8 @@ export default function Trends() {
   /** The custom range (local dates, inclusive); two weeks to start with. */
   const [custom, setCustom] = useState({ from: daysAgo(13), to: daysAgo(0) });
   const [picking, setPicking] = useState<'from' | 'to' | null>(null);
+  const [found, setFound] = useState<Pattern[]>([]);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
 
   // Free plan: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
@@ -70,6 +105,8 @@ export default function Trends() {
     const hiveDays = paid ? 28 : 7;
     setHive(nightsByDay(await trendPoints(db, hiveDays), hiveDays));
     setSnapshots(await listSnapshots(db));
+    setFound(patterns(await enrichedHistory(db), new Set([WEATHER_KNOWN_ID])));
+    setNames(new Map((await listActiveCatalogue(db)).map((c) => [c.id, c.name])));
     // The latest night is picked to start with, so the line under the chart always says which night it is.
     setSelected(loaded.length ? loaded.length - 1 : null);
   }, [db, effectiveRange, paid, custom]);
@@ -80,8 +117,11 @@ export default function Trends() {
     }, [load]),
   );
 
-  const values = points.map((p) => (series === 'score' ? p.score : p.pctSnoring * 100));
-  const avg = movingAverage(points, 7, series === 'score' ? 'score' : 'pctSnoring').map((v) => (v === null ? null : series === 'score' ? v : v * 100));
+  const values = points.map((p) => (series === 'score' ? p.score : series === 'pct' ? p.pctSnoring * 100 : p.rested));
+  const avg =
+    series === 'rested'
+      ? restedAverage(points)
+      : movingAverage(points, 7, series === 'score' ? 'score' : 'pctSnoring').map((v) => (v === null ? null : series === 'score' ? v : v * 100));
   const counted = points.filter((p) => p.counts);
   const mean = counted.length ? counted.reduce((s, p) => s + p.score, 0) / counted.length : null;
   const sel = selected !== null ? points[selected] : null;
@@ -154,7 +194,15 @@ export default function Trends() {
         />
       ) : null}
       <Card>
-        <H2 right={<Segmented<Series> value={series} onChange={setSeries} options={[{ value: 'score', label: 'Score' }, { value: 'pct', label: '% snoring' }]} />}>{''}</H2>
+        <Segmented<Series>
+          value={series}
+          onChange={setSeries}
+          options={[
+            { value: 'score', label: 'Score' },
+            { value: 'pct', label: '% snoring' },
+            { value: 'rested', label: 'Rested' },
+          ]}
+        />
         {points.length === 0 ? (
           <Body muted>No nights in this range yet.</Body>
         ) : (
@@ -162,8 +210,8 @@ export default function Trends() {
             <TrendChart
               values={values}
               average={avg}
-              max={100}
-              format={(v) => (series === 'score' ? String(Math.round(v)) : `${Math.round(v)}%`)}
+              max={series === 'rested' ? 5 : 100}
+              format={(v) => (series === 'pct' ? `${Math.round(v)}%` : String(Math.round(v)))}
               onSelect={setSelected}
               selected={selected}
               labels={points.map((p) => shortDate(p.date, weekLabels))}
@@ -173,7 +221,7 @@ export default function Trends() {
               <View style={[styles.key, { backgroundColor: colors.info }]} />
               <Text style={styles.legendText}>Each night</Text>
               <View style={[styles.key, { backgroundColor: colors.accent }]} />
-              <Text style={styles.legendText}>7-night average</Text>
+              <Text style={styles.legendText}>{series === 'rested' ? 'Average of your last 7 answers' : '7-night average'}</Text>
             </View>
             {sel ? (
               <Pressable onPress={() => router.push(`/night/${sel.id}`)} accessibilityRole="button" accessibilityHint="Opens this night" style={styles.picked}>
@@ -183,6 +231,7 @@ export default function Trends() {
                   </Text>
                   <Text style={styles.pickedLine}>
                     {Math.round(sel.pctSnoring * 100)}% snoring · {scoreLabel(sel.score)}
+                    {sel.rested !== null ? ` · felt ${restedLabel(sel.rested)?.toLowerCase()}` : ''}
                     {sel.counts ? '' : ' · short, not in averages'}
                   </Text>
                 </View>
@@ -193,6 +242,32 @@ export default function Trends() {
               {mean !== null ? `Average score ${Math.round(mean)} over ${counted.length} nights. ` : ''}Tap a point to pick a night.
             </Small>
           </>
+        )}
+      </Card>
+
+      <Card>
+        <H2>Your patterns</H2>
+        <Small>What you logged, the weather, and what we read from each night (bedtime, length, weekends, room noise), against your own nights.</Small>
+        {found.length === 0 ? (
+          <Body muted style={{ marginTop: space(3) }}>Patterns appear after a few nights.</Body>
+        ) : (
+          found.slice(0, 8).map((p) => (
+            <View key={p.id} style={styles.patternRow}>
+              <Text style={styles.patternName}>{patternName(p.id, names)}</Text>
+              <Text style={styles.patternLine}>
+                {p.nightsWith} {p.nightsWith === 1 ? 'night' : 'nights'}
+                {p.scoreDiff === null ? (
+                  ' so far · 5 each way to compare'
+                ) : (
+                  <>
+                    {' · '}
+                    <Text style={{ color: changeColour(p.scoreDiff) }}>{patternWords(p.scoreDiff)}</Text>
+                  </>
+                )}
+                {p.restedDiff !== null && Math.abs(p.restedDiff) >= 0.3 ? (p.restedDiff > 0 ? ' · felt more rested' : ' · felt less rested') : ''}
+              </Text>
+            </View>
+          ))
         )}
       </Card>
 
@@ -251,6 +326,9 @@ const styles = StyleSheet.create({
   pickedLine: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   pickedOpen: { color: colors.accent, fontSize: 15, fontWeight: '700' },
   pickedScore: { color: colors.accent, fontWeight: '800' },
+  patternRow: { paddingVertical: space(2.5), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  patternName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  patternLine: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   snapTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   snapLine: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
   customRow: { flexDirection: 'row', gap: space(3), marginTop: space(3) },

@@ -35,6 +35,9 @@ export interface NightRow {
   detector_score: number | null;
   /** 1 when movement and phone use were looked for (night_activity); null on older nights. */
   activity_checked: number | null;
+  /** The morning check-in: how rested (1 to 5) and how the partner slept (1 to 3); null if not answered. */
+  rested: number | null;
+  partner_slept: number | null;
 }
 
 export interface SaveNightInput {
@@ -160,6 +163,11 @@ export async function nightEvents(db: Db, nightId: string): Promise<EventRow[]> 
 }
 
 /** "Was this your typical night?" — false keeps the night out of community figures. */
+/** The morning check-in; null clears an answer. Kept on this phone (it does not sync yet). */
+export async function setCheckIn(db: Db, nightId: string, field: 'rested' | 'partner_slept', value: number | null): Promise<void> {
+  await db.runAsync(`UPDATE night SET ${field === 'rested' ? 'rested' : 'partner_slept'} = ? WHERE id = ?`, [value, nightId]);
+}
+
 export async function setTypical(db: Db, nightId: string, typical: boolean): Promise<void> {
   await db.runAsync(`UPDATE night SET typical = ?, ${BUMP} WHERE id = ?`, [typical ? 1 : 0, nowS(), nightId]);
 }

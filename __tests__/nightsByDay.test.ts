@@ -1,6 +1,6 @@
 import { nightsByDay, type TrendPoint } from '../src/data/historyRepo';
 
-const night = (id: string, date: string, score: number): TrendPoint => ({ id, date, score, pctSnoring: 0.1, counts: true });
+const night = (id: string, date: string, score: number): TrendPoint => ({ id, date, score, pctSnoring: 0.1, counts: true, rested: null });
 
 describe('the honeycomb of nights', () => {
   const today = new Date(2026, 9, 17, 21, 0);
