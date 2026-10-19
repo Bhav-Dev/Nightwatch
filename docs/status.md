@@ -31,7 +31,11 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
    - Amazon Associates tracking ids.
 3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android.
    - Android: ✅ builds on EAS (15 October 2026, project `@vesuviuss-team/nightwatch`), first installed on a Samsung S24 Ultra. The first build failed on a duplicate Health Connect module; `expo-health-connect` was removed, since `react-native-health-connect` 4.x includes it.
-   - iPhone: the app compiles on EAS (simulator build, 17 October 2026, profile `ios-simulator`). To install on a real iPhone: register it with `npx eas-cli@latest device:create`, then run `npx eas-cli@latest build --profile preview --platform ios` from your own terminal and let EAS manage the credentials (Apple login). The App ID needs HealthKit, Sign in with Apple and Push Notifications, which EAS syncs. Add `ITSAppUsesNonExemptEncryption` to app.json before TestFlight.
+   - iPhone: the app compiles on EAS (simulator build, 17 October 2026, profile `ios-simulator`).
+   - TestFlight: build 4 was built and uploaded on 19 October 2026 with `npm run testflight` (see README, iPhone). The test phone is an iPhone 16 Pro work phone, which can't use Developer Mode, so TestFlight is the way onto it.
+   - The distribution certificate and provisioning profile are on EAS.
+   - The App ID's capabilities (HealthKit, Push Notifications, Sign in with Apple) were ticked by hand, because Apple rejects EAS's capability sync when it signs in with an API key.
+   - Not yet installed or run on the phone.
    - The battery test needs a `preview` build (release mode, no dev server); development builds use more power.
 4. 👤 **Phase 0 gate:**
    - an 8-hour screen-off recording under 8% battery on both phones;
