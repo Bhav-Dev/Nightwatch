@@ -56,7 +56,12 @@
       "expo-asset",
       "expo-sharing",
       "expo-web-browser",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "SnoreHive does not use Face ID."
+        }
+      ],
       "expo-localization",
       "expo-apple-authentication",
       [
@@ -70,7 +75,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "SnoreHive reads sleep, heart rate, heart rate variability, oxygen and breathing rate from Apple Health to show them alongside your snoring. Raw readings stay on this phone.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "SnoreHive only reads from Apple Health. It does not save anything to it.",
           "background": false
         }
       ],
@@ -87,7 +92,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "SnoreHive uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored."
+          "locationWhenInUsePermission": "SnoreHive uses your approximate location, rounded to about 10 km, to show the weather on your morning screen. It is not stored.",
+          "locationAlwaysAndWhenInUsePermission": "SnoreHive only uses your approximate location while the app is open, to show the weather on your morning screen. It is not stored.",
+          "locationAlwaysPermission": "SnoreHive only uses your approximate location while the app is open, to show the weather on your morning screen. It is not stored.",
+          "motionUsagePermission": "SnoreHive does not use your motion activity."
         }
       ],
       [
