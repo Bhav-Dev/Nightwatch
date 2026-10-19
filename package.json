@@ -69,7 +69,8 @@
     "icons": "node scripts/make-icons.mjs",
     "lint": "expo lint",
     "start:simulated": "cross-env EXPO_PUBLIC_SIMULATE_CAPTURE=1 expo start",
-    "update:preview": "cross-env EXPO_PUBLIC_INTERNAL_BUILD=1 EXPO_PUBLIC_WEATHER_URL=https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api npx --yes eas-cli@latest update --channel preview --environment preview --message"
+    "update:preview": "cross-env EXPO_PUBLIC_INTERNAL_BUILD=1 EXPO_PUBLIC_WEATHER_URL=https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api npx --yes eas-cli@latest update --channel preview --environment preview --message",
+    "testflight": "node scripts/testflight.mjs"
   },
   "private": true,
   "jest": {

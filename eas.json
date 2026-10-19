@@ -55,9 +55,10 @@
     "testflight": {
       "ios": {
         "ascApiKeyPath": "./credentials/AuthKey.p8",
-        "ascApiKeyIssuerId": "SET_ME",
-        "ascApiKeyId": "SET_ME",
-        "ascAppId": "SET_ME"
+        "ascApiKeyIssuerId": "3bcdff71-a68c-4021-8f86-aa3ec2fd4042",
+        "ascApiKeyId": "C743TH2VD2",
+        "ascAppId": "6824668787",
+        "appleTeamId": "24KAU9PBK5"
       }
     }
   }
