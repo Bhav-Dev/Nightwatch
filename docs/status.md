@@ -53,7 +53,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 | 30-night test dataset | 👤 | Needs volunteers. Tools ready in `tools/` |
 | Recording nights for the labelled set with the app: whole-night labelling mode, "Export nights for labelling" (one tar file through the share sheet) and `tools/labelling/fromApp.ts` (export to WAV and proposals); volunteer guide in [labelling-volunteers.md](labelling-volunteers.md) | 🟡 | 17 October 2026. Internal builds only. Tested in code, including a round trip from the app's export to the labelling files with a stand-in decoder; not yet run on a phone, and the ffmpeg step not yet run. Covers step 4 of morning-review-plan.md (answers exported for training) |
 | Catalogue of about 40 entries with articles | ✅ | 42 entries. Articles are short drafts (see Content below) |
-| **Gate:** 8-hour screen-off recording under 8% battery, both platforms | 👤 | Needs phones |
+| **Gate:** 8-hour screen-off recording under 8% battery, both platforms | 🟡 | Samsung S24 Ultra, 18 to 19 October 2026: 59% to 48% over 9 h 02 min unplugged, with sound recording on, about 9.7% per 8 hours, so a little over. Worth trimming before the gate: batch the per-second database writes, and check the cost of the per-second FFT and the AAC encoder. The mid-range Android and the iPhone are still to measure |
 
 Acceptance criteria:
 

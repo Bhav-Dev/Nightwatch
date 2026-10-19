@@ -49,13 +49,32 @@ export function NightLanes({
   const [width, setWidth] = useState(0);
   const x = (s: number) => (Math.max(0, Math.min(totalS, s)) / Math.max(1, totalS)) * width;
   const w = (span: Span) => Math.max(2, x(span.endS) - x(span.startS));
-  const seek = (e: GestureResponderEvent) => onSeek?.(Math.round((e.nativeEvent.locationX / Math.max(1, width)) * totalS));
+  const tapped = (e: GestureResponderEvent) => Math.round((e.nativeEvent.locationX / Math.max(1, width)) * totalS);
+  /** The span nearest a tapped second, if it is within a few percent of the night. */
+  const nearest = (atS: number, spans: readonly Span[]) => {
+    const reach = totalS * 0.03;
+    let best: Span | null = null;
+    let bestD = reach;
+    for (const s of spans) {
+      const d = atS < s.startS ? s.startS - atS : atS > s.endS ? atS - s.endS : 0;
+      if (d <= bestD) {
+        best = s;
+        bestD = d;
+      }
+    }
+    return best;
+  };
+  const seek = (spans?: readonly Span[]) => (e: GestureResponderEvent) => {
+    const atS = tapped(e);
+    const hit = spans ? nearest(atS, spans) : null;
+    onSeek?.(hit ? Math.max(0, hit.startS - 2) : atS);
+  };
   const hours = Math.max(1, totalS / 3600);
   const awakeS = awake.reduce((s, a) => s + (a.endS - a.startS), 0);
   const staged = stages.filter((s) => s.stage !== null && s.stage !== 'inbed');
 
-  const strip = (label: string, children: ReactNode) => (
-    <Pressable onPress={seek} accessibilityRole="button" accessibilityLabel={`${label}. Tap to listen from that time`} disabled={!onSeek}>
+  const strip = (label: string, children: ReactNode, spans?: readonly Span[]) => (
+    <Pressable onPress={seek(spans)} accessibilityRole="button" accessibilityLabel={`${label}. Tap to listen from that time`} disabled={!onSeek}>
       <Svg width={width} height={STRIP_H}>
         <Rect x={0} y={0} width={width} height={STRIP_H} rx={4} fill="rgba(191, 200, 255, 0.06)" />
         {children}
@@ -86,6 +105,7 @@ export function NightLanes({
                   <Rect key={`m${m.startS}`} x={x(m.startS)} y={2} width={Math.max(2, x(m.endS) - x(m.startS))} height={STRIP_H - 4} rx={1} fill={colors.info} />
                 ))}
               </>,
+              movements,
             )}
           </View>
 
@@ -99,6 +119,7 @@ export function NightLanes({
             {strip(
               'Possibly awake',
               awake.map((a) => <Rect key={`a${a.startS}`} x={x(a.startS)} y={2} width={w(a)} height={STRIP_H - 4} rx={2} fill={colors.worse} opacity={0.8} />),
+              awake,
             )}
           </View>
 

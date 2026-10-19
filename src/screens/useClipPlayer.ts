@@ -14,10 +14,10 @@ export function useClipPlayer(opts: { onFinished?: (uri: string) => void } = {})
   const currentRef = useRef<string | null>(null);
   const onFinished = useRef(opts.onFinished);
 
-  // On iPhone a finished recording leaves the audio session muted by the silent switch; listening
-  // back to the night should ignore the switch, as the recording did. Nothing changes on Android.
+  // Listening back plays whether or not the phone is on silent, as the recording did. Set in full
+  // when the screen opens, so a mode left over from the night's recording cannot block play().
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
+    setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, allowsRecording: false }).catch(() => undefined);
   }, []);
 
   useEffect(() => {

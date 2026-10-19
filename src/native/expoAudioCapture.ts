@@ -67,7 +67,9 @@ export class ExpoAudioCapture implements AudioCapture {
     this.assembler?.finish();
     this.assembler = null;
     RecordingService.stop();
-    await setAudioModeAsync({ allowsRecording: false, allowsBackgroundRecording: false });
+    // Say what playback should do as well: on Android a mode without playsInSilentMode can leave
+    // play() doing nothing while the phone is on silent, until the app restarts.
+    await setAudioModeAsync({ allowsRecording: false, allowsBackgroundRecording: false, playsInSilentMode: true, shouldPlayInBackground: false });
   }
 
   isRecording(): boolean {
