@@ -40,9 +40,25 @@
     "production": {
       "autoIncrement": true,
       "channel": "production"
+    },
+    "testflight": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_INTERNAL_BUILD": "1",
+        "EXPO_PUBLIC_WEATHER_URL": "https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api"
+      },
+      "channel": "preview"
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {
+      "ios": {
+        "ascApiKeyPath": "./credentials/AuthKey.p8",
+        "ascApiKeyIssuerId": "SET_ME",
+        "ascApiKeyId": "SET_ME",
+        "ascAppId": "SET_ME"
+      }
+    }
   }
 }

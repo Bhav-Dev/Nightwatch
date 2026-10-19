@@ -46,3 +46,7 @@ supabase/.branches/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# App Store Connect API key and other signing material (never committed)
+credentials/
+*.p8
