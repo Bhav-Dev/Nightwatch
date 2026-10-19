@@ -32,7 +32,9 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
 3. 👤 **Development build** (`npx eas-cli@latest build --profile development`) on an iPhone 11-class phone and a 2020 mid-range Android.
    - Android: ✅ builds on EAS (15 October 2026, project `@vesuviuss-team/nightwatch`), first installed on a Samsung S24 Ultra. The first build failed on a duplicate Health Connect module; `expo-health-connect` was removed, since `react-native-health-connect` 4.x includes it.
    - iPhone: the app compiles on EAS (simulator build, 17 October 2026, profile `ios-simulator`).
-   - TestFlight: build 4 was built and uploaded on 19 October 2026 with `npm run testflight` (see README, iPhone). The test phone is an iPhone 16 Pro work phone, which can't use Developer Mode, so TestFlight is the way onto it.
+   - TestFlight: the test phone is an iPhone 16 Pro work phone, which can't use Developer Mode, so TestFlight is the way onto it. Builds go up with `npm run testflight` (see README, iPhone).
+   - Build 4 (19 October 2026) was turned down by Apple (ITMS-90683): no `NSHealthUpdateUsageDescription`. The HealthKit library can write, so the string is needed even though SnoreHive only reads.
+   - Build 5 (19 October 2026) has every purpose string written out, and was uploaded.
    - The distribution certificate and provisioning profile are on EAS.
    - The App ID's capabilities (HealthKit, Push Notifications, Sign in with Apple) were ticked by hand, because Apple rejects EAS's capability sync when it signs in with an API key.
    - Not yet installed or run on the phone.
