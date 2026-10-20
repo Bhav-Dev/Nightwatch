@@ -62,7 +62,7 @@ export default function Paywall() {
 
   const yearlyPrice = plans?.yearly?.price ?? '£29.99';
   const perMonth = plans?.yearly?.perMonth ?? '£2.50';
-  const monthlyPrice = plans?.monthly?.price ?? '£3.99';
+  const monthlyPrice = plans?.monthly?.price ?? '£4.99';
 
   return (
     <Screen
@@ -75,7 +75,7 @@ export default function Paywall() {
       footer={
         <>
           {billingAvailable() ? (
-            <Button label="Start free trial" onPress={buy} busy={busy} disabled={!plans || !(choice === 'yearly' ? plans.yearly : plans.monthly)} />
+            <Button label={choice === 'yearly' ? 'Start free trial' : 'Subscribe'} onPress={buy} busy={busy} disabled={!plans || !(choice === 'yearly' ? plans.yearly : plans.monthly)} />
           ) : (
             <>
               <Small>Subscriptions are not set up in this build.</Small>

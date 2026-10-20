@@ -111,7 +111,7 @@ Acceptance criteria:
 | Morning summary | ✅ | Template rules, 20 fixture nights |
 | 14-night experiments | ✅ | Plan, progress and verdict with confidence |
 | Doctor's report PDF | ✅ / 🟡 | Content and compliance header tested; the PDF render on a phone is not checked |
-| Paywall and subscription | 🟡 / 👤 | Built on RevenueCat, with locks throughout. Needs a RevenueCat project and store products |
+| Paywall and subscription | 🟡 / 👤 | Built on RevenueCat, with locks throughout. Needs a RevenueCat project and store products: yearly £29.99 with a 7-day free trial, monthly £4.99 with no trial (decided 20 October 2026) |
 | **Gate:** 20 testers, half import Health, a GP or sleep clinician reviews the report wording | 👤 | |
 
 Acceptance criteria:

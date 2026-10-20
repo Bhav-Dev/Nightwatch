@@ -32,7 +32,7 @@ Oct 14, 2026 · @Someone
 | App framework | Cross-platform UI with native modules for audio capture and Health access | Shared stack with the rest of the roster |
 | Backend | Postgres on the existing VPS behind a thin API, nightly aggregation job | Small data volumes per user; the dashboard is a batch product |
 | Detection | On-device classifier | Audio never needs to leave the phone |
-| Pricing | About £29.99 a year, £3.99 a month, 7-day trial | In line with the category; annual is the default |
+| Pricing | £29.99 a year (7-day trial) or £4.99 a month (no trial); the year may rise to £34.99 later | Updated 20 October 2026. The monthly price makes the year half price, which steers people to it: snorers often find a fix and cancel, so a year paid upfront matters. Annual is the default |
 | Launch market | UK first, English-speaking markets second | Remedy availability and affiliate programmes differ by country |
 
 ## Feature set
@@ -139,7 +139,7 @@ Two lines: a subscription for the insight features, and affiliate commission on 
 | Contribute to the dataset (always free, never gated) | Wearable correlation and the morning summary |
 | Expert articles | Doctor's report, partner mode |
 
-Price about £29.99 a year or £3.99 a month. Paywall moments: the first time a user taps a "people like you" slice, the first doctor's report, and the first correlation view after a Health import.
+Price £29.99 a year or £4.99 a month (decided 20 October 2026; the year is half the monthly price). Launch at £29.99 a year while the community results are thin, then test £34.99 with RevenueCat once there are reviews and enough data; existing subscribers keep their price. Paywall moments: the first time a user taps a "people like you" slice, the first doctor's report, and the first correlation view after a Health import.
 
 **Affiliate links**
 
@@ -155,7 +155,7 @@ Price about £29.99 a year or £3.99 a month. Paywall moments: the first time a 
 
 **Revenue shape**
 
-- At 2,000 installs a month: roughly 60 to 100 new annual subscribers a month, which is £1,500 to £2,500 a month in subscription after the store cut by the end of year one, plus a few hundred in affiliate.
+- At 2,000 installs a month: roughly 60 to 100 new annual subscribers a month (at £29.99 a year; monthly subscribers at £4.99 come on top), which is £1,500 to £2,500 a month in subscription after the store cut by the end of year one, plus a few hundred in affiliate.
 - At 10,000 installs a month the same ratios give a five-figure monthly business; snoring search volume is large enough for that if the dashboard earns press and links.
 
 ## Technical architecture
@@ -430,7 +430,7 @@ Five tabs plus three flows that sit on top of them.
 
 ### Paywall sheet
 
-- Title: "See what actually helps". Three bullets: wearable overlay and morning summary; people-like-you results and experiments; doctor's report and unlimited history. Plan toggle: Yearly £29.99 (badge: 7 days free, then £2.50 a month) / Monthly £3.99. Primary: Start free trial. Small: Restore purchases, Terms, Privacy. The sheet is dismissable; nothing is lost by dismissing it.
+- Title: "See what actually helps". Three bullets: wearable overlay and morning summary; people-like-you results and experiments; doctor's report and unlimited history. Plan toggle: Yearly £29.99 (badge: 7 days free, then £2.50 a month) / Monthly £4.99. Primary: Start free trial (yearly) or Subscribe (monthly, which has no trial). Small: Restore purchases, Terms, Privacy. The sheet is dismissable; nothing is lost by dismissing it.
 
 ### Settings
 

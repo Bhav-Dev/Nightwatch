@@ -5,7 +5,7 @@
 ## Names
 
 - **Bee** is the free tier: you, on your own.
-- **Hive** is the paid tier (£29.99 a year or £3.99 a month, 7 days free): what the whole hive has found. It replaces the name "Insight".
+- **Hive** is the paid tier: £29.99 a year with 7 days free, or £4.99 a month with no trial (prices decided 20 October 2026; the year may move to £34.99 later, tested with RevenueCat). It is what the whole hive has found. It replaces the name "Insight".
 - Buttons say "Join the Hive". Store subscription names: "SnoreHive Hive membership" (yearly, monthly). Internal product and entitlement ids stay as they are.
 
 ## Decided
