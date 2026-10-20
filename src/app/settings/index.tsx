@@ -12,6 +12,7 @@ import { getSetting, setSetting } from '../../data/settingsRepo';
 import { allSoundPaths, deleteAllSoundRows, soundStorageBytes } from '../../data/soundRepo';
 import { config } from '../../config';
 import { planLabellingArchive, writeLabellingArchive } from '../../native/labellingArchive';
+import { playbackLog } from '../../native/playbackLog';
 import { removeSoundFile, soundRecordingAvailable } from '../../native/soundWriter';
 import { DEFAULT_RECAP_TIME, parseRecapTime, type RecapTime } from '../../domain/recap';
 import { cancelBedtimeNudge, cancelRecap, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
   const [exportNights, setExportNights] = useState('3');
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [playLog, setPlayLog] = useState<readonly string[]>([]);
 
   const load = useCallback(async () => {
     setSensitivity((await getSetting(db, 'sensitivity')) ?? 'normal');
@@ -64,6 +66,7 @@ export default function SettingsScreen() {
     setWeatherOn((await getSetting(db, 'weather')) === 'on' && (await locationPermission()) === 'granted');
     setDevPaid((await getSetting(db, 'dev_paid')) === '1');
     setLabellingOn((await getSetting(db, 'labelling_mode')) === '1');
+    setPlayLog(playbackLog());
   }, [db]);
 
   useFocusEffect(
@@ -337,6 +340,22 @@ export default function SettingsScreen() {
               value={exportProgress !== null ? `Writing ${Math.round(exportProgress * 100)}%` : busy === 'labelling' ? 'Preparing' : ''}
               onPress={busy ? undefined : exportForLabelling}
             />
+          </Card>
+        ) : null}
+
+        {config.internalTools ? (
+          <Card>
+            <H2>Playback log</H2>
+            <Small>When a play button does nothing, what the player said. Only in test builds; cleared when the app closes.</Small>
+            {playLog.length === 0 ? (
+              <Body muted style={{ marginTop: space(3) }}>Nothing has gone wrong since the app opened.</Body>
+            ) : (
+              playLog.map((line, i) => (
+                <Small key={i} style={{ marginTop: space(2) }}>
+                  {line}
+                </Small>
+              ))
+            )}
           </Card>
         ) : null}
 

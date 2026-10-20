@@ -190,6 +190,12 @@ They appear as lanes under the timeline, on its time scale (`src/ui/NightLanes.t
 
 **The silent switch.** Recording sets `playsInSilentMode`, which iOS requires for recording, and listening back on This Morning does the same, so the silent switch doesn't mute either. The preview on Tonight briefly switches the session to playback, then puts it back.
 
+**Listening back after a recording.** On both platforms, after a recording stopped, play buttons did nothing until the app restarted. The player on This Morning had been created before the night and lived through the recording. `useClipPlayer` now handles it like this:
+
+- Each file gets a new player when it starts.
+- If a play request still hasn't started after 1.2 s, the hook switches audio back on (`setIsAudioActiveAsync(true)`), sets the playback mode again, and tries once more on a fresh player from the same point.
+- In test builds, anything that goes wrong is listed under Settings, Playback log.
+
 **TestFlight.** `npm run testflight` builds on EAS and uploads to TestFlight. It signs in to Apple with the App Store Connect API key in `credentials/AuthKey.p8` (not committed) and the ids in `.env.local`. Notes:
 
 - The first run must be interactive, because EAS only creates the distribution certificate and provisioning profile after asking.
