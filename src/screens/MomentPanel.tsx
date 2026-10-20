@@ -5,25 +5,38 @@ import { clockTimeAt } from '../domain/interruption';
 import type { Moment } from '../domain/moments';
 import { intensityFor } from '../domain/scoring';
 import { Button, Small } from '../ui/kit';
+import { MomentSwatch } from '../ui/MomentFilter';
 import { SnoringToggle } from '../ui/SnoringToggle';
 import { colors, radius, space } from '../ui/theme';
 
-function describe(m: Moment): string {
-  if (m.kind === 'snore') return m.answered ? 'Snoring, as you said' : `Snoring${m.peakDb !== null ? `, ${intensityFor(m.peakDb)}` : ''}`;
-  if (m.kind === 'other') return m.answered ? 'Not snoring, as you said' : 'Loud, not counted as snoring';
-  return 'Sound';
+/** What a moment was, in a few words. */
+export function describeMoment(m: Moment): string {
+  switch (m.kind) {
+    case 'snore':
+      return m.answered ? 'Snoring, as you said' : `Snoring${m.peakDb !== null ? `, ${intensityFor(m.peakDb)}` : ''}`;
+    case 'other':
+      return m.answered ? 'Not snoring, as you said' : 'Loud, not counted as snoring';
+    case 'move':
+      return 'Movement';
+    case 'awake':
+      return 'Possibly awake';
+    default:
+      return 'Sound';
+  }
 }
 
-const length = (s: number) => (s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`);
+export const momentLength = (s: number) => (s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`);
 
 /**
- * The picked moment under the timeline: previous and next, play, and the Snoring answer.
+ * The picked moment under the timeline: previous and next through the kinds shown, play, and the
+ * Snoring answer for snoring and other sounds.
  */
 export function MomentPanel({
   startedAtS,
   moments,
   moment,
   focusS,
+  heard,
   playing,
   busy,
   pendingSnoring = null,
@@ -33,10 +46,13 @@ export function MomentPanel({
   onUndo,
 }: {
   startedAtS: number;
+  /** The moments of the kinds shown, in order. */
   moments: readonly Moment[];
-  /** The moment at the playhead or the picked second, if there is one. */
+  /** The shown moment at the playhead or the picked second, if there is one. */
   moment: Moment | null;
   focusS: number | null;
+  /** The picked second has recorded sound, though no shown moment. */
+  heard: boolean;
   playing: boolean;
   busy: boolean;
   /** The answer being saved for this moment, shown at once. */
@@ -50,6 +66,7 @@ export function MomentPanel({
   const index = moment ? moments.indexOf(moment) : -1;
   const hasPrev = focusS === null ? false : moments.some((m) => m.startS < (moment ? moment.startS : focusS));
   const hasNext = focusS === null ? true : moments.some((m) => m.startS > focusS);
+  const answerable = moment !== null && (moment.kind === 'snore' || moment.kind === 'other');
   return (
     <View style={styles.panel}>
       <View style={styles.row}>
@@ -66,17 +83,23 @@ export function MomentPanel({
         <View style={{ flex: 1 }} accessibilityLiveRegion="polite">
           {moment ? (
             <>
-              <Text style={styles.title}>
-                {clockTimeAt(startedAtS, moment.startS)} · {describe(moment)}
-              </Text>
               <Small>
-                {index + 1} of {moments.length} · {length(moment.endS - moment.startS)}
+                Moment {index + 1} of {moments.length}
+              </Small>
+              <View style={styles.titleRow}>
+                {moment.kind !== 'sound' ? <MomentSwatch kind={moment.kind} /> : null}
+                <Text style={styles.title}>{describeMoment(moment)}</Text>
+              </View>
+              <Small>
+                {clockTimeAt(startedAtS, moment.startS)} · {momentLength(moment.endS - moment.startS)}
               </Small>
             </>
           ) : focusS !== null ? (
             <>
-              <Text style={styles.title}>{clockTimeAt(startedAtS, focusS)} · quiet</Text>
-              <Small>Use the arrows to go to the next sound.</Small>
+              <Text style={styles.title}>
+                {clockTimeAt(startedAtS, focusS)} · {heard ? 'recorded sound' : 'quiet'}
+              </Text>
+              <Small>Use the arrows to go to the next moment.</Small>
             </>
           ) : (
             <>
@@ -101,7 +124,7 @@ export function MomentPanel({
           <Ionicons name="chevron-forward" size={22} color={colors.text} />
         </Pressable>
       </View>
-      {moment ? (
+      {moment && answerable ? (
         <View style={[styles.row, { marginTop: space(3) }]}>
           <SnoringToggle snoring={pendingSnoring ?? moment.kind === 'snore'} onPress={() => onAnswer(moment.kind !== 'snore')} disabled={busy} />
           <Small style={{ flex: 1 }}>{moment.answered ? 'Thanks, your night has been updated.' : 'Was this snoring? Your answer corrects the night.'}</Small>
@@ -115,8 +138,9 @@ export function MomentPanel({
 const styles = StyleSheet.create({
   panel: { marginTop: space(3), padding: space(3), borderRadius: radius.button, backgroundColor: colors.surfaceRaised },
   row: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-  arrow: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space(1.5), marginVertical: 1 },
+  arrow: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.3 },
-  title: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  title: { color: colors.text, fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  play: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
 });

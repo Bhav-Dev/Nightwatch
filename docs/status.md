@@ -164,7 +164,15 @@ Acceptance criteria:
 | Item | Status |
 | --- | --- |
 | Partner mode (Household) | ⬜ Held for the first update, as the plan says; "coming soon" card in Settings |
-| Night events, first step: movement from sound (tossing and turning, restless stretches), phone pickups, "possibly awake", lanes under the timeline with the watch's sleep stages, "turned over, snoring stopped" | 🟡 Built 17 October 2026 and tested in code; not yet seen on a phone. Design in [night-events-design.md](night-events-design.md) |
+| Night events, first step: movement from sound (tossing and turning, restless stretches), phone pickups, "possibly awake", the watch's sleep stages, "turned over, snoring stopped" | 🟡 Built 17 October 2026. Seen on the iPhone on 20 October 2026: 8 movements, no possibly awake.
+
+Redesigned the same day, after that first look (mockup approved):
+- one timeline with a colour per kind;
+- chips that are both the legend and the filter (All, Snoring, Movement, Possibly awake, Other);
+- one Moments list in place of "Loudest moments" and "Other sounds";
+- sleep stages as a strip under the timeline.
+
+The redesign has been tested in code but not yet seen on a phone. Design in [night-events-design.md](night-events-design.md) |
 | Night events, later steps: classify every sound with a model (talking, coughs, partner snoring), two-phone partner mode | ⬜ Proposed, not scheduled; needs the labelled nights |
 | Monthly catalogue review, "what the data says" post, new slices | ⬜ |
 | Localisation and non-UK affiliate programmes | ⬜ (Amazon links already work in 12 marketplaces once tags are set) |

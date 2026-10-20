@@ -127,7 +127,7 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
 
 ## Clips, WAV now, Opus later
 
-Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring ("Other sounds", so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. Clips could now use the native AAC encoder below; they are still WAV.
+Clips are 15-second 16 kHz WAV (about 480 KB each). A night keeps up to five clips of snoring plus the three loudest moments that were not counted as snoring (other sounds, so the user can check what the detector left out): at most eight clips, about 3.8 MB, within the plan's ten-clip, 5 MB budget. Every clip row stores its codec, and all encoding goes through `src/clips/codec.ts`. To move to Opus: register an Opus encoder (a native module or a WASM libopus build), call `setPreferredCodec('opus')`, and run `transcodeClips` once; it converts old WAV clips and is safe to re-run. A test covers this path with a stand-in encoder. Clips could now use the native AAC encoder below; they are still WAV.
 
 ## Labelling study (internal builds)
 
@@ -149,9 +149,34 @@ The parts of each night with sound in them are kept, compressed, so the morning 
 
 ## Checking the night: Snoring answers, moments and the recap
 
-Every clip, and every moment picked on the timeline, has a Snoring tick: on when the night counted it as snoring. Unticking says it was not snoring; ticking says it was. Each answer is a row in `sound_label` (a time range and the answer), and the night is rebuilt from the detector's own events with the answers applied in order (`src/domain/scoring/corrections.ts`, `src/data/labelRepo.ts`): "not snoring" cuts that stretch out of the snoring (an event can be split; pieces under 10 s are dropped), "snoring" adds it and merges with snoring it touches. Score, time snoring, event count and the timeline's bins are worked out again with the usual formula, and the night is marked for sync, so trends, tests and community figures use the corrected night. The detector's events are copied to `event_detected` the first time a night is answered, and its score to `night.detector_score` (shown as "Was 41 before your answers"); undoing every answer restores both. Answers are kept on the phone as labelled examples for training and checking the detector, and are included in the export. Per-second levels are not kept after Stop, so the loudness of a stretch the user adds comes from the clip's peak, or the 5-minute bins.
+Every snoring or other-sound moment, in the list and when picked on the timeline, has a Snoring tick: on when the night counted it as snoring. Unticking says it was not snoring; ticking says it was. Each answer is a row in `sound_label` (a time range and the answer), and the night is rebuilt from the detector's own events with the answers applied in order (`src/domain/scoring/corrections.ts`, `src/data/labelRepo.ts`): "not snoring" cuts that stretch out of the snoring (an event can be split; pieces under 10 s are dropped), "snoring" adds it and merges with snoring it touches. Score, time snoring, event count and the timeline's bins are worked out again with the usual formula, and the night is marked for sync, so trends, tests and community figures use the corrected night. The detector's events are copied to `event_detected` the first time a night is answered, and its score to `night.detector_score` (shown as "Was 41 before your answers"); undoing every answer restores both. Answers are kept on the phone as labelled examples for training and checking the detector, and are included in the export. Per-second levels are not kept after Stop, so the loudness of a stretch the user adds comes from the clip's peak, or the 5-minute bins.
 
-The timeline is a scrubber: drag along it or the slider under it (the time shows while dragging) and let go to play from there. The night is a list of moments (`src/domain/moments.ts`): each stretch of snoring, each loud sound not counted as snoring, and other recorded sound. Under the timeline, the picked moment has previous and next, play, and the Snoring tick; moments are marked on the slider.
+**The timeline (redesigned 20 October 2026).** One chart instead of a chart and lanes. Every kind of moment is on it in its own colour and shape (`momentColor` in `src/ui/theme.ts`):
+
+| Kind | Colour | How it's drawn |
+|---|---|---|
+| Snoring | honey | the loudness outline filled by intensity, with a honey mark above each stretch |
+| Movement | orange | ticks under the outline, restless stretches shaded |
+| Possibly awake | red | bands behind |
+| Other loud sounds | blue | marks above |
+
+The colours differ in lightness as well as hue. Hours are clock times. Drag along the chart, and the time shows in a bubble; let go to play from there. The picked or playing second is a line.
+
+**Chips under the chart (`src/ui/MomentFilter.tsx`)** are its legend and its filter: All, Snoring, Movement, Possibly awake and Other, each with a count.
+
+- Any mix can be on, but not none.
+- The chart, the previous and next arrows, and the Moments list all follow them.
+- Nights from before the night-events check only offer Snoring and Other.
+- When Possibly awake is on and there was none, a note says where it comes from: picking up the phone, or a watch.
+
+**Moments.** The night is a list of moments (`src/domain/moments.ts`): each stretch of snoring, each loud sound not counted as snoring, each movement, each stretch of possibly being awake, and other recorded sound. Recorded sound with nothing else in it is left out of the arrows and the list (`shownMoments`); dragging plays it.
+
+- **Under the chart:** the picked moment, with previous and next, play, and the Snoring tick for snoring and other sounds.
+- **The Moments card (`src/screens/MomentList.tsx`)** replaces "Loudest moments" and "Other sounds". It lists the shown moments in order, six at first, then "Show all". Each row has:
+  - a play cell in its kind's colour, which plays the night's recorded sound from that moment (or its clip on nights without sound recording);
+  - the Snoring tick, for snoring and other sounds;
+  - Save and Share, when a clip was kept for it.
+- **Why the list matters:** clips are the loudest few of the night, so quieter snoring can be left without one. In the list, every snoring stretch can still be played.
 
 Notes, the phone test list and follow-ups are in [`docs/morning-review-plan.md`](docs/morning-review-plan.md).
 
@@ -170,7 +195,7 @@ Beyond snoring, This Morning shows estimates found without a model (`src/domain/
 - **Possibly awake:** the phone was picked up (the app came back to the front while recording; the first 2 minutes and the last 3 are ignored, as settling down and stopping), or a watch said awake for 2 minutes or more. Never stated as certain.
 - **"Turned over, and the snoring stopped":** a movement after at least 2 minutes of snoring in the 10 minutes before it, with the snoring not carrying on a minute past it and then at least 15 minutes of quiet. It becomes a summary sentence ("Snoring stopped after we heard you turn over at 3:10, and it stayed quiet for 40 minutes"), and is the most direct evidence for side sleeping.
 
-They appear as lanes under the timeline, on its time scale (`src/ui/NightLanes.tsx`): Movement (restless stretches shaded), Possibly awake, and Sleep stages from your watch (deep, light, REM, awake), which follows the existing watch overlay and needs Insight. Tapping a lane plays the night from that moment. Sound alone cannot tell deep from light sleep, so without a watch there is no stage lane. None of this changes the score or syncs.
+Movement and possibly awake are drawn on the timeline itself and listed as moments (see the timeline, above). Sleep stages from a watch (deep, light, REM, awake) are a strip under the timeline (`src/ui/SleepStages.tsx`). It follows the existing watch overlay and needs Insight, and tapping it plays the night from that moment. Sound alone cannot tell deep from light sleep, so without a watch there is no stage strip. None of this changes the score or syncs.
 
 ## iPhone
 

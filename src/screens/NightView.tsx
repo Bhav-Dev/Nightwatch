@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
@@ -43,9 +42,8 @@ import { fetchWeatherHere } from '../weather/weatherClient';
 import type { CatalogueItem } from '../domain/catalogue';
 import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
-import { clipsForDisplay } from '../domain/clipList';
 import { clockTimeAt, INTERRUPTION_COPY } from '../domain/interruption';
-import { buildMoments, momentAt, neighbour } from '../domain/moments';
+import { buildMoments, countByKind, type Moment, momentAt, neighbour, SHOWN_KINDS, shownMoments, type ShownKind } from '../domain/moments';
 import { intensityFor, scoreLabel, type Bin } from '../domain/scoring';
 import { isSnoringAt } from '../domain/scoring/corrections';
 import { sleepSoundName } from '../domain/sleepSounds';
@@ -55,12 +53,13 @@ import { importHealthForNight } from '../health/importNight';
 import { useApp } from '../state/AppContext';
 import { NightTimeline } from '../ui/charts';
 import { HiveCluster, ScoreCell } from '../ui/Hive';
-import { NightLanes } from '../ui/NightLanes';
+import { MomentFilter } from '../ui/MomentFilter';
 import { iconFor } from '../ui/remedyIcons';
-import { SnoringToggle } from '../ui/SnoringToggle';
+import { SleepStages } from '../ui/SleepStages';
 import { BackLink, Body, Button, Card, H2, Loading, Locked, Screen, Small, GearLink } from '../ui/kit';
-import { colors, fonts, intensityColor, morningSky, radius, space } from '../ui/theme';
+import { colors, fonts, morningSky, radius, space } from '../ui/theme';
 import { LogPicker } from './LogPicker';
+import { MomentList, momentKey } from './MomentList';
 import { MomentPanel } from './MomentPanel';
 import { maybeAskForReview, type Engagement } from './reviewAsk';
 import { cancelRecap } from '../notifications';
@@ -112,7 +111,11 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   const advance = useRef<(uri: string) => void>(() => undefined);
   /** The morning weather refresh runs at most once per visit. */
   const weatherRefreshed = useRef(false);
-  const { toggle, play, seekBy, stop, playingUri, positionS, durationS } = useClipPlayer({ onFinished: (uri) => advance.current(uri) });
+  const { play, seekBy, stop, playingUri, positionS, durationS } = useClipPlayer({ onFinished: (uri) => advance.current(uri) });
+  /** The kinds of moment shown on the timeline, stepped through and listed (the chips under the timeline). */
+  const [show, setShow] = useState<ReadonlySet<ShownKind>>(() => new Set(SHOWN_KINDS));
+  /** The list row last played, so its button shows pause while it plays. */
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
   /** The recorded-sound segment playing (null when a clip, or nothing, is playing). */
   const [playingSegId, setPlayingSegId] = useState<string | null>(null);
 
@@ -281,14 +284,14 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     : undefined;
 
   const { sounds, events, labels, activity } = data;
-  // Tossing and turning, restless stretches and possibly awake, for the lanes under the timeline.
+  // Tossing and turning, restless stretches and possibly awake, marked on the timeline.
   const movements = activity.filter((a) => a.kind === 'movement').map((a) => ({ startS: a.start_s, endS: a.end_s, peakDb: a.peak_db ?? 0 }));
   const phoneUse = activity.filter((a) => a.kind === 'phone').map((a) => ({ startS: a.start_s, endS: a.end_s }));
   const restless = restlessStretches(movements);
   const awake = possiblyAwake(phoneUse, samples);
   const snoring = events.map((e) => ({ startS: e.start_s, endS: e.end_s, peakDb: e.peak_db }));
-  const snoreClips = clips.filter((c) => c.kind !== 'other');
   const otherClips = clips.filter((c) => c.kind === 'other');
+  const activityChecked = night.activity_checked === 1;
   const moments = buildMoments({
     snoring,
     other: [
@@ -297,7 +300,13 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     ],
     recorded: sounds.map((s) => ({ startS: s.start_s, endS: s.end_s })),
     answered: labels.map((l) => ({ startS: l.start_s, endS: l.end_s })),
+    movement: activityChecked ? movements : [],
+    awake: activityChecked ? awake : [],
   });
+  // Nights from before the night-events check have no movement or possibly awake to show.
+  const kinds = activityChecked ? SHOWN_KINDS : SHOWN_KINDS.filter((k) => k === 'snore' || k === 'other');
+  const counts = countByKind(moments);
+  const shown = shownMoments(moments, show);
 
   /** The recorded sound at a second of the night, or the next one starting in the same 5 minutes. */
   const soundAt = (atS: number) =>
@@ -332,21 +341,17 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     else stop();
   };
   const onSelectTime = (_i: number, atS: number) => playAt(atS);
-  const playClip = (path: string) => {
-    setPlayingSegId(null);
-    engagement.current.plays++;
-    toggle(path);
-  };
   const playingSeg = playingUri && playingSegId ? (sounds.find((s) => s.id === playingSegId && s.path === playingUri) ?? null) : null;
   const playingClip = playingUri && !playingSeg ? (clips.find((c) => c.path === playingUri) ?? null) : null;
   const playheadS = playingSeg ? playingSeg.start_s + positionS : playingClip ? playingClip.start_s + positionS : null;
   // Just after a jump the player may not have caught up yet, so the picked second wins for a moment.
   const focusS = playheadS !== null && (cursorS === null || Math.abs(playheadS - cursorS) >= 1.5) ? playheadS : cursorS;
-  const moment = focusS !== null ? momentAt(moments, focusS) : null;
+  const moment = focusS !== null ? momentAt(shown, focusS) : null;
+  const heard = focusS !== null && sounds.some((x) => focusS >= x.start_s && focusS < x.end_s);
   const selectedBin = focusS !== null ? Math.min(bins.length - 1, Math.floor(focusS / 300)) : null;
 
   const step = (direction: 1 | -1) => {
-    const m = neighbour(moments, focusS ?? -1, direction);
+    const m = neighbour(shown, focusS ?? -1, direction);
     if (m) playAt(m.startS);
   };
 
@@ -377,36 +382,25 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     await load();
     void sync();
   };
-  /** "Not snoring" on a clip covers the whole stretch of snoring it is part of. */
-  const clipRange = (c: ClipRow) =>
-    events
-      .filter((e) => e.start_s < c.end_s && e.end_s > c.start_s)
-      .reduce((r, e) => ({ startS: Math.min(r.startS, e.start_s), endS: Math.max(r.endS, e.end_s) }), { startS: c.start_s, endS: c.end_s });
-
-  const clipRows = (list: ClipRow[]) =>
-    clipsForDisplay(list, night.started_at).map(({ clip: c, time }) => {
-      const isSnoring = isSnoringAt(snoring, c.start_s, c.end_s);
-      return (
-      <View key={c.id} style={styles.clipRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={playingUri === c.path ? 'Pause' : 'Play'} onPress={() => playClip(c.path)} style={styles.play}>
-          <Ionicons name={playingUri === c.path ? 'pause' : 'play'} size={18} color={colors.text} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.clipTime}>{time}</Text>
-          <Small>{intensityFor(Math.max(0, c.peak_db - night.floor_db))} · {c.end_s - c.start_s} s</Small>
-          <View style={styles.clipActions}>
-            <SnoringToggle
-              snoring={pending?.key === c.id ? pending.snoring : isSnoring}
-              disabled={answering}
-              onPress={() => answer(isSnoring ? clipRange(c) : { startS: c.start_s, endS: c.end_s }, !isSnoring, 'clip', c.id, c.peak_db - night.floor_db)}
-            />
-            <Button kind="link" label={c.saved ? 'Saved' : 'Save'} onPress={() => toggleSaved(c)} />
-            <Button kind="link" label="Share" onPress={() => share(c)} />
-          </View>
-        </View>
-      </View>
-      );
-    });
+  /** The clip kept for a snoring or other moment: the loudest one inside it. */
+  const clipFor = (m: Moment) =>
+    m.kind === 'snore' || m.kind === 'other'
+      ? (clips
+          .filter((c) => (m.kind === 'other') === (c.kind === 'other') && c.start_s < m.endS && c.end_s > m.startS)
+          .sort((a, b) => b.peak_db - a.peak_db)[0] ?? null)
+      : null;
+  const playMoment = (m: Moment) => {
+    const key = momentKey(m);
+    if (playingKey === key && (playingSeg || playingClip)) {
+      stop();
+      return;
+    }
+    setPlayingKey(key);
+    // Movement and waking are easier to place with a couple of seconds before them.
+    playAt(m.kind === 'move' || m.kind === 'awake' ? Math.max(0, m.startS - 2) : m.startS);
+  };
+  const answerMoment = (m: Moment, clip: ClipRow | null) =>
+    answer(m, m.kind !== 'snore', clip ? 'clip' : 'moment', momentKey(m), clip ? clip.peak_db - night.floor_db : undefined);
 
   const share = async (c: ClipRow) => {
     if (!(await Sharing.isAvailableAsync())) return Alert.alert('Sharing is not available on this device');
@@ -601,56 +595,44 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
             bins={timelineBins}
             startedAtS={night.started_at}
             onSelect={onSelectTime}
-            selected={selectedBin}
-            recorded={sounds.map((s) => ({ startS: s.start_s, endS: s.end_s }))}
             playheadS={playheadS}
             cursorS={cursorS}
             highlight={moment}
-            moments={moments}
+            showSnoring={show.has('snore')}
+            marks={{
+              snoring: show.has('snore') ? snoring : [],
+              other: show.has('other') ? shown.filter((m) => m.kind === 'other') : [],
+              movement: show.has('move') && activityChecked ? movements : [],
+              restless: show.has('move') && activityChecked ? restless : [],
+              awake: show.has('awake') && activityChecked ? awake : [],
+            }}
             onStep={step}
             soundUntilS={night.sleep_sound ? night.sleep_sound_until_s : null}
             overlay={overlayLines}
           />
-          <View style={styles.legend}>
-            {(['quiet', 'light', 'loud', 'epic'] as const).map((k) => (
-              <View key={k} style={styles.legendItem}>
-                <View style={[styles.swatch, { backgroundColor: intensityColor[k] }]} />
-                <Text style={styles.legendText}>{k}</Text>
-              </View>
-            ))}
-            {sounds.length > 0 ? (
-              <View style={styles.legendItem}>
-                <View style={[styles.swatch, { backgroundColor: colors.info, height: 3 }]} />
-                <Text style={styles.legendText}>recorded</Text>
-              </View>
-            ) : null}
-            {night.sleep_sound ? (
-              <View style={styles.legendItem}>
-                <View style={[styles.swatch, { backgroundColor: colors.info, opacity: 0.25 }]} />
-                <Text style={styles.legendText}>sleep sounds</Text>
-              </View>
-            ) : null}
-          </View>
+          {paid ? <SleepStages totalS={timelineBins.length * 300} stages={samples.filter((x) => x.kind === 'sleep_stage')} onSeek={playAt} /> : null}
+          {moments.some((m) => m.kind !== 'sound') ? (
+            <View style={{ marginTop: space(3), gap: space(2) }}>
+              <Small>Tap a colour to show or hide it. The moments below follow the same choice.</Small>
+              <MomentFilter kinds={kinds} show={show} counts={counts} onChange={setShow} />
+              {kinds.includes('awake') && show.has('awake') && counts.awake === 0 ? (
+                <View style={styles.note}>
+                  <Small>Possibly awake comes from picking up your phone, or from a watch. Neither happened last night. A phone on the bedside table can’t tell lying awake from being asleep.</Small>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           {night.sleep_sound && night.sleep_sound_until_s ? (
             <Small style={{ marginTop: space(2) }}>
               {sleepSoundName(night.sleep_sound)} played until {clockTimeAt(night.started_at, night.sleep_sound_until_s)}. Snoring then is measured against the sound.
             </Small>
           ) : null}
-          {night.activity_checked === 1 ? (
-            <NightLanes
-              totalS={timelineBins.length * 300}
-              movements={movements}
-              restless={restless}
-              awake={awake}
-              stages={paid ? samples.filter((x) => x.kind === 'sleep_stage') : []}
-              onSeek={playAt}
-            />
-          ) : null}
           <MomentPanel
             startedAtS={night.started_at}
-            moments={moments}
+            moments={shown}
             moment={moment}
             focusS={focusS}
+            heard={heard}
             playing={playingSeg !== null || playingClip !== null}
             busy={answering}
             onStep={step}
@@ -659,11 +641,13 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
             onAnswer={(snoring) => moment && answer(moment, snoring, 'moment', 'moment')}
             onUndo={() => moment && undo(moment)}
           />
-          {moments.length === 0 ? (
+          {shown.length === 0 ? (
             <Small style={{ marginTop: space(2) }}>
-              {selectedBin !== null
-                ? `${clockTimeAt(night.started_at, selectedBin * 300)}: quiet, nothing recorded here`
-                : 'A quiet night: nothing loud enough to keep.'}
+              {moments.some((m) => m.kind !== 'sound')
+                ? 'Nothing of the kinds picked. Tap All to see everything.'
+                : selectedBin !== null
+                  ? `${clockTimeAt(night.started_at, selectedBin * 300)}: ${heard ? 'recorded sound' : 'quiet, nothing recorded here'}`
+                  : 'A quiet night: nothing loud enough to keep.'}
             </Small>
           ) : null}
           {hasHealth && !paid ? <Locked label="See oxygen and heart rate on the same timeline" trigger="overlay" /> : null}
@@ -683,18 +667,24 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
         </Card>
       )}
 
-      {snoreClips.length > 0 && (
+      {shown.length > 0 && night.source === 'local' && (
         <Card>
-          <H2>Loudest moments</H2>
-          {clipRows(snoreClips)}
-        </Card>
-      )}
-
-      {otherClips.length > 0 && (
-        <Card>
-          <H2>Other sounds</H2>
-          <Small>The loudest moments that were not counted as snoring. Have a listen to check.</Small>
-          {clipRows(otherClips)}
+          <H2 right={<Small>{shown.length} shown</Small>}>Moments</H2>
+          <Small>{kinds.length > 2 ? 'Snoring, movement, possibly awake and other loud sounds' : 'Snoring and other loud sounds'}, in order. Quiet stretches are on the timeline: drag along it to hear them.</Small>
+          <MomentList
+            startedAtS={night.started_at}
+            moments={shown}
+            clipFor={clipFor}
+            // Movement and waking can only be heard on nights with sound recording on.
+            playable={(m) => sounds.length > 0 || m.kind === 'snore' || m.kind === 'other'}
+            playingKey={playingSeg || playingClip ? playingKey : null}
+            pending={pending}
+            busy={answering}
+            onPlay={playMoment}
+            onAnswer={answerMoment}
+            onSave={(c) => void toggleSaved(c)}
+            onShare={(c) => void share(c)}
+          />
         </Card>
       )}
 
@@ -748,6 +738,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  note: { backgroundColor: 'rgba(232, 84, 107, 0.12)', borderRadius: radius.button, padding: space(3) },
   // Solid enough to read on the bright sunrise sky as well as at night.
   banner: { backgroundColor: 'rgba(58, 40, 14, 0.92)', borderRadius: radius.button, padding: space(3), marginBottom: space(3) },
   bannerTitle: { color: colors.accent, fontWeight: '700', marginBottom: space(1) },
@@ -759,14 +750,6 @@ const styles = StyleSheet.create({
   delta: { color: colors.accent, fontSize: 15, fontWeight: '700' },
   stats: { flexDirection: 'row' },
   statValue: { color: colors.text, fontSize: 18, fontWeight: '700', textTransform: 'capitalize' },
-  legend: { flexDirection: 'row', gap: space(4), marginTop: space(3) },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: space(1.5) },
-  swatch: { width: 10, height: 10, borderRadius: 2 },
-  legendText: { color: colors.textMuted, fontSize: 12, textTransform: 'capitalize' },
-  clipRow: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(2) },
-  clipActions: { flexDirection: 'row', alignItems: 'center', gap: space(3), marginTop: space(1.5) },
-  play: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
-  clipTime: { color: colors.text, fontSize: 16, fontWeight: '600' },
   hive: { gap: space(2), marginTop: space(1) },
   names: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   nowPlaying: {

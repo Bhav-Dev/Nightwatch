@@ -102,6 +102,18 @@ export const intensityColor = {
   epic: '#FFE6A8',
 } as const;
 
+/**
+ * One colour per kind of moment on the morning timeline, its filter chips and its list. They
+ * differ in lightness as well as hue, and each is also drawn as its own shape (snoring fills the
+ * outline, movement is a tick, possibly awake a band, other sounds a mark above).
+ */
+export const momentColor = {
+  snore: '#F6C85F',
+  move: '#F08A3C',
+  awake: '#E8546B',
+  other: '#9FB0FF',
+} as const;
+
 /** Honey, light to deep: the logo's cell outline and the honeycomb pieces (src/ui/Hive.tsx). */
 export const honey = ['#FFE9AE', '#F6C85F', '#E9A23F'] as const;
 
