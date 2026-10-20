@@ -186,7 +186,8 @@ From the plan:
 | Name (Nightwatch is a placeholder; check store and domain availability) | 👤 |
 | Detection model: fine-tune now, or heuristic first and collect labels | ✅ Decided: heuristic now, train later |
 | Account-free contribution, or account required | ✅ Decided: account always required |
-| Dashboard visible to free users, or paid only | ✅ Built as the plan suggests: top level free, slices paid |
+| Dashboard visible to free users, or paid only | ✅ Decided 20 October 2026: Hive (paid) only; free users (Bee) still log what they try. Not built yet: the app still shows the top level free. See [tiers-plan.md](tiers-plan.md) |
+| Tier names | ✅ Decided 20 October 2026: Bee (free) and Hive (paid), replacing Insight. Not built yet |
 | Which clinician reviews the report wording, and whether to pay them | 👤 |
 | Partner mode at launch or in the first update | 👤 Built for the first update; confirm |
 | Amazon only, or direct brand programmes too | ✅ Decided: Amazon only for now |

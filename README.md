@@ -282,7 +282,7 @@ The heuristic (v0) labels nights at Stop. The trained model will plug in through
 - **Short nights:** any night under 3 hours in bed is scored and shown but left out of averages and trends, whether or not it was interrupted (short test recordings were counting). Remedy tests and the community aggregation already skip nights under 3 hours, and the aggregation also leaves out every partial night.
 - **Sync versions:** a night's `updated_at` always increases, even within one second, and sync records the version it sent, so an edit made during a sync is never lost.
 - **Free-text "Other" remedies** are logged as `other:<text>` and sent to the review queue; they are never ranked.
-- **Paid vs free** follows the brief's table: free has 7 nights of history, the first sentence of the summary and the top-level ranking; paid unlocks 30/90-night trends, snapshots, the full summary and watch overlay, tests, people-like-you, profile breakdowns, your result against the crowd, and the report.
+- **Paid vs free** (being changed: Bee and Hive, with community results Hive only; see [`docs/tiers-plan.md`](docs/tiers-plan.md)) follows the brief's table: free has 7 nights of history, the first sentence of the summary and the top-level ranking; paid unlocks 30/90-night trends, snapshots, the full summary and watch overlay, tests, people-like-you, profile breakdowns, your result against the crowd, and the report.
 - **Column names:** `bin.idx`, `snapshot.from_date/to_date` (app); `app_user`, `time_window` (server), to avoid SQL keywords.
 
 ## Not verified, or still to do
