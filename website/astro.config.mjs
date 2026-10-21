@@ -20,6 +20,10 @@ export default defineConfig({
   trailingSlash: 'never',
   // Astro 7 defaults to 'jsx' whitespace handling, which drops spaces between inline elements.
   compressHTML: true,
+  // Left to itself, Vite looks for the nearest tsconfig.json and can walk up past website/ to the
+  // app's tsconfig.json, which extends expo/tsconfig.base. Vercel installs only website/'s
+  // packages, so that file is missing there and the build fails. Pin this folder's tsconfig.
+  vite: { tsconfig: './tsconfig.json' },
   integrations: [
     mdx(),
     sitemap({

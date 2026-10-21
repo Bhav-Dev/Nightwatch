@@ -4,7 +4,7 @@ The marketing site: a static [Astro](https://docs.astro.build) build with its ow
 
 ## Run it
 
-Needs Node 22.22 or later.
+Needs Node 24 (the version Vercel builds with).
 
 ```bash
 cd website

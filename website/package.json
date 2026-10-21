@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The SnoreHive marketing site: a static Astro build.",
   "engines": {
-    "node": ">=22.22.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "astro dev",
