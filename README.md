@@ -247,7 +247,7 @@ This Morning follows the weather: a sunrise when it is clear, then partly cloudy
 A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`), frosted see-through cards, and honey for the one thing to tap. The skies were made honeycomb on 21 October 2026, from an approved mockup.
 
 - **Night:** an indigo gradient with a fixed field of tiny hexagon stars, some of them honey. A few larger ones twinkle.
-- **Tonight:** a honeycomb moon and a greeting. The moon is a honey hexagon with a faint comb across it, shaped into a crescent by a round shadow.
+- **Tonight:** a honeycomb moon and a greeting. The moon is round and honey-coloured with a faint comb across it, shaped into a crescent by a round shadow.
 - **Recording:** nearly black, with the same moon slowly breathing, so the screen does not light the room.
 - **This Morning:** a sunrise that follows the weather.
   - Clear and partly cloudy have a hexagon sun with two slowly swelling rings and six small cells circling it.

@@ -487,8 +487,8 @@ const MOON_COMB = (() => {
 })();
 
 /**
- * The moon as a honey cell: a hexagon with a faint comb across it, its shadow a circle, so it
- * reads as a crescent. It fills 60% of the square, in a soft glow.
+ * The honeycomb moon: a round honey moon with a faint comb across it, its shadow a circle, so it
+ * reads as a crescent. It fills 62% of the square, in a soft glow.
  */
 export function Moon({ size = 96, glow = true }: { size?: number; glow?: boolean }) {
   const id = `moon${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -506,13 +506,13 @@ export function Moon({ size = 96, glow = true }: { size?: number; glow?: boolean
         </LinearGradient>
         <Mask id={`${id}mask`} maskUnits="userSpaceOnUse" x={-100} y={-100} width={200} height={200}>
           <Rect x={-100} y={-100} width={200} height={200} fill="#000000" />
-          <Path d={hexPath(0, 0, MOON_R, MOON_R * 0.12)} fill="#FFFFFF" />
+          <Circle cx={0} cy={0} r={MOON_R * 1.03} fill="#FFFFFF" />
           <Circle cx={MOON_R * 0.55} cy={-MOON_R * 0.39} r={MOON_R * 0.935} fill="#000000" />
         </Mask>
       </Defs>
       {glow ? <Circle cx={0} cy={0} r={100} fill={`url(#${id}glow)`} /> : null}
       <G mask={`url(#${id}mask)`}>
-        <Rect x={-MOON_R} y={-MOON_R} width={MOON_R * 2} height={MOON_R * 2} fill={`url(#${id}fill)`} />
+        <Rect x={-MOON_R * 1.05} y={-MOON_R * 1.05} width={MOON_R * 2.1} height={MOON_R * 2.1} fill={`url(#${id}fill)`} />
         {MOON_COMB.map((d, i) => (
           <Path key={i} d={d} fill="none" stroke="rgba(233, 162, 63, 0.3)" strokeWidth={1.3} />
         ))}
