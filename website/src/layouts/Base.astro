@@ -1,0 +1,77 @@
+---
+import '../styles/global.css';
+
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+
+interface Props {
+  /** The page's own title. " · SnoreHive" is added, except on the home page. */
+  title: string;
+  description: string;
+  /** "article" for articles; everything else is a "website". */
+  type?: 'website' | 'article';
+  /** Keep the page out of search results (the sign-in handoff). */
+  noindex?: boolean;
+  /** A plain header with no section links. */
+  minimalHeader?: boolean;
+  /** When an article was published (ISO date). */
+  published?: Date;
+}
+
+const { title, description, type = 'website', noindex = false, minimalHeader = false, published } = Astro.props;
+const fullTitle = Astro.url.pathname === '/' ? title : `${title} · SnoreHive`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const image = new URL('/og.png', Astro.site);
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#0B1026" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="preload" href="/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    <meta property="og:site_name" content="SnoreHive" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SnoreHive: find out what actually stops your snoring" />
+    <meta property="og:locale" content="en_GB" />
+    {published && <meta property="article:published_time" content={published.toISOString()} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header minimal={minimalHeader} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+    <script is:inline>
+      // On a phone, "Get the app" goes straight to that phone's store.
+      (function () {
+        var ua = navigator.userAgent || '';
+        var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var android = /Android/i.test(ua);
+        if (!ios && !android) return;
+        document.querySelectorAll('a[data-get-app]').forEach(function (a) {
+          a.href = ios ? a.getAttribute('data-ios') : a.getAttribute('data-android');
+        });
+      })();
+    </script>
+  </body>
+</html>

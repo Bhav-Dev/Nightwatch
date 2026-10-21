@@ -1,0 +1,25 @@
+---
+import { stores } from '../config';
+
+/**
+ * A "Get the app" style button. On iPhone and Android phones a small script in the page
+ * layout points it straight at the right store; everywhere else it goes to the download
+ * badges at the top of the home page.
+ */
+interface Props {
+  label?: string;
+  kind?: 'honey' | 'ghost';
+  size?: 'small' | 'medium' | 'large';
+  class?: string;
+}
+
+const { label = 'Get the app', kind = 'honey', size = 'medium', class: className } = Astro.props;
+---
+
+<a
+  href="/#get"
+  class:list={['btn', `btn--${kind}`, `btn--${size}`, className]}
+  data-get-app
+  data-ios={stores.appStore}
+  data-android={stores.googlePlay}>{label}</a
+>

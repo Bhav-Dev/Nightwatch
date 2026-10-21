@@ -1,0 +1,171 @@
+---
+import { alcohol } from '../data/community';
+import { CELL_PATH, CELL_VIEWBOX } from '../lib/hex';
+import Icon from './Icon.astro';
+
+/**
+ * The picture at the top of an article card. `large` is the featured card's tall version.
+ */
+interface Props {
+  cover: 'drinks' | 'cells' | 'weather' | 'weeks' | 'hours' | 'tests' | 'month';
+  large?: boolean;
+  /** The month the monthly report covers. */
+  monthLabel?: string;
+}
+
+const { cover, large = false, monthLabel = 'This month' } = Astro.props;
+const maxScore = Math.max(...alcohol.byDrinks.map((d) => d.score));
+---
+
+{
+  cover === 'drinks' && (
+    <div class:list={['art art--drinks', { 'art--large': large }]} aria-hidden="true">
+      {alcohol.byDrinks.map((d) => (
+        <div class="art__drink">
+          <div class="art__bar" style={`height:${Math.round((d.score / maxScore) * 220)}px`} />
+          <span>{d.band}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+{
+  cover === 'cells' && (
+    <div class="art" aria-hidden="true">
+      {['var(--level-loud)', 'var(--level-moderate)', 'var(--level-light)'].map((fill) => (
+        <svg width="46" height="53" viewBox={CELL_VIEWBOX}>
+          <path d={CELL_PATH} style={`fill:${fill}`} />
+        </svg>
+      ))}
+    </div>
+  )
+}
+{
+  cover === 'weather' && (
+    <div class="art art--weather" aria-hidden="true">
+      <Icon name="rain" size={72} color="#F4F1FF" strokeWidth={1.4} />
+    </div>
+  )
+}
+{
+  cover === 'weeks' && (
+    <div class="art art--padded" aria-hidden="true">
+      <svg width="100%" height="90" viewBox="0 0 280 90" preserveAspectRatio="none">
+        <path d="M0,70 C40,60 60,20 100,25 S160,70 200,55 S250,30 280,40" fill="none" stroke="#7480E8" stroke-width="2.5" stroke-linecap="round" />
+        <path d="M0,60 C40,40 60,10 100,12 S160,40 200,30 S250,15 280,20" fill="none" stroke="#BC8228" stroke-width="2.5" stroke-linecap="round" />
+      </svg>
+    </div>
+  )
+}
+{
+  cover === 'hours' && (
+    <div class="art art--padded art--hours" aria-hidden="true">
+      {[
+        [20, 'quiet'],
+        [44, 'light'],
+        [70, 'moderate'],
+        [90, 'epic'],
+        [62, 'moderate'],
+        [30, 'light'],
+        [16, 'quiet'],
+      ].map(([h, level]) => (
+        <div style={`height:${h}px;background:var(--level-${level})`} />
+      ))}
+    </div>
+  )
+}
+{
+  cover === 'tests' && (
+    <div class="art" aria-hidden="true">
+      <svg width="120" height="104" viewBox="0 0 120 104">
+        <path d="M30,4 L55,18 L55,46 L30,60 L5,46 L5,18 Z" fill="#F6C85F" />
+        <path d="M90,4 L115,18 L115,46 L90,60 L65,46 L65,18 Z" fill="none" stroke="#BFC8FF" stroke-width="3" />
+        <path d="M60,48 L85,62 L85,90 L60,104 L35,90 L35,62 Z" fill="#9A8344" />
+      </svg>
+    </div>
+  )
+}
+{
+  cover === 'month' && (
+    <div class="art art--month" aria-hidden="true">
+      <span class="art__month">{monthLabel}</span>
+      <span class="art__month-sub">in the hive</span>
+    </div>
+  )
+}
+
+<style>
+  .art {
+    height: 160px;
+    background: var(--night-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .art--padded {
+    padding: 0 32px;
+  }
+  .art--weather {
+    background: linear-gradient(180deg, #a3b1c6 0%, #606c94 60%, #1e2650 100%);
+  }
+  .art--hours {
+    gap: 4px;
+  }
+  .art--hours div {
+    flex: 1;
+    border-radius: 3px;
+  }
+  .art--month {
+    flex-direction: column;
+    gap: 4px;
+    background: linear-gradient(160deg, rgba(246, 200, 95, 0.2), var(--night-panel) 60%);
+  }
+  .art__month {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 40px;
+    color: var(--honey);
+  }
+  .art__month-sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .art--drinks {
+    align-items: flex-end;
+    gap: 18px;
+    padding: 40px 40px 0;
+  }
+  .art--large {
+    height: auto;
+    min-height: 300px;
+    flex: 1 1 440px;
+  }
+  .art__drink {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .art__bar {
+    width: 100%;
+    max-width: 64px;
+    background: var(--amber);
+    border-radius: 4px 4px 0 0;
+  }
+  .art__drink span {
+    color: var(--muted);
+    font-size: 12px;
+    padding-bottom: 14px;
+  }
+  @media (max-width: 720px) {
+    .art--large {
+      min-height: 240px;
+      padding: 28px 20px 0;
+    }
+    .art--large .art__bar {
+      max-height: 170px;
+    }
+  }
+</style>

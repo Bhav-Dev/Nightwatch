@@ -1,0 +1,84 @@
+---
+import Logo from './Logo.astro';
+
+const links = [
+  { href: '/remedies', label: 'Remedies' },
+  { href: '/articles', label: 'From the hive' },
+  { href: '/methods', label: 'How the community figures are made' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
+  { href: '/affiliate-disclosure', label: 'Affiliate disclosure' },
+  { href: '/contact', label: 'Contact' },
+];
+---
+
+<footer class="site-footer">
+  <div class="wrap site-footer__inner">
+    <div class="site-footer__top">
+      <a href="/" class="site-footer__brand">
+        <Logo id="footer-logo" size={32} />
+        <span>SnoreHive</span>
+      </a>
+      <nav aria-label="Footer" class="site-footer__nav">
+        {links.map((l) => <a href={l.href}>{l.label}</a>)}
+      </nav>
+    </div>
+    <p class="site-footer__small">
+      SnoreHive measures snoring and shows patterns. It does not diagnose any condition. If you stop breathing, gasp in your
+      sleep or feel very sleepy in the day, <a href="/when-to-see-a-gp">talk to your GP</a>. As an Amazon Associate we earn
+      from qualifying purchases.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: var(--night-deep);
+    border-top: 1px solid var(--line);
+  }
+  .site-footer__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-block: 48px;
+  }
+  .site-footer__top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .site-footer__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+  }
+  .site-footer__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    font-size: 14px;
+  }
+  .site-footer__nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .site-footer__nav a:hover {
+    color: var(--text);
+  }
+  .site-footer__small {
+    max-width: 760px;
+    color: var(--faint);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .site-footer__small a {
+    color: var(--muted);
+  }
+</style>

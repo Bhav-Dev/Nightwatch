@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Page not found" description="This page could not be found." noindex>
+  <div class="wrap wrap--article missing">
+    <p class="eyebrow">404</p>
+    <h1 class="missing__title">This page could not be found</h1>
+    <p class="lede">It may have moved. These are good places to start:</p>
+    <div class="actions">
+      <a href="/" class="btn btn--honey btn--medium">Home</a>
+      <a href="/remedies" class="btn btn--ghost btn--medium">Remedies</a>
+      <a href="/articles" class="btn btn--ghost btn--medium">From the hive</a>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .missing {
+    padding-block: 96px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .missing__title {
+    font-size: 44px;
+    line-height: 1.1;
+    font-weight: 800;
+  }
+</style>

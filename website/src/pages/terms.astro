@@ -1,0 +1,9 @@
+---
+import { contactEmail } from '../config';
+import Doc from '../layouts/Doc.astro';
+---
+
+<Doc title="Terms" description="SnoreHive's terms of use will be published here before the app is released." eyebrow="Terms">
+  <p>The full terms of use will be published here before SnoreHive is available in the App Store and Google Play.</p>
+  <p>Questions in the meantime: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+</Doc>

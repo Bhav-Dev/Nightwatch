@@ -1,0 +1,124 @@
+---
+/**
+ * A chart card: title, subtitle, an optional legend beside the title, the chart, and a caption.
+ */
+interface Props {
+  title: string;
+  subtitle: string;
+  caption: string;
+}
+
+const { title, subtitle, caption } = Astro.props;
+---
+
+<figure class="card figure">
+  <div class="figure__head">
+    <div class="figure__titles">
+      <h2 class="figure__title">{title}</h2>
+      <p class="figure__subtitle">{subtitle}</p>
+    </div>
+    <slot name="legend" />
+  </div>
+  <slot />
+  <figcaption class="small-print">{caption}</figcaption>
+</figure>
+
+<style>
+  .figure {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .figure__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .figure__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .figure__title {
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .figure__subtitle {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .figure :global(svg) {
+    width: 100%;
+    height: auto;
+  }
+  /* Charts drawn at two widths: the narrow drawing keeps its labels readable on phones. */
+  .figure :global(.chart--narrow) {
+    display: none;
+  }
+  @media (max-width: 480px) {
+    .figure :global(.chart--wide) {
+      display: none;
+    }
+    .figure :global(.chart--narrow) {
+      display: block;
+    }
+  }
+  .figure :global(.axis) {
+    fill: var(--muted);
+    font-size: 12px;
+  }
+  .figure :global(.axis-title) {
+    fill: var(--faint);
+    font-size: 12px;
+  }
+  .figure :global(.grid) {
+    stroke: rgba(170, 182, 255, 0.1);
+    stroke-width: 1;
+  }
+  .figure :global(.baseline) {
+    stroke: rgba(170, 182, 255, 0.35);
+    stroke-width: 1;
+  }
+  .figure :global(.value) {
+    fill: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .figure :global(details) {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .figure :global(summary) {
+    color: var(--text);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .figure :global(table) {
+    margin-top: 12px;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .figure :global(th) {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line-strong);
+    color: var(--text);
+    text-align: left;
+  }
+  .figure :global(td) {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .figure :global(th + th),
+  .figure :global(td + td) {
+    text-align: right;
+  }
+  @media (max-width: 720px) {
+    .figure {
+      padding: 20px 16px;
+    }
+  }
+</style>

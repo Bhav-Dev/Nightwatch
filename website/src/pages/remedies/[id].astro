@@ -1,0 +1,312 @@
+---
+import { getCollection, render } from 'astro:content';
+
+import Cell from '../../components/Cell.astro';
+import GetApp from '../../components/GetApp.astro';
+import Icon from '../../components/Icon.astro';
+import Meter from '../../components/Meter.astro';
+import SampleNote from '../../components/SampleNote.astro';
+import { remedies as results, rules, sample, tier } from '../../data/community';
+import Base from '../../layouts/Base.astro';
+import { count, month, signedPct } from '../../lib/format';
+
+export async function getStaticPaths() {
+  const pages = await getCollection('remedies');
+  return pages.map((page) => ({ params: { id: page.id }, props: { page } }));
+}
+
+const { page } = Astro.props;
+const { question, label, description, steps, caution, amazonUrl } = page.data;
+const { Content } = await render(page);
+const result = results[page.id];
+const level = result ? tier(result.people, result.nights) : 'testing';
+const name = label.toLowerCase();
+const subtitle =
+  result && level !== 'testing'
+    ? `What ${count(result.nights)} nights from ${count(result.people)} SnoreHive users say, updated ${month(result.updated)}.`
+    : `SnoreHive users are testing ${name} now. Figures appear here once enough people have.`;
+const allSteps = [...steps, 'Run a two-week test in SnoreHive, so you know whether it works for you rather than for most people.'];
+---
+
+<Base title={question} description={description}>
+  <div class="wrap wrap--remedy remedy">
+    <div class="remedy__head">
+      <nav aria-label="Breadcrumb" class="crumbs"><a href="/">Home</a> · <a href="/remedies">Remedies</a> · {label}</nav>
+      <h1 class="remedy__title">{question}</h1>
+      <p class="remedy__subtitle">{subtitle}</p>
+      {result && <SampleNote />}
+    </div>
+
+    {
+      result && level !== 'testing' ? (
+        <section aria-labelledby="answer" class="card card--honey answer">
+          <div class="answer__top">
+            <h2 id="answer" class="answer__title">The short answer</h2>
+            {level === 'early' && <span class="early">Early data</span>}
+          </div>
+          <p class="answer__text">{result.shortAnswer}</p>
+          <div class="stats">
+            <div class="stat">
+              <Cell width={78} fill="rgba(246,200,95,0.08)" honeyStrokeId="stat-honey" textSize={22}>
+                {signedPct(result.changePct)}
+              </Cell>
+              <p>Typical change in snore score</p>
+            </div>
+            <div class="stat">
+              <Cell width={78} fill="rgba(191,200,255,0.06)" stroke="#BFC8FF" strokeWidth={4} textSize={22}>
+                {result.helpedPct}%
+              </Cell>
+              <p>Of people whose own test said it helped</p>
+            </div>
+            <div class="stat">
+              <Cell width={78} fill="rgba(191,200,255,0.06)" stroke="#BFC8FF" strokeWidth={4} textSize={result.people >= 1000 ? 18 : 22}>
+                {count(result.people)}
+              </Cell>
+              <p>People in the result</p>
+            </div>
+          </div>
+          {level === 'early' && (
+            <p class="answer__early">
+              Fewer than {rules.fullPeople} people have tested it, so this is early data and it is not ranked against other remedies.
+            </p>
+          )}
+        </section>
+      ) : (
+        <section class="card answer answer--waiting">
+          <h2 class="answer__title">Not enough nights yet</h2>
+          <p class="answer__text">
+            A remedy needs at least {rules.earlyPeople} people testing it before SnoreHive shows a figure. Test it yourself in the
+            app and your nights count towards it if you choose to share them.
+          </p>
+        </section>
+      )
+    }
+
+    {
+      result && level !== 'testing' && (
+        <section aria-labelledby="who" class="block">
+          <h2 id="who" class="block__title">Who it helped most</h2>
+          <p class="block__text">
+            Results split by the profile people share. A group is only shown when it has enough people for the figure to mean
+            something.
+          </p>
+          <div class="card rows">
+            {result.groups.map((g) => (
+              <div class="row">
+                <p class="row__label">{g.label}</p>
+                {g.changePct === null ? <p class="row__none">Not enough people yet</p> : <Meter pct={g.changePct} noun="" />}
+              </div>
+            ))}
+          </div>
+          <p class="small-print">
+            {sample
+              ? 'Example layout; bars show the shape of a result, not real figures.'
+              : `Groups with fewer than ${rules.minGroupPeople} people are not shown.`}
+          </p>
+        </section>
+      )
+    }
+
+    <section aria-labelledby="about" class="block">
+      <h2 id="about" class="block__title">About {name}</h2>
+      <div class="block__text block__prose"><Content /></div>
+    </section>
+
+    <section aria-labelledby="try" class="block">
+      <h2 id="try" class="block__title">How to try it</h2>
+      <ol class="try">
+        {
+          allSteps.map((s, i) => (
+            <li>
+              <Cell width={36} fill="#F6C85F" ink="var(--on-honey)" textSize={16}>
+                {i + 1}
+              </Cell>
+              <p>{s}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="actions">
+        <GetApp label="Test it with SnoreHive" />
+        {
+          amazonUrl && (
+            <a href={amazonUrl} class="btn btn--ghost btn--medium" rel="sponsored noopener">
+              Where to buy on Amazon
+            </a>
+          )
+        }
+      </div>
+      {amazonUrl && <p class="small-print">As an Amazon Associate we earn from qualifying purchases. Prices are on Amazon.</p>}
+    </section>
+
+    <section aria-labelledby="gp" class="caution">
+      <Icon name="alert" size={24} color="#F6C85F" class="caution__icon" />
+      <div class="caution__body">
+        <h2 id="gp" class="caution__title">See a GP if</h2>
+        <p>
+          You stop breathing or gasp in your sleep, you wake up choking, or you are very sleepy in the day.{caution && ` ${caution}`}
+        </p>
+      </div>
+    </section>
+
+    <p class="remedy__foot">
+      Figures come from nights people chose to share, with unusual nights and short nights left out.
+      <a href="/methods">How the community figures are made</a>. SnoreHive measures snoring and shows patterns. It does not diagnose
+      any condition.
+    </p>
+  </div>
+</Base>
+
+<style>
+  .remedy {
+    padding-block: 56px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+  .remedy__head {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .remedy__title {
+    font-size: 52px;
+    line-height: 1.08;
+    font-weight: 800;
+  }
+  .remedy__subtitle {
+    color: var(--muted);
+    font-size: 19px;
+    line-height: 1.55;
+  }
+  .answer {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .answer__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .answer__title {
+    font-size: 26px;
+    font-weight: 800;
+  }
+  .answer__text {
+    font-size: 18px;
+    line-height: 1.6;
+  }
+  .answer__early {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .answer--waiting .answer__text {
+    color: var(--muted);
+  }
+  .early {
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .stat {
+    flex: 1 1 200px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .stat p {
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .block {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .block__title {
+    font-size: 30px;
+    font-weight: 800;
+  }
+  .block__text {
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  .block__prose :global(p) {
+    margin: 0;
+  }
+  .try {
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .try li {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .try p {
+    padding-top: 8px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  .caution {
+    background: var(--caution);
+    border-radius: var(--radius-button);
+    padding: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .caution :global(.caution__icon) {
+    margin-top: 2px;
+  }
+  .caution__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    line-height: 1.6;
+  }
+  .caution__title {
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .remedy__foot {
+    color: var(--faint);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .remedy__foot a {
+    color: var(--muted);
+  }
+  @media (max-width: 720px) {
+    .remedy {
+      padding-block: 40px 72px;
+      gap: 40px;
+    }
+    .remedy__title {
+      font-size: 38px;
+    }
+    .answer {
+      padding: 24px 20px;
+    }
+    .block__title {
+      font-size: 26px;
+    }
+  }
+</style>

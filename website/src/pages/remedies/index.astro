@@ -1,0 +1,96 @@
+---
+import { getCollection } from 'astro:content';
+
+import Comb from '../../components/Comb.astro';
+import type { IconName } from '../../components/Icon.astro';
+import ResultRow from '../../components/ResultRow.astro';
+import SampleNote from '../../components/SampleNote.astro';
+import { remedies as results, tier } from '../../data/community';
+import Base from '../../layouts/Base.astro';
+
+const pages = await getCollection('remedies');
+const withTier = pages.map((page) => {
+  const result = results[page.id];
+  return { page, result, level: result ? tier(result.people, result.nights) : ('testing' as const) };
+});
+const order = { full: 0, early: 1, testing: 2 };
+withTier.sort((a, b) => order[a.level] - order[b.level] || (a.result?.changePct ?? 0) - (b.result?.changePct ?? 0));
+---
+
+<Base
+  title="Remedies"
+  description="Snoring remedies ranked by real nights from SnoreHive users: what helped, for whom, and how to test each one on yourself."
+>
+  <section class="intro">
+    <Comb id="remedies-comb" cx="80%" cy="30%" r="65%" opacity={0.1} />
+    <div class="wrap intro__inner">
+      <p class="eyebrow">Remedies</p>
+      <h1 class="intro__title">What the hive has tried</h1>
+      <p class="lede intro__lede">
+        Each remedy is ranked by what happened on real nights: people's nights with it against their own nights without. Pick one
+        to see who it helped and how to try it.
+      </p>
+    </div>
+  </section>
+  <div class="wrap list">
+    <SampleNote />
+    <div class="card rows">
+      {
+        withTier.map(({ page, result, level }) => (
+          <ResultRow
+            icon={page.id as IconName}
+            label={page.data.label}
+            href={`/remedies/${page.id}`}
+            people={result?.people}
+            nights={result?.nights ?? 0}
+            pct={result && level !== 'testing' ? result.changePct : undefined}
+            early={level === 'early'}
+          />
+        ))
+      }
+    </div>
+    <p class="small-print">
+      Ranked remedies have at least 30 people and 300 nights behind them. Early data is shown muted and not ranked. <a
+        href="/methods">How the community figures are made</a>.
+    </p>
+  </div>
+</Base>
+
+<style>
+  .intro {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--dusk) 0%, var(--night) 100%);
+  }
+  .intro__inner {
+    position: relative;
+    padding-block: 72px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .intro__title {
+    max-width: 760px;
+    font-size: 56px;
+    line-height: 1.05;
+    font-weight: 800;
+  }
+  .intro__lede {
+    max-width: 640px;
+    font-size: 19px;
+  }
+  .list {
+    padding-block: 24px 104px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  @media (max-width: 720px) {
+    .intro__inner {
+      padding-block: 48px 40px;
+    }
+    .intro__title {
+      font-size: 40px;
+    }
+  }
+</style>

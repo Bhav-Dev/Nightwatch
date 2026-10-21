@@ -1,0 +1,43 @@
+---
+import { sample } from '../data/community';
+
+/**
+ * Says the figures on the page are samples, for as long as they are.
+ */
+interface Props {
+  text?: string;
+}
+
+const {
+  text = 'SnoreHive has not published community results yet. The numbers on this page show the layout, not real results.',
+} = Astro.props;
+---
+
+{
+  sample && (
+    <p class="sample-note">
+      <span class="sample-note__tag">Sample figures</span>
+      <span>{text}</span>
+    </p>
+  )
+}
+
+<style>
+  .sample-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    padding: 12px 16px;
+    border: 1px dashed rgba(246, 200, 95, 0.55);
+    border-radius: var(--radius-inset);
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .sample-note__tag {
+    color: var(--honey);
+    font-weight: 800;
+    font-size: 13px;
+  }
+</style>

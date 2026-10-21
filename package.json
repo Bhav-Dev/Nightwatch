@@ -79,10 +79,12 @@
       "/node_modules/",
       "/__tests__/helpers/",
       "<rootDir>/server/",
+      "<rootDir>/website/",
       "<rootDir>/.claude/"
     ],
     "modulePathIgnorePatterns": [
       "<rootDir>/server/",
+      "<rootDir>/website/",
       "<rootDir>/.claude/"
     ]
   }

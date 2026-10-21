@@ -1,0 +1,19 @@
+---
+import { contactEmail } from '../config';
+import Doc from '../layouts/Doc.astro';
+---
+
+<Doc
+  title="Privacy policy"
+  description="SnoreHive's privacy policy will be published here before the app is released."
+  eyebrow="Privacy"
+>
+  <p>
+    The full privacy policy will be published here before SnoreHive is available in the App Store and Google Play.
+  </p>
+  <p>
+    Until then, <a href="/methods">How the community figures are made</a> explains what is shared when you turn on Contribute, and
+    what never leaves your phone.
+  </p>
+  <p>Questions about your data: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+</Doc>

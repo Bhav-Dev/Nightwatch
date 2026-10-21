@@ -16,6 +16,7 @@
     ".claude",
     "server",
     "supabase",
+    "website",
     "babel.config.js",
     "metro.config.js",
     "jest.config.js",

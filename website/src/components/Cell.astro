@@ -1,0 +1,87 @@
+---
+import { CELL_PATH, CELL_VIEWBOX } from '../lib/hex';
+
+/**
+ * One honeycomb cell, filled or outlined, with optional text centred inside (a step number,
+ * a score, a figure).
+ */
+interface Props {
+  width: number;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  /** A honey gradient on the outline. Needs a page-unique id. */
+  honeyStrokeId?: string;
+  /** Colour of the centred text. */
+  ink?: string;
+  /** Font size of the centred text, in px. */
+  textSize?: number;
+  class?: string;
+}
+
+const {
+  width,
+  fill = 'none',
+  stroke,
+  strokeWidth = 5,
+  honeyStrokeId,
+  ink = 'var(--text)',
+  textSize = 22,
+  class: className,
+} = Astro.props;
+const height = Math.round(width * 1.154);
+const hasText = Astro.slots.has('default');
+---
+
+<span class:list={['cell', className]} style={`width:${width}px;height:${height}px`}>
+  <svg width={width} height={height} viewBox={CELL_VIEWBOX} aria-hidden="true">
+    {
+      honeyStrokeId && (
+        <defs>
+          <linearGradient id={honeyStrokeId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FFE9AE" />
+            <stop offset="0.5" stop-color="#F6C85F" />
+            <stop offset="1" stop-color="#E9A23F" />
+          </linearGradient>
+        </defs>
+      )
+    }
+    <path
+      d={CELL_PATH}
+      fill={fill}
+      stroke={honeyStrokeId ? `url(#${honeyStrokeId})` : (stroke ?? 'none')}
+      stroke-width={stroke || honeyStrokeId ? strokeWidth : 0}
+      stroke-linejoin="round"
+    ></path>
+  </svg>
+  {
+    hasText && (
+      <span class="cell__text" style={`color:${ink};font-size:${textSize}px`}>
+        <slot />
+      </span>
+    )
+  }
+</span>
+
+<style>
+  .cell {
+    position: relative;
+    display: inline-block;
+    flex: none;
+  }
+  .cell svg {
+    position: absolute;
+    inset: 0;
+  }
+  .cell__text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+</style>

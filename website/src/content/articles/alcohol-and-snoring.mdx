@@ -1,0 +1,43 @@
+---
+title: Does alcohol make snoring worse?
+description: How much a drink changes the night, how late it matters, and who it affects most, from nights SnoreHive users chose to share.
+standfirst: On nights after three or more drinks, snore scores were {points} points higher than on the same people's nights without, and the gap was widest about {peakHour} hours after going to bed.
+topic: habits
+date: 2026-10-21
+readMinutes: 6
+featured: true
+cover: drinks
+figures: alcohol
+home: 4
+question: Does alcohol make snoring worse?
+---
+
+import Callout from '../../components/article/Callout.astro';
+import DrinksChart from '../../components/article/DrinksChart.astro';
+import GroupList from '../../components/article/GroupList.astro';
+import HourlyChart from '../../components/article/HourlyChart.astro';
+import { alcoholFindings } from '../../data/community';
+
+export const f = alcoholFindings();
+
+Alcohol is near the top of almost every list of snoring advice. It relaxes the muscles of the throat, and it is one of the most common reasons people give for a loud night. What is less clear is how much difference a drink or two makes on an ordinary night, and whether the timing matters.
+
+We compared nights where people logged drinks in the evening with their own nights without. Comparing each person with themselves takes out differences between people, such as age or how loudly they snore anyway.
+
+<DrinksChart />
+
+<h2 id="timing">{f.peakHour <= f.hours / 2 ? 'It shows most in the first half of the night' : 'It shows most later in the night'}</h2>
+
+Hour by hour, the gap between nights with and without drinks was widest about {f.peakHour} hours after going to bed, then narrowed as the night went on. By hour {f.hours} it was {f.lastGap} percentage points, against {f.peakGap} at its widest.
+
+<HourlyChart />
+
+## Who it affects most
+
+The list below splits the result by the profile people share. Among the groups large enough to report, the gap was widest for {f.topGroup.phrase}.
+
+<GroupList />
+
+<Callout title="What this means for you">
+  If you snore, the drinks you have in the evening seem to matter. People differ, so the only way to know for you is to compare your own nights with and without.
+</Callout>

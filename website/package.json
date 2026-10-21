@@ -1,0 +1,21 @@
+{
+  "name": "snorehive-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The SnoreHive marketing site: a static Astro build.",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "build:artifact": "astro build --outDir dist-artifact && node scripts/relative-links.mjs dist-artifact --title \"SnoreHive website\""
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^8.1.0",
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.4.1"
+  }
+}

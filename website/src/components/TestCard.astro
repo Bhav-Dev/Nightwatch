@@ -1,0 +1,87 @@
+---
+import { CELL_PATH, CELL_VIEWBOX } from '../lib/hex';
+
+/**
+ * A remedy test on day 9 of 14, as the app shows it: nights with the strips, nights without,
+ * tonight outlined, and the nights still to come.
+ */
+type Night = 'with' | 'without' | 'tonight' | 'future';
+const nights: Night[] = [
+  'with',
+  'without',
+  'with',
+  'with',
+  'without',
+  'without',
+  'with',
+  'without',
+  'tonight',
+  'future',
+  'future',
+  'future',
+  'future',
+  'future',
+];
+---
+
+<div class="card test">
+  <p class="test__title">Nasal strips · day 9 of 14</p>
+  <div class="test__nights" aria-hidden="true">
+    {
+      nights.map((n) => (
+        <svg width="34" height="39" viewBox={CELL_VIEWBOX}>
+          <path d={CELL_PATH} class={`test__night test__night--${n}`} />
+        </svg>
+      ))
+    }
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--honey)"></span>With strips</span>
+    <span><span class="swatch" style="border:2px solid var(--lilac)"></span>Without</span>
+    <span><span class="swatch" style="border:1px solid rgba(191,200,255,0.4)"></span>Still to come</span>
+  </div>
+  <p class="test__next">Five more nights and you will have an answer. Tonight: with strips.</p>
+</div>
+
+<style>
+  .test {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .test__title {
+    font-weight: 700;
+  }
+  .test__nights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .test__night--with {
+    fill: var(--honey);
+  }
+  .test__night--without {
+    fill: none;
+    stroke: var(--lilac);
+    stroke-width: 6;
+  }
+  .test__night--tonight {
+    fill: var(--honey);
+    stroke: var(--text);
+    stroke-width: 6;
+  }
+  .test__night--future {
+    fill: none;
+    stroke: rgba(191, 200, 255, 0.2);
+    stroke-width: 4;
+  }
+  .test__next {
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    background: var(--card-raised);
+    border-radius: var(--radius-inset);
+    padding: 14px 16px;
+  }
+</style>

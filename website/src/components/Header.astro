@@ -1,0 +1,200 @@
+---
+import GetApp from './GetApp.astro';
+import Icon from './Icon.astro';
+import Logo from './Logo.astro';
+
+/**
+ * The site header. Below 1000px the links fold into a menu.
+ */
+interface Props {
+  /** Hide the section links (the sign-in handoff page). */
+  minimal?: boolean;
+}
+
+const { minimal = false } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+const links = [
+  { href: '/#how', label: 'How it works' },
+  { href: '/#community', label: 'What the hive says' },
+  { href: '/remedies', label: 'Remedies' },
+  { href: '/articles', label: 'From the hive' },
+  { href: '/#pricing', label: 'Pricing' },
+  { href: '/methods', label: 'Methods' },
+];
+const current = (href: string) => !href.includes('#') && (path === href || path.startsWith(`${href}/`));
+---
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a href="/" class="brand" aria-label="SnoreHive home">
+      <Logo id="nav-logo" size={40} />
+      <span class="brand__name">SnoreHive</span>
+    </a>
+    {
+      !minimal && (
+        <>
+          <nav class="site-nav" aria-label="Main">
+            {links.map((l) => (
+              <a href={l.href} aria-current={current(l.href) ? 'page' : undefined}>
+                {l.label}
+              </a>
+            ))}
+          </nav>
+          <div class="site-header__actions">
+            <GetApp size="small" />
+            <details class="menu">
+              <summary class="menu__button">
+                <Icon name="menu" size={20} />
+                <span>Menu</span>
+              </summary>
+              <nav class="menu__panel" aria-label="Main">
+                {links.map((l) => (
+                  <a href={l.href} aria-current={current(l.href) ? 'page' : undefined}>
+                    {l.label}
+                  </a>
+                ))}
+              </nav>
+            </details>
+          </div>
+        </>
+      )
+    }
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: relative;
+    z-index: 5;
+    border-bottom: 1px solid var(--line);
+    background: var(--header);
+  }
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-block: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .brand:hover {
+    color: var(--text);
+  }
+  .brand__name {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 22px;
+  }
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 15px;
+  }
+  .site-nav a,
+  .menu__panel a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .site-nav a:hover,
+  .site-nav a[aria-current='page'],
+  .menu__panel a:hover,
+  .menu__panel a[aria-current='page'] {
+    color: var(--text);
+  }
+  .site-nav a[aria-current='page'],
+  .menu__panel a[aria-current='page'] {
+    font-weight: 700;
+  }
+  .site-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .menu {
+    position: relative;
+    display: none;
+  }
+  .menu__button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-button);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .menu__button::-webkit-details-marker {
+    display: none;
+  }
+  .menu__panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: min(280px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-inset);
+    background: var(--night-deep);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+  .menu__panel a {
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+  .menu__panel a:hover {
+    background: var(--card);
+  }
+  @media (max-width: 1000px) {
+    .site-nav {
+      display: none;
+    }
+    .menu {
+      display: block;
+    }
+  }
+  .site-header__actions :global(.btn) {
+    white-space: nowrap;
+  }
+  @media (max-width: 480px) {
+    .brand__name {
+      font-size: 20px;
+    }
+    .site-header__inner {
+      gap: 12px;
+    }
+    .site-header__actions :global(.btn--small) {
+      padding: 11px 14px;
+    }
+    .menu__button {
+      padding: 11px 12px;
+    }
+    .menu__button span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+  @media (max-width: 359px) {
+    .brand__name {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,332 @@
+---
+import { getCollection, render } from 'astro:content';
+
+import Cell from '../../components/Cell.astro';
+import Comb from '../../components/Comb.astro';
+import GetApp from '../../components/GetApp.astro';
+import SampleNote from '../../components/SampleNote.astro';
+import { alcohol, alcoholFindings, rules, sample } from '../../data/community';
+import Base from '../../layouts/Base.astro';
+import { articleTitle, fill } from '../../lib/content';
+import { count, date, dateRange } from '../../lib/format';
+import { topicLabels } from '../../lib/topics';
+import { CELL_PATH, CELL_VIEWBOX } from '../../lib/hex';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', (a) => a.data.status === 'published');
+  return articles.map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { topic, readMinutes, standfirst, description, figures } = entry.data;
+const title = articleTitle(entry);
+const published = entry.data.date;
+const f = figures === 'alcohol' ? alcoholFindings() : null;
+const range = figures === 'alcohol' ? dateRange(alcohol.from, alcohol.to) : null;
+const meta = [
+  published && date(published),
+  readMinutes && `${readMinutes} min read`,
+  figures === 'alcohol' && `${count(alcohol.nights)} nights from ${count(alcohol.people)} people who share their data`,
+]
+  .filter(Boolean)
+  .join(' · ');
+
+const others = (await getCollection('articles', (a) => a.data.status === 'published' && a.id !== entry.id)).slice(0, 1);
+const related = [
+  ...others.map((a) => ({ href: `/articles/${a.id}`, kind: topicLabels[a.data.topic], title: articleTitle(a) })),
+  { href: '/remedies/mouth-tape', kind: 'Remedies', title: 'Does mouth tape stop snoring?' },
+  { href: '/remedies/side-sleeping', kind: 'Remedies', title: 'Is sleeping on your side better for snoring?' },
+].slice(0, 2);
+---
+
+<Base title={title} description={description} type="article" published={published}>
+  <article class="wrap wrap--article article">
+    <div class="article__head">
+      <nav aria-label="Breadcrumb" class="crumbs"><a href="/articles">From the hive</a> · {topicLabels[topic]}</nav>
+      <h1 class="article__title">{title}</h1>
+      {standfirst && <p class="article__standfirst">{fill(standfirst, entry)}</p>}
+      <div class="byline">
+        <svg width="40" height="46" viewBox={CELL_VIEWBOX} aria-hidden="true">
+          <path d={CELL_PATH} fill="#F6C85F"></path>
+        </svg>
+        <div>
+          <p class="byline__name">SnoreHive data team</p>
+          <p class="byline__meta">{meta}</p>
+        </div>
+      </div>
+      {figures && <SampleNote />}
+    </div>
+
+    {
+      f && (
+        <section aria-labelledby="findings" class="card card--honey findings">
+          <h2 id="findings" class="findings__title">Key findings</h2>
+          <div class="findings__stats">
+            <div class="stat">
+              <Cell width={70} fill="rgba(246,200,95,0.08)" stroke="#F6C85F" strokeWidth={5} textSize={20}>
+                +{f.points}
+              </Cell>
+              <p>Points on the snore score after 3 or more drinks</p>
+            </div>
+            <div class="stat">
+              <Cell width={70} fill="rgba(191,200,255,0.06)" stroke="#BFC8FF" strokeWidth={4} textSize={20}>
+                {f.peakHour}h
+              </Cell>
+              <p>Hours after bedtime when the gap is widest</p>
+            </div>
+            <div class="stat">
+              <Cell width={70} fill="rgba(191,200,255,0.06)" stroke="#BFC8FF" strokeWidth={4} textSize={20}>
+                {alcohol.showedEffectPct}%
+              </Cell>
+              <p>Of people whose own nights showed the effect</p>
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <section class="try">
+      <Comb id="try-comb" small fromRight />
+      <div class="try__text">
+        <h2 class="try__title">Find out what it does to your nights</h2>
+        <p>
+          Log what you try in SnoreHive for two weeks and it compares your nights with and without, and tells you how sure the
+          result is.
+        </p>
+      </div>
+      <GetApp label="Start a test" size="large" class="try__cta" />
+    </section>
+
+    {
+      figures && (
+        <section aria-labelledby="methods" class="methods">
+          <h2 id="methods" class="methods__title">How we worked this out</h2>
+          <ul>
+            <li>
+              Nights from people who chose to share their nightly numbers, {range}. Audio is never shared; only scores and what people
+              logged.
+            </li>
+            <li>Nights under 3 hours, interrupted nights and nights people marked as unusual are left out.</li>
+            <li>Each person is compared with their own nights. A group is only shown with at least {rules.minGroupPeople} people.</li>
+            <li>This shows a link between drinking and snoring, not proof that one causes the other.</li>
+          </ul>
+          <div class="actions">
+            {!sample && (
+              <a href={`/data/${entry.id}.csv`} class="btn btn--ghost btn--small">
+                Download the data (CSV)
+              </a>
+            )}
+            <a href="/methods" class="btn btn--ghost btn--small">
+              Full methods
+            </a>
+          </div>
+          <p class="small-print">
+            Cite as: SnoreHive, “{title}”, {published ? date(published) : 'undated'}.
+          </p>
+        </section>
+      )
+    }
+
+    <section aria-labelledby="related" class="related">
+      <h2 id="related" class="related__title">More from the hive</h2>
+      <div class="related__links">
+        {
+          related.map((r) => (
+            <a href={r.href} class="card related__link">
+              <span class="related__kind">{r.kind}</span>
+              <span class="related__name">{r.title}</span>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <p class="small-print">
+      SnoreHive measures snoring and shows patterns. It does not diagnose any condition. If you stop breathing, gasp in your sleep or
+      feel very sleepy in the day, <a href="/when-to-see-a-gp">talk to your GP</a>.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .article {
+    padding-block: 56px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+  .article__head {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .article__title {
+    font-size: 50px;
+    line-height: 1.08;
+    font-weight: 800;
+  }
+  .article__standfirst {
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1.55;
+  }
+  .byline {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .byline > div {
+    min-width: 0;
+  }
+  .byline svg {
+    flex: none;
+  }
+  .byline__name {
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .byline__meta {
+    color: var(--faint);
+    font-size: 14px;
+  }
+  .findings {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .findings__title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .findings__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .stat {
+    flex: 1 1 190px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .stat p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .try {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, rgba(246, 200, 95, 0.18), var(--night-panel) 65%);
+    border: 1.5px solid var(--honey);
+    border-radius: var(--radius-card);
+    padding: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+  }
+  .try__text {
+    position: relative;
+    flex: 1 1 380px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .try__title {
+    color: var(--text);
+    font-size: 26px;
+    font-weight: 800;
+  }
+  .try :global(.try__cta) {
+    position: relative;
+  }
+  .methods {
+    border-top: 1px solid var(--line);
+    padding-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .methods__title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .methods ul {
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .methods .actions {
+    margin-top: 6px;
+  }
+  .related {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .related__title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .related__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .related__link {
+    flex: 1 1 300px;
+    min-width: 0;
+    padding: 22px;
+    border-radius: var(--radius-button);
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .related__link:hover {
+    border-color: rgba(246, 200, 95, 0.5);
+    color: var(--text);
+  }
+  .related__kind {
+    color: var(--honey);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .related__name {
+    font-weight: 700;
+    font-size: 17px;
+  }
+  @media (max-width: 720px) {
+    .article {
+      padding-block: 40px 72px;
+    }
+    .article__title {
+      font-size: 36px;
+    }
+    .article__standfirst {
+      font-size: 18px;
+    }
+    .findings,
+    .try {
+      padding: 24px 20px;
+    }
+  }
+</style>

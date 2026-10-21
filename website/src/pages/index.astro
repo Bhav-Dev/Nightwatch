@@ -1,0 +1,570 @@
+---
+import { getCollection } from 'astro:content';
+
+import Cell from '../components/Cell.astro';
+import Comb from '../components/Comb.astro';
+import GetApp from '../components/GetApp.astro';
+import HiveOfNights from '../components/HiveOfNights.astro';
+import Icon, { type IconName } from '../components/Icon.astro';
+import Logo from '../components/Logo.astro';
+import PhoneMorning from '../components/PhoneMorning.astro';
+import ResultRow from '../components/ResultRow.astro';
+import StoreBadges from '../components/StoreBadges.astro';
+import TestCard from '../components/TestCard.astro';
+import { pricing } from '../config';
+import { factors, remedies as results, sample, tier } from '../data/community';
+import Base from '../layouts/Base.astro';
+import { homeQuestions } from '../lib/content';
+import { price } from '../lib/format';
+import { CELL_PATH, CELL_VIEWBOX } from '../lib/hex';
+
+const remedyPages = await getCollection('remedies');
+const ranked = remedyPages
+  .map((r) => ({ page: r, result: results[r.id] }))
+  .filter((r) => r.result && tier(r.result.people, r.result.nights) === 'full')
+  .sort((a, b) => a.result.changePct - b.result.changePct)
+  .slice(0, 3);
+const questions = await homeQuestions();
+const saving = Math.round((1 - pricing.yearly / (pricing.monthly * 12)) * 100);
+
+const steps = [
+  {
+    title: 'Record tonight',
+    text: 'Tick what you are trying, put your phone on the bedside table and tap Start. It stops by itself in the morning, just before your alarm.',
+  },
+  {
+    title: 'See your morning',
+    text: 'A snore score from 0 to 100, a timeline of the night, and the loudest moments to listen back to. Tell it what was and was not snoring.',
+  },
+  {
+    title: 'Test what helps',
+    text: 'Pick a remedy and SnoreHive plans two weeks of nights with and without it, then tells you how confident the result is.',
+  },
+];
+const levels = [
+  ['quiet', 'Quiet'],
+  ['light', 'Light'],
+  ['moderate', 'Moderate'],
+  ['loud', 'Loud'],
+  ['epic', 'Epic'],
+];
+const bee = [
+  'Record every night, with score, timeline and clips',
+  'Your last 7 nights',
+  'Log what you try each night',
+  'Tell it what was and was not snoring',
+];
+const hive = [
+  'What the hive found: every remedy ranked, and results from people like you',
+  'Remedy tests with a clear verdict',
+  "Your watch's oxygen and heart rate on the timeline",
+  '30 and 90-night trends, and a report to take to your GP',
+];
+---
+
+<Base
+  title="SnoreHive: find out what actually stops your snoring"
+  description="SnoreHive listens from your bedside phone, scores every night, and shows which remedies worked for people who snore like you. Free to record every night."
+>
+  <!-- Hero -->
+  <section class="hero">
+    <Comb id="hero-comb" cx="72%" cy="40%" r="70%" />
+    <div class="wrap hero__inner">
+      <div class="hero__copy">
+        <p class="eyebrow hero__eyebrow">For snorers, and the people who sleep beside them</p>
+        <h1 class="hero__title">Find out what actually stops your snoring</h1>
+        <p class="hero__lede">
+          SnoreHive listens from your bedside phone, scores every night, and shows which remedies worked for people who snore
+          like you.
+        </p>
+        <StoreBadges id="get" />
+        <p class="hero__promise">
+          <Icon name="lock" size={16} color="#5FD8B0" />
+          Audio stays on your phone. Free to record every night; try the Hive free for {pricing.trialDays} days.
+        </p>
+      </div>
+      <div class="hero__phone">
+        <PhoneMorning />
+      </div>
+    </div>
+  </section>
+
+  <!-- Three promises -->
+  <section class="band promises" aria-label="What SnoreHive promises">
+    <div class="wrap promises__inner">
+      <div class="promise">
+        <Icon name="lock" size={28} color="#F6C85F" strokeWidth={1.8} />
+        <div>
+          <p class="promise__title">Your audio never leaves your phone</p>
+          <p class="promise__text">Only nightly numbers sync, and only if you choose to share them.</p>
+        </div>
+      </div>
+      <div class="promise">
+        <Icon name="flask" size={28} color="#F6C85F" strokeWidth={1.8} />
+        <div>
+          <p class="promise__title">Test a remedy on yourself</p>
+          <p class="promise__text">Two weeks, nights on and off, and a clear answer on whether it helped.</p>
+        </div>
+      </div>
+      <div class="promise">
+        <svg width="28" height="32" viewBox={CELL_VIEWBOX} aria-hidden="true" class="promise__cell">
+          <path d={CELL_PATH} fill="none" stroke="#F6C85F" stroke-width="8" stroke-linejoin="round"></path>
+        </svg>
+        <div>
+          <p class="promise__title">Learn from the hive</p>
+          <p class="promise__text">See what worked for people of your age, build and kind of snoring.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" class="wrap section">
+    <div class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2 class="h2">Three steps, one night at a time</h2>
+    </div>
+    <ol class="steps">
+      {
+        steps.map((s, i) => (
+          <li class="card step">
+            <Cell width={52} fill="#F6C85F" ink="var(--on-honey)" textSize={22}>
+              {i + 1}
+            </Cell>
+            <h3 class="step__title">{s.title}</h3>
+            <p class="step__text">{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <!-- Hive of nights -->
+  <section class="band" aria-labelledby="hive-title">
+    <div class="wrap section split">
+      <div class="stack">
+        <p class="eyebrow">Your hive of nights</p>
+        <h2 class="h2" id="hive-title">Every night becomes a cell</h2>
+        <p class="lede">
+          Brighter cells are louder nights. Over a few weeks the pattern shows itself: the weekends, the late dinners, the nights a
+          remedy worked.
+        </p>
+        <div class="legend legend--spaced">
+          {
+            levels.map(([key, label]) => (
+              <span>
+                <span class="swatch" style={`background:var(--level-${key})`} />
+                {label}
+              </span>
+            ))
+          }
+        </div>
+      </div>
+      <div class="centre">
+        <HiveOfNights />
+      </div>
+    </div>
+  </section>
+
+  <!-- Community results -->
+  <section id="community" class="wrap section section--results">
+    <div class="section-head">
+      <p class="eyebrow">What the hive says</p>
+      <h2 class="h2">Remedies ranked by real nights, not reviews</h2>
+      <p class="lede">
+        Every Bee who shares their nightly numbers adds to a picture of what helps. Hive members see the full ranking, filtered by
+        age, build and how loud they snore.
+      </p>
+    </div>
+    <div class="card rows">
+      {
+        ranked.map(({ page, result }) => (
+          <ResultRow
+            icon={page.id as IconName}
+            label={page.data.label}
+            href={`/remedies/${page.id}`}
+            people={result.people}
+            nights={result.nights}
+            pct={result.changePct}
+          />
+        ))
+      }
+      <ResultRow
+        icon="alcohol"
+        label={factors.alcohol.label}
+        href="/articles/alcohol-and-snoring"
+        factor
+        nights={factors.alcohol.nights}
+        pct={factors.alcohol.changePct}
+      />
+    </div>
+    <p class="small-print">
+      {
+        sample
+          ? 'Example layout with sample figures. Real figures appear once a remedy has enough people and nights; how they are made is on the '
+          : 'Figures from nights people chose to share. How they are made is on the '
+      }<a href="/methods">methods page</a>.
+    </p>
+  </section>
+
+  <!-- Remedy tests -->
+  <section class="band" aria-labelledby="tests-title">
+    <div class="wrap section split">
+      <div class="stack">
+        <p class="eyebrow">Remedy tests</p>
+        <h2 class="h2" id="tests-title">Two weeks to know if it works for you</h2>
+        <p class="lede">
+          What helps most people may not help you. SnoreHive plans nights with and without a remedy, compares them, and says how
+          sure it is, so you stop paying for things that do nothing.
+        </p>
+      </div>
+      <TestCard />
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="wrap section section--pricing">
+    <div class="section-head">
+      <p class="eyebrow">Pricing</p>
+      <h2 class="h2">Record free as a Bee. Join the Hive for answers.</h2>
+    </div>
+    <div class="plans">
+      <div class="card plan">
+        <h3 class="plan__name">Bee</h3>
+        <p><span class="plan__price">Free</span><span class="plan__per"> for every night</span></p>
+        <ul class="plan__list">
+          {
+            bee.map((b) => (
+              <li>
+                <Icon name="check" size={18} color="#F6C85F" strokeWidth={2.4} class="plan__tick" />
+                {b}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="card plan plan--hive">
+        <div class="plan__top">
+          <h3 class="plan__name">Hive</h3>
+          <span class="pill">{pricing.trialDays} days free</span>
+        </div>
+        <div>
+          <p><span class="plan__price">{price(pricing.yearly)}</span><span class="plan__per"> a year</span></p>
+          <p class="plan__alt">Save {saving}%, or {price(pricing.monthly)} a month</p>
+        </div>
+        <ul class="plan__list plan__list--bright">
+          {
+            hive.map((h) => (
+              <li>
+                <Icon name="check" size={18} color="#F6C85F" strokeWidth={2.4} class="plan__tick" />
+                {h}
+              </li>
+            ))
+          }
+        </ul>
+        <GetApp label={`Join the Hive free for ${pricing.trialDays} days`} class="plan__cta" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Questions -->
+  <section id="remedies" class="band band--top">
+    <div class="wrap section section--tight">
+      <div class="section-head">
+        <p class="eyebrow">Questions people ask</p>
+        <h2 class="h2">Answered with nights, not opinions</h2>
+      </div>
+      <div class="questions">
+        {
+          questions.map((q) => (
+            <a href={q.href} class="card question">
+              {q.question}
+              <Icon name="chevron" size={20} color="#F6C85F" />
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing call to action -->
+  <section class="closing">
+    <Comb id="cta-comb" cx="50%" cy="60%" r="60%" />
+    <div class="wrap closing__inner">
+      <Logo id="cta-logo" size={96} strokeWidth={5} />
+      <h2 class="h2 closing__title">Join the hive tonight</h2>
+      <p class="lede">Put your phone by the bed, and tomorrow you will know how you really sleep, and what to try next.</p>
+      <StoreBadges center />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--dusk) 0%, var(--dusk-mid) 60%, var(--night) 100%);
+  }
+  .hero__inner {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 56px;
+    padding-block: 88px 104px;
+  }
+  .hero__copy {
+    flex: 1 1 480px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .hero__eyebrow {
+    letter-spacing: 0.04em;
+  }
+  .hero__title {
+    font-size: 60px;
+    line-height: 1.05;
+    font-weight: 800;
+  }
+  .hero__lede {
+    max-width: 540px;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1.5;
+  }
+  .hero :global(.stores) {
+    margin-top: 8px;
+    scroll-margin-top: 24px;
+  }
+  .hero__promise {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .hero__phone {
+    flex: 0 1 340px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .promises__inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 32px;
+    padding-block: 32px;
+  }
+  .promise {
+    flex: 1 1 260px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .promise__cell {
+    flex: none;
+  }
+  .promise__title {
+    font-weight: 700;
+  }
+  .promise__text {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .steps {
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .step {
+    flex: 1 1 300px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step__title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .step__text {
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .legend--spaced {
+    margin-top: 8px;
+    gap: 8px 16px;
+  }
+  .centre {
+    display: flex;
+    justify-content: center;
+  }
+
+  .section--results {
+    gap: 40px;
+  }
+
+  .section--pricing {
+    gap: 40px;
+  }
+  .plans {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .plan {
+    flex: 1 1 320px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .plan--hive {
+    background: linear-gradient(160deg, rgba(246, 200, 95, 0.16), var(--card) 55%);
+    border: 1.5px solid var(--honey);
+  }
+  .plan__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .plan__name {
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .plan__price {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 36px;
+  }
+  .plan__per {
+    color: var(--muted);
+  }
+  .plan__alt {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .plan__list {
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .plan__list--bright {
+    color: var(--text);
+  }
+  .plan__list li {
+    display: flex;
+    gap: 10px;
+  }
+  .plan__list :global(.plan__tick) {
+    margin-top: 3px;
+  }
+  .plan :global(.plan__cta) {
+    align-self: flex-start;
+  }
+  .pill {
+    background: var(--honey);
+    color: var(--on-honey);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+
+  .band--top {
+    border-bottom: 0;
+  }
+  .questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .question {
+    flex: 1 1 340px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px;
+    border-radius: var(--radius-button);
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .question:hover {
+    border-color: rgba(246, 200, 95, 0.5);
+    color: var(--text);
+  }
+
+  .closing {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--night) 0%, var(--dusk) 100%);
+  }
+  .closing__inner {
+    position: relative;
+    max-width: 760px;
+    padding-block: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    text-align: center;
+  }
+  .closing__title {
+    font-size: 44px;
+    line-height: 1.1;
+  }
+
+  @media (max-width: 720px) {
+    .hero__inner {
+      padding-block: 56px 72px;
+      gap: 48px;
+    }
+    .hero__title {
+      font-size: 40px;
+    }
+    .hero__lede {
+      font-size: 18px;
+    }
+    .promises__inner {
+      gap: 22px;
+    }
+    .step,
+    .plan {
+      padding: 24px;
+    }
+    .question {
+      padding: 18px 20px;
+      font-size: 16px;
+    }
+    .closing__inner {
+      padding-block: 72px;
+    }
+    .closing__title {
+      font-size: 32px;
+    }
+  }
+</style>

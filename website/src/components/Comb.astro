@@ -1,0 +1,58 @@
+---
+/**
+ * The faint honeycomb behind heroes and calls to action, fading out from one point.
+ */
+interface Props {
+  /** Unique on the page. */
+  id: string;
+  /** Where the comb is strongest, as percentages of the box. */
+  cx?: string;
+  cy?: string;
+  r?: string;
+  /** Fade from the right edge instead of a point. */
+  fromRight?: boolean;
+  /** Small cells for small boxes. */
+  small?: boolean;
+  opacity?: number;
+}
+
+const { id, cx = '50%', cy = '50%', r = '60%', fromRight = false, small = false, opacity = 0.12 } = Astro.props;
+const w = small ? 34.64 : 69.28;
+const h = small ? 60 : 120;
+const cell = small
+  ? 'M17.32,0 L34.64,10 L34.64,30 L17.32,40 L0,30 L0,10 Z M17.32,40 L17.32,60'
+  : 'M34.64,0 L69.28,20 L69.28,60 L34.64,80 L0,60 L0,20 Z M34.64,80 L34.64,120';
+---
+
+<svg aria-hidden="true" class="comb" width="100%" height="100%">
+  <defs>
+    <pattern id={`${id}-cells`} width={w} height={h} patternUnits="userSpaceOnUse">
+      <path d={cell} fill="none" stroke="#F6C85F" stroke-opacity={opacity} stroke-width={small ? 1 : 1.5} stroke-linejoin="round"></path>
+    </pattern>
+    {
+      fromRight ? (
+        <linearGradient id={`${id}-fade`} x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0" stop-color="#fff" />
+          <stop offset="0.6" stop-color="#fff" stop-opacity="0" />
+        </linearGradient>
+      ) : (
+        <radialGradient id={`${id}-fade`} cx={cx} cy={cy} r={r}>
+          <stop offset="0" stop-color="#fff" />
+          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </radialGradient>
+      )
+    }
+    <mask id={`${id}-mask`}>
+      <rect width="100%" height="100%" fill={`url(#${id}-fade)`}></rect>
+    </mask>
+  </defs>
+  <rect width="100%" height="100%" fill={`url(#${id}-cells)`} mask={`url(#${id}-mask)`}></rect>
+</svg>
+
+<style>
+  .comb {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+</style>

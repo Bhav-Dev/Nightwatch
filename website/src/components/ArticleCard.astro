@@ -1,0 +1,79 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { date } from '../lib/format';
+import { topicLabels } from '../lib/topics';
+import CardArt from './CardArt.astro';
+
+/**
+ * An article on the index: linked when published, marked "coming soon" when planned.
+ */
+interface Props {
+  entry: CollectionEntry<'articles'>;
+  /** The full title, with figures filled in. */
+  title: string;
+}
+
+const { entry, title } = Astro.props;
+const { topic, status, readMinutes, cover } = entry.data;
+const planned = status === 'planned';
+const meta = planned
+  ? `Coming soon${readMinutes ? ` · ${readMinutes} min read` : ''}`
+  : [entry.data.date && date(entry.data.date), readMinutes && `${readMinutes} min read`].filter(Boolean).join(' · ');
+const Tag = planned ? 'div' : 'a';
+---
+
+<Tag
+  class:list={['card article-card', { 'article-card--planned': planned }]}
+  href={planned ? undefined : `/articles/${entry.id}`}
+  data-topic={topic}
+>
+  <CardArt cover={cover} />
+  <div class="article-card__body">
+    <p class="article-card__topic">{topicLabels[topic]}</p>
+    <h3 class="article-card__title">{title}</h3>
+    <p class="article-card__meta">{meta}</p>
+  </div>
+</Tag>
+
+<style>
+  .article-card {
+    flex: 1 1 340px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--text);
+    text-decoration: none;
+  }
+  a.article-card:hover {
+    border-color: rgba(246, 200, 95, 0.5);
+    color: var(--text);
+  }
+  .article-card__body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .article-card__topic {
+    color: var(--honey);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .article-card__title {
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+  .article-card__meta {
+    color: var(--faint);
+    font-size: 14px;
+  }
+  .article-card--planned :global(.art) {
+    opacity: 0.55;
+  }
+  .article-card--planned .article-card__title {
+    color: var(--muted);
+  }
+</style>

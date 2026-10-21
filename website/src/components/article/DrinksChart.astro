@@ -1,0 +1,92 @@
+---
+import { alcohol, sample } from '../../data/community';
+import { count, dateRange } from '../../lib/format';
+import Figure from './Figure.astro';
+
+/**
+ * Average snore score by drinks that evening: one bar per band, drawn to one scale.
+ */
+const rows = alcohol.byDrinks;
+const top = Math.max(20, Math.ceil(Math.max(...rows.map((r) => r.score)) / 20) * 20);
+const ticks = Array.from({ length: top / 20 + 1 }, (_, i) => i * 20);
+const base = 250;
+const plot = 180; // px from 0 to the top tick
+const y = (v: number) => base - (v / top) * plot;
+const viewTop = base - plot - 26; // room for the value above a bar that reaches the top tick
+const left = 44;
+// Drawn twice: a wide chart, and a narrow one for phones so the text stays readable.
+const charts = [640, 340].map((width) => {
+  const right = width - 8;
+  const slot = (right - left) / rows.length;
+  const barWidth = Math.min(88, Math.round(slot * 0.6));
+  const centre = (i: number) => Math.round(left + slot * (i + 0.5));
+  const bar = (i: number, v: number) => {
+    const x0 = centre(i) - barWidth / 2;
+    const x1 = centre(i) + barWidth / 2;
+    const yt = y(v);
+    return `M${x0},${base} L${x0},${yt + 4} Q${x0},${yt} ${x0 + 4},${yt} L${x1 - 4},${yt} Q${x1},${yt} ${x1},${yt + 4} L${x1},${base} Z`;
+  };
+  return { width, right, centre, bar, className: width > 400 ? 'chart--wide' : 'chart--narrow' };
+});
+const range = dateRange(alcohol.from, alcohol.to);
+const caption = sample
+  ? `Illustrative shape: sample figures, not real results. Source when published: SnoreHive community data, ${range}.`
+  : `Source: SnoreHive community data, ${range}.`;
+const description = `Bar chart: average snore score by drinks that evening. ${rows.map((r) => `${r.label}: ${r.score}`).join('; ')}.${sample ? ' Sample figures.' : ''}`;
+---
+
+<Figure title="Snore score by drinks that evening" subtitle="Average score, 0 to 100, compared within each person" caption={caption}>
+  {
+    charts.map((c) => (
+      <svg role="img" aria-label={description} viewBox={`0 ${viewTop} ${c.width} ${300 - viewTop}`} class={c.className}>
+        {ticks.map((t) => (
+          <>
+            <line x1={left} x2={c.right} y1={y(t)} y2={y(t)} class={t === 0 ? 'baseline' : 'grid'} />
+            <text x="34" y={y(t) + 4} text-anchor="end" class="axis">
+              {t}
+            </text>
+          </>
+        ))}
+        {rows.map((r, i) => (
+          <path d={c.bar(i, r.score)} fill="#BC8228">
+            <title>
+              {r.label}: {r.score}
+            </title>
+          </path>
+        ))}
+        {rows.map((r, i) => (
+          <text x={c.centre(i)} y={y(r.score) - 10} text-anchor="middle" class="value">
+            {r.score}
+          </text>
+        ))}
+        {rows.map((r, i) => (
+          <text x={c.centre(i)} y="274" text-anchor="middle" class="axis" style="font-size:13px">
+            {r.band}
+          </text>
+        ))}
+        <text x={(left + c.right) / 2} y="296" text-anchor="middle" class="axis-title">
+          Drinks that evening
+        </text>
+      </svg>
+    ))
+  }
+  <details>
+    <summary>Show the numbers</summary>
+    <table>
+      <thead>
+        <tr><th scope="col">Drinks</th><th scope="col">Average score</th><th scope="col">Nights</th></tr>
+      </thead>
+      <tbody>
+        {
+          rows.map((r) => (
+            <tr>
+              <td>{r.band}</td>
+              <td>{r.score}</td>
+              <td>{count(r.nights)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </details>
+</Figure>

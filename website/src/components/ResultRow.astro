@@ -1,0 +1,75 @@
+---
+import { count } from '../lib/format';
+import Icon, { type IconName } from './Icon.astro';
+import Meter from './Meter.astro';
+import { CELL_PATH, CELL_VIEWBOX } from '../lib/hex';
+
+/**
+ * One remedy or factor with its community result: icon, name, how many people and nights,
+ * and the bar.
+ */
+interface Props {
+  icon: IconName;
+  label: string;
+  href?: string;
+  /** A factor (alcohol) rather than a remedy: a dark cell and a different line under the name. */
+  factor?: boolean;
+  people?: number;
+  nights: number;
+  /** Change in snore score, in percent. Leave out when there is no figure yet. */
+  pct?: number;
+  /** Early data: shown muted and not ranked. */
+  early?: boolean;
+}
+
+const { icon, label, href, factor = false, people, nights, pct, early = false } = Astro.props;
+const meta = factor
+  ? `A factor, not a remedy · ${count(nights)} nights`
+  : `${people !== undefined ? `${count(people)} people · ` : ''}${count(nights)} nights${early ? ' · Early data' : ''}`;
+---
+
+<div class="row result">
+  <span class="result__cell">
+    <svg width="44" height="51" viewBox={CELL_VIEWBOX} aria-hidden="true">
+      <path
+        d={CELL_PATH}
+        fill={factor ? '#1E2660' : early ? '#3A4085' : '#F6C85F'}
+        stroke={factor ? '#BFC8FF' : 'none'}
+        stroke-width={factor ? 5 : 0}
+      ></path>
+    </svg>
+    <Icon name={icon} size={22} color={factor || early ? '#DCE1FF' : '#1F1A0C'} class="result__icon" />
+  </span>
+  <div class="row__label">
+    {href ? <a href={href} class="result__name">{label}</a> : <span class="result__name">{label}</span>}
+    <small>{meta}</small>
+  </div>
+  {pct === undefined ? <p class="row__none">Not enough people yet</p> : <Meter pct={pct} muted={early} />}
+</div>
+
+<style>
+  .result__cell {
+    position: relative;
+    width: 44px;
+    height: 51px;
+    flex: none;
+  }
+  .result__cell svg {
+    position: absolute;
+    inset: 0;
+  }
+  .result__cell :global(.result__icon) {
+    position: absolute;
+    left: 11px;
+    top: 14px;
+  }
+  .result__name {
+    color: var(--text);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  a.result__name:hover {
+    color: var(--honey);
+    text-decoration: underline;
+  }
+</style>

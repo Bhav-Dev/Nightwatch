@@ -1,0 +1,70 @@
+---
+import { change } from '../lib/format';
+
+/**
+ * A result bar: the share of the scale filled, with the figure beside it. Lower snore scores
+ * are mint, higher are coral. Every bar on a page uses the same scale.
+ */
+interface Props {
+  /** Change in snore score, in percent. Negative is less snoring. */
+  pct: number;
+  /** The change that fills the whole track. */
+  scale?: number;
+  /** Shown after the figure: "lower score", or just "lower". */
+  noun?: string;
+  muted?: boolean;
+}
+
+const { pct, scale = 50, noun = 'score', muted = false } = Astro.props;
+const width = Math.min(100, (Math.abs(pct) / scale) * 100);
+const worse = pct > 0;
+---
+
+<div class:list={['meter', { 'meter--worse': worse, 'meter--muted': muted }]}>
+  <div class="meter__track" aria-hidden="true">
+    <div class="meter__fill" style={`width:${width.toFixed(1)}%`}></div>
+  </div>
+  <span class="meter__value">{change(pct, noun)}</span>
+</div>
+
+<style>
+  .meter {
+    flex: 2 1 260px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .meter__track {
+    flex: 1;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--track);
+    overflow: hidden;
+  }
+  .meter__fill {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--mint);
+  }
+  .meter__value {
+    width: 132px;
+    flex: none;
+    color: var(--mint);
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .meter--worse .meter__fill {
+    background: var(--coral);
+  }
+  .meter--worse .meter__value {
+    color: var(--coral);
+  }
+  .meter--muted .meter__fill {
+    background: var(--faint);
+  }
+  .meter--muted .meter__value {
+    color: var(--muted);
+  }
+</style>

@@ -1,0 +1,121 @@
+---
+import { alcohol, sample } from '../../data/community';
+import Figure from './Figure.astro';
+
+/**
+ * Share of each hour spent snoring, after drinks and without, by hours since going to bed.
+ */
+const after = alcohol.byHour.afterDrinks;
+const none = alcohol.byHour.noDrinks;
+const top = Math.max(10, Math.ceil(Math.max(...after, ...none) / 10) * 10);
+const ticks = Array.from({ length: top / 10 + 1 }, (_, i) => i * 10);
+const base = 250;
+const plot = 180;
+const y = (v: number) => base - (v / top) * plot;
+const viewTop = base - plot - 12; // just above the top tick's label
+const left = 44;
+// Drawn twice: a wide chart, and a narrow one for phones so the text stays readable.
+const charts = [640, 340].map((width) => {
+  const right = width - 80; // room for the end labels
+  const step = (right - 10 - 60) / (after.length - 1);
+  const x = (i: number) => Math.round(60 + i * step);
+  const line = (vs: number[]) => vs.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(v).toFixed(1)}`).join(' ');
+  return { width, right, x, line, className: width > 400 ? 'chart--wide' : 'chart--narrow' };
+});
+const pct = (v: number) => `${Math.round(v * 10) / 10}%`;
+
+// End labels: "After drinks" above its last point, "No drinks" below, kept apart.
+const lastAfter = y(after[after.length - 1]);
+const lastNone = y(none[none.length - 1]);
+let afterLabelY = Math.min(lastAfter, lastNone) - 6;
+let noneLabelY = Math.max(lastAfter, lastNone) + 14;
+if (noneLabelY - afterLabelY < 18) {
+  afterLabelY -= 4;
+  noneLabelY += 4;
+}
+const afterIsHigher = lastAfter <= lastNone;
+const caption = sample
+  ? 'Illustrative shape: sample figures, not real results. Hover a point, or open the numbers, for its value.'
+  : 'Hover a point, or open the numbers, for its value.';
+const description = `Line chart: share of each hour spent snoring, by hours since going to bed. After drinks: ${after.map(pct).join(', ')}. No drinks: ${none.map(pct).join(', ')}.${sample ? ' Sample figures.' : ''}`;
+---
+
+<Figure title="Time snoring through the night" subtitle="Share of each hour spent snoring, by hours since going to bed" caption={caption}>
+  <div class="legend" slot="legend">
+    <span><span class="swatch swatch--line" style="background:#BC8228"></span>After drinks</span>
+    <span><span class="swatch swatch--line" style="background:#7480E8"></span>No drinks</span>
+  </div>
+  {
+    charts.map((c) => (
+      <svg role="img" aria-label={description} viewBox={`0 ${viewTop} ${c.width} ${300 - viewTop}`} class={c.className}>
+        {ticks.map((t) => (
+          <>
+            <line x1={left} x2={c.right} y1={y(t)} y2={y(t)} class={t === 0 ? 'baseline' : 'grid'} />
+            <text x="34" y={y(t) + 4} text-anchor="end" class="axis">
+              {t}%
+            </text>
+          </>
+        ))}
+        <path d={c.line(after)} fill="none" stroke="#BC8228" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <path d={c.line(none)} fill="none" stroke="#7480E8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <g stroke="#1C2450" stroke-width="2">
+          {after.map((v, i) => (
+            <circle cx={c.x(i)} cy={y(v).toFixed(1)} r="4.5" fill="#BC8228">
+              <title>
+                Hour {i + 1}, after drinks: {pct(v)}
+              </title>
+            </circle>
+          ))}
+          {none.map((v, i) => (
+            <circle cx={c.x(i)} cy={y(v).toFixed(1)} r="4.5" fill="#7480E8">
+              <title>
+                Hour {i + 1}, no drinks: {pct(v)}
+              </title>
+            </circle>
+          ))}
+        </g>
+        <text x={c.right + 2} y={afterIsHigher ? afterLabelY : noneLabelY} class="value" style="font-size:11px">
+          After drinks
+        </text>
+        <text x={c.right + 2} y={afterIsHigher ? noneLabelY : afterLabelY} class="value" style="font-size:11px">
+          No drinks
+        </text>
+        {after.map((_, i) => (
+          <text x={c.x(i)} y="274" text-anchor="middle" class="axis" style="font-size:13px">
+            {i + 1}
+          </text>
+        ))}
+        <text x={(left + c.right) / 2} y="296" text-anchor="middle" class="axis-title">
+          Hours since going to bed
+        </text>
+      </svg>
+    ))
+  }
+  <details>
+    <summary>Show the numbers</summary>
+    <table>
+      <thead>
+        <tr><th scope="col">Hour</th><th scope="col">After drinks</th><th scope="col">No drinks</th></tr>
+      </thead>
+      <tbody>
+        {
+          after.map((v, i) => (
+            <tr>
+              <td>{i + 1}</td>
+              <td>{pct(v)}</td>
+              <td>{pct(none[i])}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </details>
+</Figure>
+
+<style>
+  .swatch--line {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+  }
+</style>

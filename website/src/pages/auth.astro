@@ -1,0 +1,132 @@
+---
+import Comb from '../components/Comb.astro';
+import Logo from '../components/Logo.astro';
+import { appScheme, signInLinkMinutes } from '../config';
+import Base from '../layouts/Base.astro';
+
+/**
+ * The sign-in email links here (https://<site>/auth?token=…), because many mail apps will not
+ * open an app's own links. This page hands the token to the app: nightwatch://auth?token=…
+ * The token never reaches analytics (the site has none), is dropped from the address bar as
+ * soon as the page loads, and is not sent on in a Referer header.
+ */
+---
+
+<Base
+  title="Opening SnoreHive"
+  description="Finishing signing in to SnoreHive."
+  noindex
+  minimalHeader
+>
+  <meta name="referrer" content="no-referrer" slot="head" />
+  <section class="handoff">
+    <Comb id="auth-comb" cx="50%" cy="40%" r="60%" />
+    <div class="wrap handoff__inner">
+      <Logo id="auth-logo" size={80} strokeWidth={5} />
+
+      <div id="auth-phone" class="handoff__state">
+        <h1 class="handoff__title">Opening SnoreHive</h1>
+        <p class="lede">If SnoreHive does not open by itself, tap the button.</p>
+        <a id="auth-open" href={`${appScheme}://auth`} class="btn btn--honey btn--large">Open SnoreHive</a>
+      </div>
+
+      <div id="auth-desktop" class="handoff__state" hidden>
+        <h1 class="handoff__title">Open this link on your phone</h1>
+        <p class="lede">
+          This sign-in link finishes in the SnoreHive app. Open the email on the phone where SnoreHive is installed and tap the link
+          there.
+        </p>
+        <a id="auth-open-anyway" href={`${appScheme}://auth`} class="btn btn--ghost btn--medium">Open SnoreHive on this device</a>
+      </div>
+
+      <div id="auth-missing" class="handoff__state" hidden>
+        <h1 class="handoff__title">This sign-in link is incomplete</h1>
+        <p class="lede">Request a new one from the app.</p>
+      </div>
+
+      <p class="small-print handoff__small">
+        Open this link on the phone where SnoreHive is installed. Sign-in links work once, and expire after {signInLinkMinutes} minutes.
+      </p>
+      <noscript>
+        <p class="small-print">This page needs JavaScript to pass the link to the app. Request a new link from the app if it does not open.</p>
+      </noscript>
+    </div>
+  </section>
+  <script is:inline define:vars={{ scheme: appScheme }}>
+  (function () {
+    var token = new URLSearchParams(window.location.search).get('token') || '';
+    // Drop the token from the address bar and history straight away.
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
+
+    var show = function (id) {
+      ['auth-phone', 'auth-desktop', 'auth-missing'].forEach(function (x) {
+        document.getElementById(x).hidden = x !== id;
+      });
+    };
+    if (!/^[A-Za-z0-9_-]{16,256}$/.test(token)) {
+      show('auth-missing');
+      return;
+    }
+
+    var link = scheme + '://auth?token=' + encodeURIComponent(token);
+    document.getElementById('auth-open').href = link;
+    document.getElementById('auth-open-anyway').href = link;
+
+    var ua = navigator.userAgent || '';
+    var phone =
+      /iPhone|iPad|iPod|Android/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!phone) {
+      // A desktop browser has no SnoreHive, and some show an error page for an unknown app link.
+      show('auth-desktop');
+      return;
+    }
+    show('auth-phone');
+    window.location.href = link;
+  })();
+  </script>
+</Base>
+
+<style>
+  .handoff {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--dusk) 0%, var(--night) 100%);
+  }
+  .handoff__inner {
+    position: relative;
+    max-width: 640px;
+    min-height: 60vh;
+    padding-block: 88px 104px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    text-align: center;
+  }
+  .handoff__state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .handoff__state[hidden] {
+    display: none;
+  }
+  .handoff__title {
+    font-size: 40px;
+    line-height: 1.1;
+    font-weight: 800;
+  }
+  .handoff__small {
+    max-width: 440px;
+  }
+  @media (max-width: 720px) {
+    .handoff__inner {
+      padding-block: 56px 72px;
+    }
+    .handoff__title {
+      font-size: 32px;
+    }
+  }
+</style>

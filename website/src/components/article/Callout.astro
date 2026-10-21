@@ -1,0 +1,36 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const id = `callout-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+---
+
+<section aria-labelledby={id} class="callout">
+  <h2 id={id} class="callout__title">{title}</h2>
+  <div class="callout__body"><slot /></div>
+</section>
+
+<style>
+  .callout {
+    background: var(--card-raised);
+    border-radius: var(--radius-card);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .callout__title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .callout__body {
+    color: var(--text-body);
+    font-size: 17px;
+    line-height: 1.65;
+  }
+  .callout__body :global(p) {
+    margin: 0;
+  }
+</style>

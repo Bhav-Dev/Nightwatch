@@ -1,0 +1,28 @@
+---
+import { contactEmail } from '../config';
+import Doc from '../layouts/Doc.astro';
+---
+
+<Doc
+  title="Contact"
+  description="How to get in touch with SnoreHive: help with the app, your data, and press questions."
+  eyebrow="Contact"
+  lede="Write to us about the app, your data or the figures."
+>
+  <p class="contact__address">
+    <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+  </p>
+  <ul>
+    <li><strong>Help with the app:</strong> say which phone you use, and what happened.</li>
+    <li><strong>Your data:</strong> to ask what we hold, or to have it deleted. You can also delete your account in the app's Settings.</li>
+    <li><strong>Press:</strong> every figure we publish has its sample size and method, and we can look at questions we have not published yet.</li>
+  </ul>
+</Doc>
+
+<style>
+  .contact__address {
+    font-size: 22px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+</style>

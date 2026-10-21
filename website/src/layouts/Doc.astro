@@ -1,0 +1,63 @@
+---
+import Base from './Base.astro';
+
+/**
+ * A plain reading page: methods, legal pages, contact.
+ */
+interface Props {
+  title: string;
+  description: string;
+  /** The line under the title. */
+  lede?: string;
+  eyebrow?: string;
+}
+
+const { title, description, lede, eyebrow } = Astro.props;
+---
+
+<Base title={title} description={description}>
+  <div class="wrap wrap--article doc">
+    <div class="doc__head">
+      {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+      <h1 class="doc__title">{title}</h1>
+      {lede && <p class="lede">{lede}</p>}
+    </div>
+    <div class="prose prose--doc">
+      <slot />
+    </div>
+  </div>
+</Base>
+
+<style>
+  .doc {
+    padding-block: 56px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .doc__head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .doc__title {
+    font-size: 44px;
+    line-height: 1.1;
+    font-weight: 800;
+  }
+  .doc :global(.note) {
+    padding: 16px 20px;
+    border-left: 3px solid var(--honey);
+    border-radius: 0 var(--radius-inset) var(--radius-inset) 0;
+    background: var(--card);
+    color: var(--text);
+  }
+  @media (max-width: 720px) {
+    .doc {
+      padding-block: 40px 72px;
+    }
+    .doc__title {
+      font-size: 34px;
+    }
+  }
+</style>

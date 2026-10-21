@@ -1,0 +1,500 @@
+/*
+ * SnoreHive: a night sky lit with honey. One dark look on purpose; the brand lives at night.
+ * Layout: centred 1160px bands; text columns of 640 to 760px; cards only where they set
+ * something apart.
+ */
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+  src: url('/fonts/nunito-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Night */
+  --night: #0b1026;
+  --night-band: #0d1330;
+  --night-deep: #080b1e;
+  --night-panel: #161d45;
+  --dusk: #1e2459;
+  --dusk-mid: #111639;
+  --header: rgba(8, 11, 30, 0.6);
+  --card: rgba(28, 36, 80, 0.62);
+  --card-raised: rgba(46, 56, 112, 0.72);
+  --line: rgba(170, 182, 255, 0.12);
+  --line-strong: rgba(170, 182, 255, 0.24);
+  --track: rgba(170, 182, 255, 0.12);
+
+  /* Text */
+  --text: #f4f1ff;
+  --text-body: #dce1ff;
+  --muted: #aab1d6;
+  --faint: #7e87b2;
+
+  /* Honey */
+  --honey: #f6c85f;
+  --honey-light: #ffe9ae;
+  --honey-deep: #e9a23f;
+  --on-honey: #1f1a0c;
+  --amber: #bc8228;
+  --caution: rgba(84, 70, 22, 0.6);
+
+  /* Moonlight, and the result colours */
+  --lilac: #bfc8ff;
+  --violet: #7480e8;
+  --mint: #5fd8b0;
+  --coral: #ff9c8f;
+
+  /* How loud a night was, quiet to epic (the app's hive of nights) */
+  --level-quiet: #3a4085;
+  --level-light: #9a8344;
+  --level-moderate: #d9b45c;
+  --level-loud: #f6c85f;
+  --level-epic: #ffe6a8;
+
+  /* Type: a rounded display face for the voice, the system face for reading */
+  --font-display: Nunito, ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+
+  --gutter: 24px;
+  --radius-card: 24px;
+  --radius-button: 18px;
+  --radius-inset: 14px;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 16px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--night);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+p,
+figure,
+ul,
+ol {
+  margin: 0;
+}
+
+a {
+  color: var(--honey);
+}
+
+a:hover {
+  color: var(--honey-light);
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--honey);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+  z-index: 20;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--honey);
+  color: var(--on-honey);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Layout */
+
+.wrap {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+.wrap--remedy {
+  max-width: 860px;
+}
+
+.wrap--article {
+  max-width: 760px;
+}
+
+.section {
+  padding-block: 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.section--tight {
+  gap: 32px;
+}
+
+.band {
+  position: relative;
+  background: var(--night-band);
+  border-block: 1px solid var(--line);
+}
+
+.split {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 56px;
+}
+
+.split > * {
+  flex: 1 1 400px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .section {
+    padding-block: 64px;
+  }
+}
+
+/* Type */
+
+.eyebrow {
+  color: var(--honey);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.h2 {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 680px;
+}
+
+.small-print {
+  color: var(--faint);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .h2 {
+    font-size: 30px;
+  }
+}
+
+/* Surfaces */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.card--honey {
+  background: linear-gradient(160deg, rgba(246, 200, 95, 0.14), var(--card) 60%);
+  border: 1.5px solid rgba(246, 200, 95, 0.6);
+}
+
+.rows {
+  padding: 8px 28px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 18px;
+  padding-block: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row__label {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.row__label small {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.row__none {
+  flex: 2 1 260px;
+  color: var(--faint);
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .rows {
+    padding: 4px 18px;
+  }
+}
+
+/* Buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--radius-button);
+  font-weight: 800;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.btn--small {
+  padding: 12px 20px;
+  font-size: 15px;
+}
+
+.btn--medium {
+  padding: 14px 22px;
+  font-size: 16px;
+}
+
+.btn--large {
+  padding: 16px 24px;
+  font-size: 16px;
+}
+
+.btn--honey {
+  background: var(--honey);
+  color: var(--on-honey);
+}
+
+.btn--honey:hover {
+  background: var(--honey-light);
+  color: var(--on-honey);
+}
+
+.btn--ghost {
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.btn--ghost:hover {
+  border-color: rgba(246, 200, 95, 0.6);
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Legends */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Long-form text (methods, legal pages, articles) */
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  color: var(--text-body);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.prose > * {
+  margin: 0;
+}
+
+/* Figures, callouts and cards set into the text get more room around them. */
+.prose > figure,
+.prose > section,
+.prose > .card {
+  margin-block: 22px;
+}
+
+.prose > h2 {
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 14px;
+}
+
+.prose > h3 {
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.prose > ul,
+.prose > ol {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prose strong {
+  color: var(--text);
+}
+
+.prose a {
+  color: var(--honey);
+}
+
+.prose > table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.prose > table th,
+.prose > table td {
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose > table th {
+  color: var(--text);
+}
+
+.prose--doc {
+  font-size: 17px;
+}
+
+.prose--doc > h2 {
+  font-size: 24px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+  .prose > h2 {
+    font-size: 25px;
+  }
+  .prose--doc > h2 {
+    font-size: 22px;
+  }
+}
+
+/* Breadcrumbs */
+
+.crumbs {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.crumbs a {
+  color: var(--muted);
+}
+
+.crumbs a:hover {
+  color: var(--text);
+}

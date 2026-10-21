@@ -1,0 +1,63 @@
+---
+import { stores } from '../config';
+
+/**
+ * The official App Store and Google Play badges, linked to the listings.
+ */
+interface Props {
+  id?: string;
+  center?: boolean;
+  /** Badge height in px; both badges are drawn the same height. */
+  height?: number;
+}
+
+const { id, center = false, height = 52 } = Astro.props;
+// Apple's badge is 119.66 x 40; Google's, trimmed to the badge, is 564 x 168.
+const appleWidth = Math.round((height * 119.66407) / 40);
+const googleWidth = Math.round((height * 564) / 168);
+---
+
+<div class:list={['stores', { 'stores--center': center }]} id={id}>
+  <div class="stores__badges">
+    <a class="stores__badge" href={stores.appStore} rel="noopener">
+      <img src="/badges/app-store.svg" width={appleWidth} height={height} alt="Download on the App Store" />
+    </a>
+    <a class="stores__badge" href={stores.googlePlay} rel="noopener">
+      <img src="/badges/google-play.png" width={googleWidth} height={height} alt="Get it on Google Play" />
+    </a>
+  </div>
+  {!stores.live && <p class="stores__note">Coming soon to the App Store and Google Play.</p>}
+</div>
+
+<style>
+  .stores {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stores--center {
+    align-items: center;
+  }
+  .stores__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .stores--center .stores__badges {
+    justify-content: center;
+  }
+  .stores__badge {
+    display: block;
+    border-radius: 9px;
+  }
+  .stores__badge img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+  }
+  .stores__note {
+    color: var(--faint);
+    font-size: 13px;
+  }
+</style>

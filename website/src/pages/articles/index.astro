@@ -1,0 +1,239 @@
+---
+import ArticleCard from '../../components/ArticleCard.astro';
+import CardArt from '../../components/CardArt.astro';
+import Comb from '../../components/Comb.astro';
+import { contactEmail } from '../../config';
+import Base from '../../layouts/Base.astro';
+import { allArticles, articleTitle } from '../../lib/content';
+import { date } from '../../lib/format';
+import { topicLabels, topics } from '../../lib/topics';
+
+const articles = await allArticles();
+const featured = articles.find((a) => a.data.featured && a.data.status === 'published');
+const rest = articles.filter((a) => a !== featured);
+---
+
+<Base
+  title="From the hive"
+  description="Findings from nights SnoreHive users chose to share: remedies, habits, the weather and the time of night. Every article shows its numbers and how they were made."
+>
+  <section class="intro">
+    <Comb id="articles-comb" cx="80%" cy="30%" r="65%" opacity={0.1} />
+    <div class="wrap intro__inner">
+      <p class="eyebrow">From the hive</p>
+      <h1 class="intro__title">What snorers’ nights actually tell us</h1>
+      <p class="lede intro__lede">
+        Findings from nights people chose to share: remedies, habits, the weather and the time of night. Every article shows its
+        numbers and how they were made.
+      </p>
+      <div role="group" aria-label="Topics" class="chips" hidden>
+        <button type="button" class="chip" aria-pressed="true" data-topic="all">All</button>
+        {
+          topics.map((t) => (
+            <button type="button" class="chip" aria-pressed="false" data-topic={t}>
+              {topicLabels[t]}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap articles">
+    {
+      featured && (
+        <a href={`/articles/${featured.id}`} class="card featured" data-topic={featured.data.topic}>
+          <CardArt cover={featured.data.cover} large />
+          <div class="featured__body">
+            <p class="featured__topic">{topicLabels[featured.data.topic]} · Featured</p>
+            <h2 class="featured__title">{articleTitle(featured)}</h2>
+            <p class="featured__text">{featured.data.description}</p>
+            <p class="featured__meta">
+              {[featured.data.date && date(featured.data.date), featured.data.readMinutes && `${featured.data.readMinutes} min read`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        </a>
+      )
+    }
+
+    <div class="grid">
+      {rest.map((a) => <ArticleCard entry={a} title={articleTitle(a)} />)}
+    </div>
+    <p class="empty small-print" hidden>Nothing in this topic yet.</p>
+
+    <section class="card press">
+      <div class="press__text">
+        <h2 class="press__title">Writing about snoring?</h2>
+        <p>
+          Every figure comes with its sample size and method. Ask us for something we have not published yet.
+        </p>
+      </div>
+      <div class="actions">
+        <a href="/methods" class="btn btn--ghost btn--medium">How the figures are made</a>
+        <a href={`mailto:${contactEmail}?subject=Press`} class="btn btn--honey btn--medium">Press contact</a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // Topic chips: show the articles in one topic. Without scripts every article shows.
+  const group = document.querySelector<HTMLElement>('.chips');
+  const cards = [...document.querySelectorAll<HTMLElement>('[data-topic]:not(.chip)')];
+  const empty = document.querySelector<HTMLElement>('.empty');
+  if (group) {
+    group.hidden = false;
+    group.addEventListener('click', (event) => {
+      const chip = (event.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+      if (!chip) return;
+      const topic = chip.dataset.topic;
+      group.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      let shown = 0;
+      cards.forEach((card) => {
+        const match = topic === 'all' || card.dataset.topic === topic;
+        card.hidden = !match;
+        if (match) shown += 1;
+      });
+      if (empty) empty.hidden = shown > 0;
+    });
+  }
+</script>
+
+<style>
+  .intro {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--dusk) 0%, var(--night) 100%);
+  }
+  .intro__inner {
+    position: relative;
+    padding-block: 72px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .intro__title {
+    max-width: 760px;
+    font-size: 56px;
+    line-height: 1.05;
+    font-weight: 800;
+  }
+  .intro__lede {
+    max-width: 640px;
+    font-size: 19px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .chip {
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .chip[aria-pressed='true'] {
+    background: var(--honey);
+    border-color: var(--honey);
+    color: var(--on-honey);
+    font-weight: 700;
+  }
+  .articles {
+    padding-block: 24px 104px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .featured {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: hidden;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .featured:hover {
+    border-color: rgba(246, 200, 95, 0.5);
+    color: var(--text);
+  }
+  .featured__body {
+    flex: 1 1 440px;
+    min-width: 0;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+  }
+  .featured__topic {
+    color: var(--honey);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .featured__title {
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .featured__text {
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+  .featured__meta {
+    color: var(--faint);
+    font-size: 14px;
+  }
+  .grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .press {
+    padding: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .press__text {
+    flex: 1 1 480px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .press__title {
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 800;
+  }
+  @media (max-width: 720px) {
+    .intro__inner {
+      padding-block: 48px 40px;
+    }
+    .intro__title {
+      font-size: 40px;
+    }
+    .featured__body {
+      padding: 24px;
+    }
+    .featured__title {
+      font-size: 26px;
+    }
+    .press {
+      padding: 24px;
+    }
+  }
+</style>

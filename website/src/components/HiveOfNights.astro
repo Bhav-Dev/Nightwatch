@@ -1,0 +1,54 @@
+---
+import { roundedHex } from '../lib/hex';
+
+/**
+ * Four weeks of an example hive: one cell a night, brighter for louder, as in the app.
+ * Odd rows sit half a cell to the right, like real comb.
+ */
+type Level = 'quiet' | 'light' | 'moderate' | 'loud' | 'epic' | 'none';
+const weeks: Level[][] = [
+  ['quiet', 'light', 'moderate', 'light', 'quiet', 'none', 'light'],
+  ['moderate', 'loud', 'moderate', 'light', 'quiet', 'none', 'quiet'],
+  ['light', 'light', 'moderate', 'loud', 'epic', 'loud', 'moderate'],
+  ['light', 'quiet', 'light', 'moderate', 'none', 'light'],
+];
+const r = 25; // centre to corner
+const dx = 50; // one cell to the next
+const dy = 43.3; // one row to the next
+const cells = weeks.flatMap((week, row) =>
+  week.map((level, col) => ({
+    d: roundedHex(24.5 + col * dx + (row % 2) * 25, 28 + row * dy, r),
+    level,
+    today: row === weeks.length - 1 && col === week.length - 1,
+  })),
+);
+---
+
+<svg role="img" aria-label="An example hive of four weeks of nights, one honeycomb cell a night, brighter for louder" viewBox="0 0 374 186" class="hive">
+  {
+    cells.map((c) =>
+      c.level === 'none' ? (
+        <path d={c.d} class="hive__empty" />
+      ) : (
+        <path d={c.d} style={`fill:var(--level-${c.level})`} class:list={{ hive__today: c.today }} />
+      ),
+    )
+  }
+</svg>
+
+<style>
+  .hive {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+  }
+  .hive__empty {
+    fill: none;
+    stroke: rgba(191, 200, 255, 0.18);
+    stroke-width: 1.4;
+  }
+  .hive__today {
+    stroke: var(--text);
+    stroke-width: 2.5;
+  }
+</style>
