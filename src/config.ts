@@ -19,6 +19,12 @@ export const config = {
   revenueCatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
   revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
   siteUrl: (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://nightwatch.app').replace(/\/$/, ''),
+  /**
+   * PostHog project API key (phc_…) for anonymous usage counts; empty sends nothing. Write-only,
+   * so it is fine in the app. EU Cloud unless EXPO_PUBLIC_POSTHOG_HOST says otherwise.
+   */
+  posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '',
+  posthogHost: (process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com').replace(/\/$/, ''),
   supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? 'support@nightwatch.app',
   /**
    * The development account (when no server is set) and the "unlock paid features" switches.

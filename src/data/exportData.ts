@@ -97,6 +97,7 @@ export async function deleteAllLocalData(db: Db): Promise<void> {
     ]) {
       await db.runAsync(`DELETE FROM ${t}`, []);
     }
-    await db.runAsync("DELETE FROM settings WHERE key NOT IN ('device_id')", []);
+    // Kept: the sync device id, and a choice to turn off usage counts, which must not turn back on.
+    await db.runAsync("DELETE FROM settings WHERE key NOT IN ('device_id', 'usage_analytics')", []);
   });
 }

@@ -13,6 +13,7 @@ import { config } from '../config';
 import { refreshCatalogue } from '../data/catalogueClient';
 import { getSetting, setSetting } from '../data/settingsRepo';
 import { syncNow } from '../sync/sync';
+import { startUsageAnalytics } from '../usageAnalytics';
 
 interface AppContextValue {
   /** Undefined while loading from the keychain; null when signed out. */
@@ -91,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     track({ name: 'app_open' });
+    void startUsageAnalytics(db).catch(() => undefined);
     (async () => {
       setDeviceId(await getSetting(db, 'device_id'));
       const s = await loadSession();

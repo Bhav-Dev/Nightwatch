@@ -1,7 +1,8 @@
 /**
  * The 10 analytics events from the spec, plus three for the morning review flow. Counts and flags only: no health values, no scores,
- * no remedy names, nothing that could identify a night. The sink is pluggable so a vendor can
- * be chosen later without touching call sites; until then events go nowhere (or the console in
+ * no remedy names, nothing that could identify a night. The sink is pluggable: release builds
+ * with EXPO_PUBLIC_POSTHOG_KEY send to PostHog, anonymously, unless the person turns usage
+ * counts off in Settings (usageAnalytics.ts); otherwise events go nowhere (or the console in
  * development).
  */
 export type AnalyticsEvent =

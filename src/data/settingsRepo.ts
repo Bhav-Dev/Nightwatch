@@ -30,6 +30,10 @@ export type SettingKey =
   | 'recap_time'
   /** When we asked for an app store review: a JSON list of epoch seconds. */
   | 'review_asked_at'
+  /** Anonymous usage counts (PostHog): '0' is off; unset or '1' is on. */
+  | 'usage_analytics'
+  /** The random id usage counts are sent under; never the account. Removed when usage counts are turned off. */
+  | 'analytics_install_id'
   /**
    * Labelling mode, internal builds only: '1' keeps every second of the night's sound (not only
    * the parts with sound) so volunteers' nights can be exported and labelled; unset or '0' is off.
