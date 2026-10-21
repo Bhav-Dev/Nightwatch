@@ -11,7 +11,7 @@ Last updated 15 October 2026. Tracks [project-plan.md](project-plan.md) item by 
 
 ## In one paragraph
 
-Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, trends, Health data, remedy tests, doctor's report, paywall, sign-in, sync, community dashboard), the backend and nightly job, and the labelling tools. About 220 automated tests pass across app and server, and the backend has run end to end on a real Postgres database. **Nothing has run on a phone yet.** The backend is live in your shared Supabase project: database, both functions and the nightly job. The next steps are the accounts and keys and a development build, then the Phase 0 device gate.
+Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, trends, Health data, remedy tests, doctor's report, paywall, sign-in, sync, community dashboard), the backend and nightly job, and the labelling tools. About 220 automated tests pass across app and server, and the backend has run end to end on a real Postgres database. The app runs on an Android phone (Samsung S24 Ultra) and on an iPhone 16 Pro through TestFlight (build 5, with over-the-air updates since). The backend is live in your shared Supabase project: database, both functions and the nightly job. The next steps are the accounts and keys and a development build, then the Phase 0 device gate.
 
 ## Next steps, in order
 
@@ -37,7 +37,7 @@ Phases 0 to 3 are written: the app (recording, scoring, clips, morning screen, t
    - Build 5 (19 October 2026) has every purpose string written out, and was uploaded.
    - The distribution certificate and provisioning profile are on EAS.
    - The App ID's capabilities (HealthKit, Push Notifications, Sign in with Apple) were ticked by hand, because Apple rejects EAS's capability sync when it signs in with an API key.
-   - Not yet installed or run on the phone.
+   - Installed through TestFlight on the iPhone 16 Pro (20 October 2026); updates since then go over the air to build 5.
    - The battery test needs a `preview` build (release mode, no dev server); development builds use more power.
 4. 👤 **Phase 0 gate:**
    - an 8-hour screen-off recording under 8% battery on both phones;
@@ -186,8 +186,8 @@ From the plan:
 | Name (Nightwatch is a placeholder; check store and domain availability) | 👤 |
 | Detection model: fine-tune now, or heuristic first and collect labels | ✅ Decided: heuristic now, train later |
 | Account-free contribution, or account required | ✅ Decided: account always required |
-| Dashboard visible to free users, or paid only | ✅ Decided 20 October 2026: Hive (paid) only; free users (Bee) still log what they try. Not built yet: the app still shows the top level free. See [tiers-plan.md](tiers-plan.md) |
-| Tier names | ✅ Decided 20 October 2026: Bee (free) and Hive (paid), replacing Insight. Not built yet |
+| Dashboard visible to free users, or paid only | ✅ Decided 20 October 2026: Hive (paid) only; free users (Bee) still log what they try. Built 21 October 2026: a Bee sees a blurred preview. See [tiers-plan.md](tiers-plan.md) |
+| Tier names | ✅ Decided 20 October 2026: Bee (free) and Hive (paid), replacing Insight. Built 21 October 2026, with the split confirmed the same day: whole-night playback, test verdicts, history beyond 7 nights and the doctor's report are Hive; data export stays free |
 | Which clinician reviews the report wording, and whether to pay them | 👤 |
 | Partner mode at launch or in the first update | 👤 Built for the first update; confirm |
 | Amazon only, or direct brand programmes too | ✅ Decided: Amazon only for now |
@@ -219,10 +219,10 @@ Raised during the build:
 | CI: lint, unit tests, scoring fixtures, build per platform | ✅ | Plus server tests and the NumPy check |
 | Signed release builds from CI, keystore and certificates backed up | 👤 | EAS credentials |
 | Over-the-air updates (EAS Update) | 🟡 | Added 17 October 2026: fingerprint runtime policy, a channel per build profile, `npm run update:preview`. Takes effect from the next build of each platform; the free plan's 15 Android builds for October are used up (they reset on 1 November) |
-| Crash reporting | ⬜ | No Sentry or Crashlytics yet |
-| API error-rate alert, aggregation-job alert | ⬜ | Failures are logged in `nightwatch.aggregate_job_log`; nothing alerts yet |
+| Crash reporting | 🟡 | Sentry built on branch `build-6-native` (native, so it waits for build 6). Starts only with `EXPO_PUBLIC_SENTRY_DSN`; no personal data, emails and URL query strings scrubbed |
+| API error-rate alert, aggregation-job alert | 🟡 | Built 21 October 2026: unexpected 500s, failed aggregation runs and failed Apple revocations email `ALERT_EMAIL`, one per kind per hour. Needs the server deploy and `NIGHTWATCH_ALERT_EMAIL` |
 | Nightly Postgres backup with a tested restore | 👤 | Supabase backups cover it; check the plan includes point-in-time recovery, and test a restore |
-| Analytics (10 events, no health values) | ✅ / ⬜ | Defined and wired; no vendor connected |
+| Analytics (10 events, no health values) | 🟡 | PostHog over plain HTTP (no SDK), EU host, a random install id, on by default with a Settings switch. Sends nothing until `EXPO_PUBLIC_POSTHOG_KEY` is set. The privacy policy must mention it, and PECR consent at onboarding is still to decide |
 | Store readiness: privacy labels, data-safety form, demo account | ⬜ | Phase 4 |
 | Legal: privacy policy, terms, affiliate disclosure, methods page | ⬜ / ✅ | Methods page written; the rest are Phase 4 |
 
@@ -232,7 +232,7 @@ Raised during the build:
 - **Snoring answers:** the loudness of a stretch the user adds as snoring is estimated (per-second levels are not kept), and the answers themselves are not synced. See [morning-review-plan.md](morning-review-plan.md).
 - **Clips:** sharing gives the audio file only; no card image yet.
 - **Sleep sounds:** Android and iOS (the iOS player is untested on a phone). Playing them all night is not offered; an echo-cancellation test (pink noise and a snoring video, with and without the platform canceller) would show whether that could work.
-- **Sound recording:** Android and iOS (the iOS encoder is untested on a phone). On iOS the files sit in Documents, which iCloud backs up by default: before an iPhone release, exclude recordings, clips and the database from backup so audio stays on the phone. Battery has to be measured again with it on (the 8% gate). Clips are still WAV, though they could now use the AAC encoder.
-- **Google sign-in** uses `expo-auth-session`'s Google helper, deprecated in SDK 57; Expo now points to a native Google sign-in library. Its Android flow relies on a custom-scheme redirect that Google turns off by default for new Android clients. Switch before testing Google on a phone.
-- **Email sign-in links** open `nightwatch://auth?token=…`, which many email apps (Gmail included) will not open. Route them through an https page that opens the app (`NIGHTWATCH_APP_LINK_BASE`) before relying on email sign-in.
-- **Sign in with Apple on account deletion:** Apple requires apps to revoke the user's Apple tokens when they delete their account (needs a Sign in with Apple key and a server call). Not done yet; needed before App Store submission. The optional server-to-server notification endpoint can be added at the same time.
+- **Sound recording:** Android and iOS (the iOS encoder is untested on a phone). On iOS the files sit in Documents, which iCloud backs up by default. A local module on branch `build-6-native` marks the sound and clip folders as excluded from backup (build 6). The database is still backed up, which keeps history on a new phone; decide whether that is wanted. Battery has to be measured again with it on (the 8% gate). Clips are still WAV, though they could now use the AAC encoder.
+- **Google sign-in:** moved to `@react-native-google-signin/google-signin` on branch `build-6-native` (build 6). Needs the Google OAuth clients: `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, and both in the server's `GOOGLE_AUDIENCES`.
+- **Email sign-in links:** the website's `/auth` page forwards to `nightwatch://auth?token=…`. Set `NIGHTWATCH_APP_LINK_BASE` to the site once it is live. A bug that sent `nightwatch:/auth` links (one slash) when the variable was unset is fixed in the server code; it goes live with the next server deploy. Opening https links straight in the app (universal links) is scaffolded on `build-6-native`, off until `APP_LINKS_DOMAIN` is set.
+- **Sign in with Apple on account deletion:** built 21 October 2026. The app sends the authorization code, and the server keeps the refresh token sealed (migration 003) and revokes it before deleting the account. Live after `npm run migrate`, the server deploy, and a Sign in with Apple key (`NIGHTWATCH_APPLE_TEAM_ID`, `NIGHTWATCH_APPLE_SIWA_KEY_ID`, `NIGHTWATCH_APPLE_SIWA_PRIVATE_KEY`). Without the key, deletion still works and the skip is logged.

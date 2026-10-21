@@ -76,6 +76,7 @@ In development builds, with no server configured, sign-in offers a development a
 | `EXPO_PUBLIC_SUPPORT_EMAIL` | Support address |
 | `EXPO_PUBLIC_SIMULATE_CAPTURE` | `1` swaps the microphone for the simulator |
 | `EXPO_PUBLIC_WEATHER_URL` | Where `/v1/weather` lives, if not the API server (set in the preview profile, whose builds sign in with the development account) |
+| `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` | Anonymous usage counts to PostHog (EU host by default). Nothing is sent when the key is unset, in development builds, or when Settings → Share anonymous usage counts is off. Give `update:preview` the same key |
 
 Server configuration (secrets, Amazon tracking ids, Apple and Google audiences, RevenueCat webhook secret) is in `server/README.md`.
 
@@ -282,6 +283,11 @@ For iOS 26's Liquid Glass look, Apple's Icon Composer (a Mac app) builds a layer
 The heuristic (v0) labels nights at Stop. The trained model will plug in through `OnlineSnoreScorer` (`src/domain/detection/classifier.ts`): it scores each second during capture, its output is stored per second, and a night fully covered by the model uses it instead of the heuristic. Each night records which detector produced it. `tools/` has the labelling page and the evaluator for the Phase 1 gate (event agreement of at least 85% and frame F1 of at least 0.80).
 
 ## Decisions taken where the spec was open
+
+- **Analytics:** anonymous PostHog counts over plain HTTP, with no SDK and a random install id that is never the account. On by default, with a switch in Settings.
+- **Apple sign-in tokens** are kept, sealed, only so they can be revoked when someone deletes their account.
+- **Alerts** are emails through the existing mailer to `ALERT_EMAIL`, at most one per kind per hour.
+- **Bee and Hive:** data export stays free for everyone (UK GDPR right to a copy of your own data).
 
 - **Account required, always** (product decision), so the brief's "works with no account" no longer applies. Recording and the morning screen still work offline after sign-in.
 - **Amazon only, global.** Links are built per marketplace from a search phrase or a marketplace ASIN, with tracking ids served by the server. Links appear only on remedies with full community results ("ok"), never untagged, never with prices; both disclosures are shown.
