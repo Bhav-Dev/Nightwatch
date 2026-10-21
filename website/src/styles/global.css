@@ -263,6 +263,25 @@ svg {
   border-radius: var(--radius-card);
 }
 
+/* A card that is a link lifts a little, with a honey edge. */
+a.card {
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+a.card:hover {
+  border-color: rgba(246, 200, 95, 0.45);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a.card:hover {
+    transform: translateY(-3px);
+  }
+}
+
 .card--honey {
   background: linear-gradient(160deg, rgba(246, 200, 95, 0.14), var(--card) 60%);
   border: 1.5px solid rgba(246, 200, 95, 0.6);
@@ -323,6 +342,22 @@ svg {
   text-align: center;
   line-height: 1.25;
   cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+  .btn:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 0.08s;
+  }
 }
 
 .btn--small {
@@ -348,6 +383,7 @@ svg {
 .btn--honey:hover {
   background: var(--honey-light);
   color: var(--on-honey);
+  box-shadow: 0 10px 28px rgba(246, 200, 95, 0.3);
 }
 
 .btn--ghost {
@@ -360,6 +396,7 @@ svg {
 .btn--ghost:hover {
   border-color: rgba(246, 200, 95, 0.6);
   color: var(--text);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 .actions {

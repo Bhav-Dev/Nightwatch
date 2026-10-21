@@ -151,3 +151,14 @@ The site deploys as plain static files. It needs no adapter and no rewrites.
 
 1. Set the server's `APP_LINK_BASE` to `https://<domain>` (see `server/README.md`), so sign-in emails go through `/auth` rather than straight to `nightwatch://`, which many email apps will not open.
 2. Set the app's `EXPO_PUBLIC_SITE_URL` to `https://<domain>` for its next build. It still defaults to `https://nightwatch.app`, and the app uses it for its Terms, Privacy, Methods and affiliate disclosure links.
+
+## The hero screenshot
+
+The phone in the hero is a real screenshot of This Morning, in `public/screens/`. To use a newer one, take a screenshot on the phone (iPhone: side button and volume up together) and run:
+
+```bash
+node scripts/make-screens.mjs path/to/screenshot.png --top 160
+```
+
+`--top` trims the status bar (the time, battery and notification icons): about 160 pixels on an iPhone 16 Pro, about 124 on the Samsung S24 Ultra. If the new screenshot's shape differs, update the size noted at the top of `src/components/PhoneMorning.astro` to the one the script prints.
+
