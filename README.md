@@ -244,7 +244,18 @@ This Morning follows the weather: a sunrise when it is clear, then partly cloudy
 
 ## Look
 
-A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`): an indigo gradient with a fixed, faint star field (a few stars twinkle unless the system asks for reduced motion), frosted see-through cards, and honey for the one thing to tap. Tonight has a crescent moon and a greeting; Recording is nearly black with a slowly breathing moon so the screen does not light the room; This Morning has a sunrise that follows the weather. Remedies, Trends and the screens opened from them (remedy detail, remedy test, doctor's report) use the same indigo without the night sky (`sky="plain"`). Headings use Nunito (`@expo-google-fonts/nunito`, loaded in the root layout); icons are Ionicons.
+A calm night sky (`src/ui/theme.ts`, `src/ui/NightSky.tsx`), frosted see-through cards, and honey for the one thing to tap. The skies were made honeycomb on 21 October 2026, from an approved mockup.
+
+- **Night:** an indigo gradient with a fixed field of tiny hexagon stars, some of them honey. A few larger ones twinkle.
+- **Tonight:** a honeycomb moon and a greeting. The moon is a honey hexagon with a faint comb across it, shaped into a crescent by a round shadow.
+- **Recording:** nearly black, with the same moon slowly breathing, so the screen does not light the room.
+- **This Morning:** a sunrise that follows the weather.
+  - Clear and partly cloudy have a hexagon sun with two slowly swelling rings and six small cells circling it.
+  - Clouds are honeycomb clusters of eleven cells, drifting steadily across.
+  - Rain and snow fall without stopping, in near and far sheets. Snowflakes are six-sided and sway as they fall.
+  - Fog is drifting bands of faint cells.
+
+Every movement is a native loop of a single timing, or a two-step swing. An earlier per-drop "wait, then fall" loop stopped on iOS and left the rain heaped at the bottom. If the system asks for reduced motion, everything stays still. Remedies, Trends and the screens opened from them (remedy detail, remedy test, doctor's report) use the same indigo without the night sky (`sky="plain"`). Headings use Nunito (`@expo-google-fonts/nunito`, loaded in the root layout); icons are Ionicons.
 
 Honeycomb touches (`src/ui/Hive.tsx`) appear where the hive means something, while buttons and chips stay rounded so they are easy to tap. This Morning shows the score in a honey-outlined cell, Trends has "Your hive of nights" (one cell a day, brighter for louder; a week on the free plan, four with Insight), and remedies and factors show as icon cells: honey for remedies, outlined for factors (`src/ui/remedyIcons.ts` maps each catalogue item to a Material Community Icons glyph, with a fallback per category for items added later). What you chose for tonight, and last night's log, sit together as a small hive with the names underneath. The cells run across as many as fit, then wrap to an offset row.
 
