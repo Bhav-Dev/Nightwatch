@@ -36,8 +36,12 @@ export async function turnedOverNights(db: Db): Promise<{ checkedNights: number;
   return { checkedNights: nights.length, nights: quiet.length };
 }
 
-/** The snore profile from everything on this phone. */
-export async function loadSnoreProfile(db: Db): Promise<SnoreProfile> {
+/**
+ * The snore profile from everything on this phone. Without `verdicts` (a Bee), finished tests are
+ * left out, as a test's verdict is part of the Hive, and counted in `lockedVerdicts`; the nights
+ * logged with and without each thing count for everyone, as on Remedies.
+ */
+export async function loadSnoreProfile(db: Db, opts: { verdicts?: boolean } = {}): Promise<SnoreProfile & { lockedVerdicts: number }> {
   const [history, experiments, turnedOver, pitch, catalogue] = await Promise.all([
     nightSummaries(db),
     listExperiments(db),
@@ -53,11 +57,13 @@ export async function loadSnoreProfile(db: Db): Promise<SnoreProfile> {
     .map((p) => p.pitch)
     .filter((p) => p !== null)
     .slice(-PROFILE_PITCH_NIGHTS);
-  return buildSnoreProfile({
+  const verdicts = opts.verdicts ?? true;
+  const profile = buildSnoreProfile({
     history,
-    tests,
+    tests: verdicts ? tests : [],
     turnedOver,
     pitch: profilePitch(recent),
     names: new Map(catalogue.map((c) => [c.id, c.name])),
   });
+  return { ...profile, lockedVerdicts: verdicts ? 0 : tests.filter((t) => t.verdict.kind !== 'not_enough').length };
 }

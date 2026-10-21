@@ -10,8 +10,9 @@ import { localDateKey } from '../domain/nightDate';
 import { MIN_PROFILE_PITCH_NIGHTS, PITCH_WORDS, pitchHzWords } from '../domain/pitch';
 import { AREAS, RATING_WORDS, type SnoreProfile } from '../domain/snoreProfile';
 import { TYPE_TEST_GROUP, TYPE_TESTS } from '../domain/typeTest';
+import { finishDueExperiments } from '../experiments/progress';
 import { useApp } from '../state/AppContext';
-import { BackLink, Body, Button, Card, H2, Loading, Screen, Small } from '../ui/kit';
+import { BackLink, Body, Button, Card, H2, Loading, Locked, Screen, Small } from '../ui/kit';
 import { RatingCells } from '../ui/RatingCells';
 import { colors, space } from '../ui/theme';
 
@@ -24,14 +25,16 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export default function SnoreProfileScreen() {
   const db = useSQLiteContext();
   const { paid } = useApp();
-  const [profile, setProfile] = useState<SnoreProfile | null>(null);
+  const [profile, setProfile] = useState<(SnoreProfile & { lockedVerdicts: number }) | null>(null);
   const [typeTests, setTypeTests] = useState<Experiment[]>([]);
 
   const load = useCallback(async () => {
-    const [p, experiments] = await Promise.all([loadSnoreProfile(db), listExperiments(db)]);
+    // A test whose 14 nights are over gets its verdict now, as on Remedies.
+    await finishDueExperiments(db, localDateKey(new Date()));
+    const [p, experiments] = await Promise.all([loadSnoreProfile(db, { verdicts: paid }), listExperiments(db)]);
     setProfile(p);
     setTypeTests(experiments.filter((e) => e.group === TYPE_TEST_GROUP));
-  }, [db]);
+  }, [db, paid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,7 +56,8 @@ export default function SnoreProfileScreen() {
   const day = running[0] ? experimentDay(running[0].started, today) : null;
   const { pitch } = profile;
 
-  const start = () => router.push(paid ? '/find-your-type' : { pathname: '/paywall', params: { trigger: 'experiment' } });
+  // Open to a Bee, like any remedy test; the verdicts at the end are part of the Hive.
+  const start = () => router.push('/find-your-type');
   const stop = () =>
     Alert.alert('Stop finding your type?', 'The tests stop tonight. Nights already recorded stay in your history.', [
       { text: 'Keep going', style: 'cancel' },
@@ -118,6 +122,9 @@ export default function SnoreProfileScreen() {
             <Small style={{ marginTop: space(1) }}>{AREAS[a.area].meaning}</Small>
           </View>
         ))}
+        {profile.lockedVerdicts > 0 ? (
+          <Locked label={profile.lockedVerdicts === 1 ? 'Your test is done. See its verdict here' : 'Your tests are done. See their verdicts here'} trigger="verdict" />
+        ) : null}
       </Card>
 
       <Card>
@@ -142,12 +149,12 @@ export default function SnoreProfileScreen() {
           <>
             <Body>
               Up to three short tests at once, for 14 nights: sleeping on your side, a nasal strip and mouth tape. Each evening the app says what to do, and each
-              test gets a verdict at the end, which fills in your profile.
+              test gets a verdict at the end, which fills in your profile{paid ? '' : '. Seeing the verdicts is part of the Hive'}.
             </Body>
-            {finished.length > 0 ? <Small style={{ marginTop: space(2) }}>Your last tests are in the areas above.</Small> : null}
+            {finished.length > 0 && paid ? <Small style={{ marginTop: space(2) }}>Your last tests are in the areas above.</Small> : null}
             <Button
               kind="secondary"
-              label={finished.length > 0 ? 'Run the tests again' : paid ? 'Find your type' : 'Find your type 🔒'}
+              label={finished.length > 0 ? 'Run the tests again' : 'Find your type'}
               onPress={start}
               style={{ marginTop: space(3) }}
             />

@@ -7,6 +7,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { startTestGroup } from '../data/experimentRepo';
 import { localDateKey } from '../domain/nightDate';
 import { TYPE_TEST_GROUP, TYPE_TESTS, typeTestPlans } from '../domain/typeTest';
+import { useApp } from '../state/AppContext';
 import { Chip } from '../ui/Chip';
 import { Body, Button, Card, H2, Screen, Small } from '../ui/kit';
 import { colors, space } from '../ui/theme';
@@ -17,6 +18,7 @@ import { colors, space } from '../ui/theme';
  */
 export default function FindYourType() {
   const db = useSQLiteContext();
+  const { paid } = useApp();
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(TYPE_TESTS.map((t) => t.remedyId)));
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const tests = TYPE_TESTS.filter((t) => chosen.has(t.remedyId));
@@ -46,8 +48,10 @@ export default function FindYourType() {
         <H2>How it works</H2>
         <Body>
           For 14 nights the app tells you each evening what to do for each test: 7 nights with it and 7 without, in a mixed order. The tests are mixed so that they
-          don’t get in each other’s way: a night with a nasal strip is as likely to be on your side as not. At the end each test gets a verdict, and your snore
-          profile shows what changed your snoring.
+          don’t get in each other’s way: a night with a nasal strip is as likely to be on your side as not.{' '}
+          {paid
+            ? 'At the end each test gets a verdict, and your snore profile shows what changed your snoring.'
+            : 'At the end each test gets a verdict for your snore profile; seeing it is part of the Hive, and you can join any time before then.'}
         </Body>
       </Card>
 

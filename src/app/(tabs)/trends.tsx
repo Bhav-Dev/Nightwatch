@@ -10,6 +10,7 @@ import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../.
 import { loadSnoreProfile } from '../../data/snoreProfileRepo';
 import type { SnoreProfile } from '../../domain/snoreProfile';
 import { SnoreProfileCard } from '../../screens/SnoreProfileCard';
+import { finishDueExperiments } from '../../experiments/progress';
 import { localDateKey } from '../../domain/nightDate';
 import { AUTO_FACTOR_WORDS, type AutoFactor } from '../../domain/autoFactors';
 import { restedLabel } from '../../domain/checkIn';
@@ -111,7 +112,8 @@ export default function Trends() {
     setSnapshots(await listSnapshots(db));
     setFound(patterns(await enrichedHistory(db), new Set([WEATHER_KNOWN_ID])));
     setNames(new Map((await listActiveCatalogue(db)).map((c) => [c.id, c.name])));
-    setProfile(await loadSnoreProfile(db));
+    await finishDueExperiments(db, localDateKey(new Date()));
+    setProfile(await loadSnoreProfile(db, { verdicts: paid }));
     // The latest night is picked to start with, so the line under the chart always says which night it is.
     setSelected(loaded.length ? loaded.length - 1 : null);
   }, [db, effectiveRange, paid, custom]);

@@ -208,13 +208,19 @@ describe('the snore profile from the phone', () => {
     expect((await listExperiments(db)).find((e) => e.id === 'old')?.status).toBe('cancelled');
 
     await completeExperiment(db, 't0', verdictOf('helped', -14));
-    expect(area(await loadSnoreProfile(db), 'position')).toEqual({
+    const hive = await loadSnoreProfile(db);
+    expect(area(hive, 'position')).toEqual({
       area: 'position',
       name: 'Position',
       rating: 'strong',
       evidence: ['Slept on side: 14 points lower in your test (high confidence)'],
       tested: true,
     });
+    expect(hive.lockedVerdicts).toBe(0);
+    // A Bee runs the tests too; the verdict is part of the Hive, so the profile leaves it out.
+    const bee = await loadSnoreProfile(db, { verdicts: false });
+    expect(area(bee, 'position')).toMatchObject({ rating: 'more_nights', evidence: [], tested: false });
+    expect(bee.lockedVerdicts).toBe(1);
   });
 
   it('describes the pitch once three nights have one', async () => {
