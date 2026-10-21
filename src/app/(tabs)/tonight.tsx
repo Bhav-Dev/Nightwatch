@@ -12,7 +12,8 @@ import { ClockAlarm, NoisePlayer } from '../../../modules/nightwatch-recording-s
 import { listActiveCatalogue } from '../../data/catalogueRepo';
 import { runningExperiments, type Experiment } from '../../data/experimentRepo';
 import { getSetting, setSetting } from '../../data/settingsRepo';
-import { planFor } from '../../domain/experiment';
+import { EXPERIMENT_NIGHTS, experimentDay, planFor } from '../../domain/experiment';
+import { TYPE_TEST_GROUP, TYPE_TESTS } from '../../domain/typeTest';
 import {
   DEFAULT_SLEEP_TIMER_MINUTES,
   SLEEP_SOUND_GAIN,
@@ -178,6 +179,8 @@ export default function Tonight() {
   );
 
   const byId = useMemo(() => new Map(catalogue.map((c) => [c.id, c])), [catalogue]);
+  /** "Find your type" runs up to three tests together; tonight's plan for them is one card. */
+  const typePlans = plans.filter((p) => p.experiment.group === TYPE_TEST_GROUP);
 
   /** What is ticked for tonight, in the order it was ticked, including free-text remedies. */
   const selectedFor = (type: 'remedy' | 'factor') =>
@@ -245,7 +248,22 @@ export default function Tonight() {
           <Text style={styles.date}>{today.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
 
-        {plans.map(({ experiment, plan }) => (
+        {typePlans.length > 0 ? (
+          <View style={styles.plan}>
+            <Text style={styles.planTitle}>
+              Find your type, night {experimentDay(typePlans[0].experiment.started, localDateKey(today)) ?? 1} of {EXPERIMENT_NIGHTS}
+            </Text>
+            {typePlans.map(({ experiment, plan }) => {
+              const test = TYPE_TESTS.find((t) => t.remedyId === experiment.remedyId);
+              return test ? (
+                <Text key={experiment.id} style={styles.tipBody}>
+                  {plan === 'with' ? test.withText : test.withoutText}
+                </Text>
+              ) : null;
+            })}
+          </View>
+        ) : null}
+        {plans.filter((p) => p.experiment.group !== TYPE_TEST_GROUP).map(({ experiment, plan }) => (
           <View key={experiment.id} style={styles.plan}>
             <Text style={styles.planTitle}>Remedy test</Text>
             <Text style={styles.tipBody}>

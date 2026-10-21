@@ -60,8 +60,16 @@ export async function appendFrames(
   await db.withTransactionAsync(async () => {
     for (const { t, features, snoreProb } of frames) {
       await db.runAsync(
-        `INSERT OR REPLACE INTO session_frame (session_id, t, level_db, centroid_hz, envelope, snore_prob) VALUES (?, ?, ?, ?, ?, ?)`,
-        [sessionId, t, features.levelDb, features.centroidHz, JSON.stringify(features.envelopeDb.map(round1)), snoreProb ?? null],
+        `INSERT OR REPLACE INTO session_frame (session_id, t, level_db, centroid_hz, envelope, snore_prob, peak_hz) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          sessionId,
+          t,
+          features.levelDb,
+          features.centroidHz,
+          JSON.stringify(features.envelopeDb.map(round1)),
+          snoreProb ?? null,
+          features.peakHz !== undefined ? round1(features.peakHz) : null,
+        ],
       );
     }
     await db.runAsync('UPDATE recording_session SET last_frame_t = MAX(COALESCE(last_frame_t, 0), ?), updated_at = ? WHERE id = ?', [
@@ -86,13 +94,19 @@ export async function openSessions(db: Db): Promise<SessionRow[]> {
 }
 
 export async function sessionFrames(db: Db, sessionId: string): Promise<StoredFrame[]> {
-  const rows = await db.getAllAsync<{ t: number; level_db: number; centroid_hz: number; envelope: string; snore_prob: number | null }>(
-    'SELECT t, level_db, centroid_hz, envelope, snore_prob FROM session_frame WHERE session_id = ? ORDER BY t',
+  const rows = await db.getAllAsync<{ t: number; level_db: number; centroid_hz: number; envelope: string; snore_prob: number | null; peak_hz: number | null }>(
+    'SELECT t, level_db, centroid_hz, envelope, snore_prob, peak_hz FROM session_frame WHERE session_id = ? ORDER BY t',
     [sessionId],
   );
   return rows.map((r) => ({
     t: r.t,
-    features: { levelDb: r.level_db, centroidHz: r.centroid_hz, envelopeDb: JSON.parse(r.envelope) as number[] },
+    features: {
+      levelDb: r.level_db,
+      centroidHz: r.centroid_hz,
+      envelopeDb: JSON.parse(r.envelope) as number[],
+      // Seconds recorded before the pitch was measured have none.
+      ...(r.peak_hz !== null ? { peakHz: r.peak_hz } : {}),
+    },
     snoreProb: r.snore_prob,
   }));
 }

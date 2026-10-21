@@ -10,6 +10,7 @@ export const MOMENT_LABEL: Record<ShownKind, string> = {
   move: 'Movement',
   awake: 'Possibly awake',
   other: 'Other',
+  breathing: 'Heavy breathing',
 };
 
 /** A small honeycomb cell in a moment's colour (hollow when its kind is hidden). */

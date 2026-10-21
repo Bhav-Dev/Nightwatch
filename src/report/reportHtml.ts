@@ -4,7 +4,9 @@
  * paper in the app's colours: night indigo for structure, honey for what to look at.
  */
 import { APP_NAME } from '../brand';
+import { PITCH_WORDS, pitchHzWords, type ProfilePitch } from '../domain/pitch';
 import { scoreLabel } from '../domain/scoring';
+import { RATING_WORDS, type Rating } from '../domain/snoreProfile';
 import { logoArt } from '../ui/logoArt';
 
 export interface ReportNight {
@@ -34,6 +36,10 @@ export interface ReportData {
   factors: ReportComparison[];
   remedies: ReportComparison[];
   profile: { ageBand: string | null; pausesReported: string | null };
+  /** The snore profile, from every night on the phone (not only this period). */
+  snoreProfile?: { pitch: ProfilePitch; areas: { name: string; rating: Rating; evidence: string[] }[] } | null;
+  /** Heavy breathing heard in this period: nights looked at, nights with some, minutes in all. */
+  breathing?: { checkedNights: number; nights: number; minutes: number } | null;
 }
 
 export const REPORT_HEADER = `Consumer app summary, not a clinical test. ${APP_NAME} estimates snoring from a phone microphone and, where shared, a smartwatch. It does not diagnose any condition. These are patterns to discuss with your doctor.`;
@@ -125,6 +131,40 @@ function difference(d: number | null): string {
   if (d === null) return '<span class="muted">Not enough nights</span>';
   const cls = d < 0 ? 'lower' : d > 0 ? 'higher' : '';
   return `<span class="diff ${cls}">${d > 0 ? '+' : ''}${fmt1(d)}</span>`;
+}
+
+const nightsWord = (n: number) => `${n} ${n === 1 ? 'night' : 'nights'}`;
+
+/** The snore profile and heavy breathing, worded as clues for discussion, never as findings. */
+function profileSection(d: ReportData): string {
+  const p = d.snoreProfile;
+  const b = d.breathing;
+  if (!p && !b) return '';
+  const pitch = p
+    ? p.pitch.band
+      ? `<p>Pitch of the snoring: <b>${esc(PITCH_WORDS[p.pitch.band].short)}</b>, ${esc(pitchHzWords(p.pitch.hz))}, from ${nightsWord(p.pitch.nights)}${
+          p.pitch.spread.length > 1 ? ` (${p.pitch.spread.map((s) => `${esc(PITCH_WORDS[s.band].short)} on ${nightsWord(s.nights)}`).join(', ')})` : ''
+        }.</p>`
+      : '<p class="muted">Not enough nights with a measured pitch yet.</p>'
+    : '';
+  const areas = p
+    ? `<table class="data"><thead><tr><th>What changed the snoring</th><th>Effect</th><th>Based on</th></tr></thead><tbody>${p.areas
+        .map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(RATING_WORDS[a.rating])}</td><td>${a.evidence.length ? esc(a.evidence[0]) : '<span class="muted">Nothing logged</span>'}</td></tr>`)
+        .join('')}</tbody></table>`
+    : '';
+  const breathing =
+    b && b.checkedNights > 0
+      ? `<p>Heavy breathing (loud breathing not counted as snoring) was heard on ${b.nights} of ${nightsWord(b.checkedNights)} in this period${
+          b.minutes > 0 ? `, ${b.minutes} ${b.minutes === 1 ? 'minute' : 'minutes'} in all` : ''
+        }.</p>`
+      : '';
+  return `<section>
+<h2>Snore profile</h2>
+${pitch}${areas}${breathing}
+<p class="note">Clues from the user's own nights, for discussion. The pitch is the strongest frequency of the snoring as a phone heard it, which is approximate; research has associated lower peak frequencies with snoring from the soft palate and higher ones with snoring from the tongue base. None of this shows where the snoring comes from.${
+    p ? ' The profile uses every night recorded on the phone, not only this period.' : ''
+  }</p>
+</section>`;
 }
 
 function comparisonTable(rows: ReportComparison[]): string {
@@ -244,6 +284,8 @@ ${
 ${userReported.length ? userReported.map((line) => `<p>${line}</p>`).join('') : '<p class="muted">Nothing reported.</p>'}
 </div>
 </section>
+
+${profileSection(d)}
 
 <section>
 <h2>Lifestyle factors</h2>

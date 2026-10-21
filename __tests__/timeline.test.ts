@@ -1,4 +1,4 @@
-import { buildMoments, countByKind, momentAt, momentTimes, neighbour, shownMoments } from '../src/domain/moments';
+import { answerable, buildMoments, countByKind, momentAt, momentTimes, neighbour, shownMoments } from '../src/domain/moments';
 import { colourRuns, labelX, OUTLINE_MIN, outlineAmplitudes, outlinePath } from '../src/ui/timelineShape';
 
 describe('timeline outline', () => {
@@ -65,7 +65,7 @@ describe('the night in moments, with movement and waking', () => {
   });
 
   it('counts and filters the kinds shown, never listing recorded sound alone', () => {
-    expect(countByKind(moments)).toEqual({ snore: 1, move: 1, awake: 1, other: 1 });
+    expect(countByKind(moments)).toEqual({ snore: 1, move: 1, awake: 1, other: 1, breathing: 0 });
     expect(shownMoments(moments, new Set(['move', 'snore'])).map((m) => m.kind)).toEqual(['move', 'snore']);
     expect(shownMoments(moments, new Set(['snore', 'move', 'awake', 'other']))).toHaveLength(4);
   });
@@ -88,5 +88,50 @@ describe('the night in moments, with movement and waking', () => {
       start,
     );
     expect(times).toEqual(['01:00:05', '01:00:40', '02:00']);
+  });
+});
+
+describe('heavy breathing as a moment', () => {
+  const base = { snoring: [], other: [], recorded: [], answered: [] };
+
+  it('is its own kind, counted, and keeps recorded sound out of it', () => {
+    const moments = buildMoments({ ...base, recorded: [{ startS: 1000, endS: 1300 }], breathing: [{ startS: 1100, endS: 1200, peakDb: 9 }] });
+    expect(moments.map((m) => [m.kind, m.startS, m.endS])).toEqual([
+      ['sound', 1000, 1100],
+      ['breathing', 1100, 1200],
+      ['sound', 1200, 1300],
+    ]);
+    expect(countByKind(moments).breathing).toBe(1);
+    expect(moments[1].peakDb).toBe(9);
+  });
+
+  it('gives way to snoring the user pointed out, and to a loud sound kept with a clip', () => {
+    const moments = buildMoments({
+      ...base,
+      // Answered "snoring" for the middle of it, and a loud clip near its end.
+      snoring: [{ startS: 2050, endS: 2100, peakDb: 12 }],
+      other: [{ startS: 2170, endS: 2185, peakDb: 20 }],
+      answered: [{ startS: 2050, endS: 2100 }],
+      breathing: [{ startS: 2000, endS: 2190, peakDb: 8 }],
+    });
+    expect(moments.map((m) => [m.kind, m.startS, m.endS])).toEqual([
+      ['breathing', 2000, 2050],
+      ['snore', 2050, 2100],
+      ['breathing', 2100, 2170],
+      ['other', 2170, 2185],
+      // 2185 to 2190 is under 10 seconds once the clip is taken out, so it is dropped.
+    ]);
+  });
+
+  it('can be answered for, like snoring and other sounds', () => {
+    const moments = buildMoments({ ...base, breathing: [{ startS: 500, endS: 560 }], answered: [{ startS: 520, endS: 530 }] });
+    expect(moments[0]).toMatchObject({ kind: 'breathing', answered: true, peakDb: null });
+    expect(answerable('breathing')).toBe(true);
+    expect(answerable('move')).toBe(false);
+    expect(answerable('awake')).toBe(false);
+  });
+
+  it('is left out of nights not checked for it', () => {
+    expect(buildMoments({ ...base }).filter((m) => m.kind === 'breathing')).toEqual([]);
   });
 });

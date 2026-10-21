@@ -40,6 +40,8 @@ export interface TimelineMarks {
   other?: readonly { startS: number; endS: number }[];
   /** Movement: a tick under the outline. */
   movement?: readonly { startS: number; endS: number }[];
+  /** Heavy breathing: a line under the outline, as long as the stretch. */
+  breathing?: readonly { startS: number; endS: number }[];
   /** Restless stretches: shaded behind. */
   restless?: readonly { startS: number; endS: number }[];
   /** Possibly awake: a band behind. */
@@ -50,7 +52,8 @@ export interface TimelineMarks {
  * The night as a loudness outline mirrored around a centre line, in 5-minute bins: its height is
  * how loud each stretch was, and stretches with snoring are filled with their loudest intensity.
  * Everything else that happened is marked on the same chart in its own colour and shape: marks
- * above for snoring and other sounds, ticks below for movement, bands behind for possibly awake.
+ * above for snoring and other sounds, ticks below for movement, a line below for heavy breathing,
+ * bands behind for possibly awake.
  * Drag along it to scrub through the night (the time shows in a bubble) and let go to pick that
  * moment; the picked or playing second is a line.
  */
@@ -174,6 +177,9 @@ export function NightTimeline({
         </G>
         {marks.other?.map((o) => cap(o, momentColor.other))}
         {marks.snoring?.map((o) => cap(o, momentColor.snore))}
+        {marks.breathing?.map((b) => (
+          <Rect key={`b${b.startS}`} x={xAt(b.startS)} y={plotBottom + ticksH / 2 - 2} width={span(b)} height={4} rx={2} fill={momentColor.breathing} />
+        ))}
         {marks.movement?.map((m) => (
           <Rect key={`m${m.startS}`} x={xAt(m.startS) - 1.5} y={plotBottom + 2} width={3} height={ticksH - 4} rx={1.5} fill={momentColor.move} />
         ))}

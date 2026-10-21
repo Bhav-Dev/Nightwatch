@@ -7,6 +7,13 @@ export const ENVELOPE_RATE_HZ = 10;
 const FFT_SIZE = 1024;
 const EPS = 1e-12;
 
+/**
+ * The band searched for a sound's strongest frequency: above mains hum (50 or 60 Hz) and up to
+ * where snoring stops (snoring research measures its "peak frequency" well under 2 kHz).
+ */
+export const PEAK_MIN_HZ = 70;
+export const PEAK_MAX_HZ = 2000;
+
 export interface FrameFeatures {
   /** A-weighted RMS level, dB relative to full scale. */
   levelDb: number;
@@ -14,6 +21,11 @@ export interface FrameFeatures {
   centroidHz: number;
   /** Unweighted RMS level of each 100 ms sub-block, dB. */
   envelopeDb: number[];
+  /**
+   * The strongest frequency between PEAK_MIN_HZ and PEAK_MAX_HZ, Hz: for a snore, its pitch (the
+   * "peak frequency" snoring research uses). Missing on seconds stored before it was measured.
+   */
+  peakHz?: number;
 }
 
 /** IEC 61672 A-weighting as a linear power gain. */
@@ -45,11 +57,32 @@ const hann = (() => {
 })();
 const hannPower = hann.reduce((s, x) => s + x * x, 0) / FFT_SIZE;
 
+/**
+ * The strongest frequency between PEAK_MIN_HZ and PEAK_MAX_HZ in a power spectrum summed over a
+ * frame's blocks, placed between bins by a parabola through the peak's log power and its
+ * neighbours. 0 when the frame is silent.
+ */
+function strongestFrequency(spectrum: Float64Array, sampleRate: number): number {
+  const binHz = sampleRate / FFT_SIZE;
+  const lo = Math.max(1, Math.ceil(PEAK_MIN_HZ / binHz));
+  const hi = Math.min(FFT_SIZE / 2 - 1, Math.floor(PEAK_MAX_HZ / binHz));
+  let best = lo;
+  for (let k = lo + 1; k <= hi; k++) if (spectrum[k] > spectrum[best]) best = k;
+  if (spectrum[best] <= 0) return 0;
+  const a = Math.log(spectrum[best - 1] + EPS);
+  const b = Math.log(spectrum[best] + EPS);
+  const c = Math.log(spectrum[best + 1] + EPS);
+  const curve = a - 2 * b + c;
+  const shift = curve < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (a - c)) / curve)) : 0;
+  return (best + shift) * binHz;
+}
+
 /** Features for one frame of mono PCM in [-1, 1]. Typically 1 second (16,000 samples). */
 export function frameFeatures(samples: Float32Array, sampleRate = SAMPLE_RATE): FrameFeatures {
   const weights = aWeights(sampleRate);
   const re = new Float64Array(FFT_SIZE);
   const im = new Float64Array(FFT_SIZE);
+  const spectrum = new Float64Array(FFT_SIZE / 2 + 1);
 
   let weightedPower = 0;
   let centroidNum = 0;
@@ -69,6 +102,7 @@ export function frameFeatures(samples: Float32Array, sampleRate = SAMPLE_RATE): 
       const hz = (k * sampleRate) / FFT_SIZE;
       centroidNum += p * hz;
       centroidDen += p;
+      spectrum[k] += p;
     }
     blocks++;
   }
@@ -85,5 +119,6 @@ export function frameFeatures(samples: Float32Array, sampleRate = SAMPLE_RATE): 
     levelDb: 10 * Math.log10((blocks > 0 ? weightedPower / blocks : 0) + EPS),
     centroidHz: centroidDen > 0 ? centroidNum / centroidDen : 0,
     envelopeDb,
+    peakHz: blocks > 0 ? strongestFrequency(spectrum, sampleRate) : 0,
   };
 }

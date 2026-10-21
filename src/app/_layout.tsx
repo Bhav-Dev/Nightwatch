@@ -52,6 +52,8 @@ export default function RootLayout() {
           <Stack.Screen name="night/[id]" />
           <Stack.Screen name="remedy/[id]" options={{ ...header, title: '' }} />
           <Stack.Screen name="experiment/[remedyId]" options={{ ...header, title: 'Remedy test', presentation: 'modal' }} />
+          <Stack.Screen name="snore-profile" />
+          <Stack.Screen name="find-your-type" options={{ ...header, title: 'Find your type', presentation: 'modal' }} />
           <Stack.Screen name="report" options={{ ...header, title: "Doctor's report" }} />
           <Stack.Screen name="auth" />
         </Stack>

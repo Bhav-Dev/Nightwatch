@@ -33,6 +33,7 @@ import {
 } from '../data/nightRepo';
 import { SLEPT_ALONE_ID } from '../domain/checkIn';
 import { CheckInCard } from './CheckInCard';
+import { nightPitchStretches } from '../data/pitchRepo';
 import { getSetting, setSetting } from '../data/settingsRepo';
 import { nightSoundSegments, type SoundSegmentRow } from '../data/soundRepo';
 import { allNightWeather, nightWeather, type NightWeatherRow, updateMorningWeather } from '../data/weatherRepo';
@@ -44,6 +45,7 @@ import { experimentDay } from '../domain/experiment';
 import type { AlignedSample } from '../domain/health';
 import { clockTimeAt, INTERRUPTION_COPY } from '../domain/interruption';
 import { buildMoments, countByKind, type Moment, momentAt, neighbour, SHOWN_KINDS, shownMoments, type ShownKind } from '../domain/moments';
+import { pitchBand, pitchIn, type PitchStretch } from '../domain/pitch';
 import { intensityFor, scoreLabel, type Bin } from '../domain/scoring';
 import { isSnoringAt } from '../domain/scoring/corrections';
 import { sleepSoundName } from '../domain/sleepSounds';
@@ -74,8 +76,10 @@ interface Loaded {
   sounds: SoundSegmentRow[];
   /** The user's "was this snoring?" answers, in order. */
   labels: SoundLabelRow[];
-  /** Movement heard in the audio, and phone use (night_activity). */
+  /** Movement and heavy breathing heard in the audio, and phone use (night_activity). */
   activity: ActivityRow[];
+  /** The pitch of each stretch of snoring (empty on nights from before it was measured). */
+  pitch: PitchStretch[];
   nightCount: number;
   /** The night's weather, if it was fetched, and every night's (for comparing nights by weather). */
   weather: NightWeatherRow | null;
@@ -87,6 +91,21 @@ interface Loaded {
   avg7: number | null;
   experiments: Experiment[];
   healthOffer: boolean;
+}
+
+/** What the Moments card lists, in words: "Snoring, movement, possibly awake and other loud sounds". */
+const KIND_WORDS: Record<ShownKind, string> = {
+  snore: 'snoring',
+  move: 'movement',
+  awake: 'possibly awake',
+  breathing: 'heavy breathing',
+  other: 'other loud sounds',
+};
+function kindsInWords(kinds: readonly ShownKind[]): string {
+  const order: ShownKind[] = ['snore', 'move', 'awake', 'breathing', 'other'];
+  const words = order.filter((k) => kinds.includes(k)).map((k) => KIND_WORDS[k]);
+  const text = words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : (words[0] ?? '');
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 const hm = (s: number) => `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
@@ -156,7 +175,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     }
     const nightCount = (await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM night', []))?.n ?? 0;
     const prompted = await getSetting(db, 'health_prompted_after');
-    const [bins, events, clips, sounds, labels, weatherRows, samples, summary, log, history, avg7, experiments, activity] = await Promise.all([
+    const [bins, events, clips, sounds, labels, weatherRows, samples, summary, log, history, avg7, experiments, activity, pitch] = await Promise.all([
       nightBins(db, night.id),
       nightEvents(db, night.id),
       nightClips(db, night.id),
@@ -170,6 +189,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       averageScore(db, 7),
       runningExperiments(db),
       nightActivity(db, night.id),
+      nightPitchStretches(db, night.id),
     ]);
     const weatherByNight = new Map(weatherRows.map((w) => [w.night_id, w]));
     const weather = weatherByNight.get(night.id) ?? null;
@@ -181,6 +201,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       sounds,
       labels,
       activity,
+      pitch,
       nightCount,
       weather,
       weatherByNight,
@@ -294,6 +315,8 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   const snoring = events.map((e) => ({ startS: e.start_s, endS: e.end_s, peakDb: e.peak_db }));
   const otherClips = clips.filter((c) => c.kind === 'other');
   const activityChecked = night.activity_checked === 1;
+  const breathingChecked = night.breathing_checked === 1;
+  const breathing = activity.filter((a) => a.kind === 'breathing').map((a) => ({ startS: a.start_s, endS: a.end_s, peakDb: a.peak_db }));
   const moments = buildMoments({
     snoring,
     other: [
@@ -303,12 +326,21 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     recorded: sounds.map((s) => ({ startS: s.start_s, endS: s.end_s })),
     answered: labels.map((l) => ({ startS: l.start_s, endS: l.end_s })),
     movement: activityChecked ? movements : [],
+    breathing: breathingChecked ? breathing : [],
     awake: activityChecked ? awake : [],
   });
-  // Nights from before the night-events check have no movement or possibly awake to show.
-  const kinds = activityChecked ? SHOWN_KINDS : SHOWN_KINDS.filter((k) => k === 'snore' || k === 'other');
   const counts = countByKind(moments);
+  // Nights from before the night-events check have no movement or possibly awake to show. Heavy
+  // breathing has a chip only on nights that had some, so the chips stay on two lines.
+  const kinds = SHOWN_KINDS.filter((k) =>
+    k === 'snore' || k === 'other' ? true : k === 'breathing' ? breathingChecked && counts.breathing > 0 : activityChecked,
+  );
   const shown = shownMoments(moments, show);
+  /** A snoring moment's pitch, from the stretches of snoring inside it. */
+  const pitchOf = (m: Moment) => {
+    const hz = pitchIn(data.pitch, m);
+    return hz === null ? null : pitchBand(hz);
+  };
 
   /** The recorded sound at a second of the night, or the next one starting in the same 5 minutes. */
   const soundAt = (atS: number) =>
@@ -613,6 +645,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
               snoring: show.has('snore') ? snoring : [],
               other: show.has('other') ? shown.filter((m) => m.kind === 'other') : [],
               movement: show.has('move') && activityChecked ? movements : [],
+              breathing: show.has('breathing') ? shown.filter((m) => m.kind === 'breathing') : [],
               restless: show.has('move') && activityChecked ? restless : [],
               awake: show.has('awake') && activityChecked ? awake : [],
             }}
@@ -648,6 +681,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
             onStep={step}
             onPlay={() => (playingSeg || playingClip ? stop() : moment && playAt(moment.startS))}
             pendingSnoring={pending?.key === 'moment' ? pending.snoring : null}
+            pitchOf={pitchOf}
             onAnswer={(snoring) => moment && answer(moment, snoring, 'moment', 'moment')}
             onUndo={() => moment && undo(moment)}
           />
@@ -682,18 +716,19 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
         <Card>
           <H2 right={<Small>{shown.length} shown</Small>}>Moments</H2>
           <Small>
-            {kinds.length > 2 ? 'Snoring, movement, possibly awake and other loud sounds' : 'Snoring and other loud sounds'}, in order.
+            {kindsInWords(kinds)}, in order.
             {wholeNight ? ' Quiet stretches are on the timeline: drag along it to hear them.' : ''}
           </Small>
           <MomentList
             startedAtS={night.started_at}
             moments={shown}
             clipFor={clipFor}
-            // Movement and waking can only be heard from the whole night's sound (recorded, and in the Hive).
+            // Movement, waking and heavy breathing can only be heard from the whole night's sound (recorded, and in the Hive).
             playable={(m) => wholeNight || m.kind === 'snore' || m.kind === 'other'}
             playingKey={playingSeg || playingClip ? playingKey : null}
             pending={pending}
             busy={answering}
+            pitchOf={pitchOf}
             onPlay={playMoment}
             onAnswer={answerMoment}
             onSave={(c) => void toggleSaved(c)}

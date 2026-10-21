@@ -3,6 +3,7 @@ import { listActiveCatalogue } from '../data/catalogueRepo';
 import type { Db } from '../data/db';
 import { nightSummaries } from '../data/historyRepo';
 import { getProfile } from '../data/profileRepo';
+import { loadSnoreProfile } from '../data/snoreProfileRepo';
 import type { ReportComparison, ReportData, ReportNight } from './reportHtml';
 
 /** Gathers a date range's nights into report data (all on the phone; nothing is uploaded). */
@@ -56,6 +57,17 @@ export async function buildReportData(db: Db, from: string, to: string): Promise
       .sort((a, b) => b.nightsWith - a.nightsWith);
 
   const { profile } = await getProfile(db);
+  const snore = await loadSnoreProfile(db);
+  // Heavy breathing in the period, on the nights that were checked for it.
+  const checked = await db.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM night WHERE breathing_checked = 1 AND substr(date, 1, 10) BETWEEN ? AND ?',
+    [from, to],
+  );
+  const heard = await db.getFirstAsync<{ nights: number; seconds: number | null }>(
+    `SELECT COUNT(DISTINCT a.night_id) AS nights, SUM(a.end_s - a.start_s) AS seconds FROM night_activity a JOIN night n ON n.id = a.night_id
+     WHERE a.kind = 'breathing' AND n.breathing_checked = 1 AND substr(n.date, 1, 10) BETWEEN ? AND ?`,
+    [from, to],
+  );
   return {
     from,
     to,
@@ -64,5 +76,7 @@ export async function buildReportData(db: Db, from: string, to: string): Promise
     factors: compare('factor'),
     remedies: compare('remedy'),
     profile: { ageBand: profile.age_band, pausesReported: profile.pauses_reported },
+    snoreProfile: { pitch: snore.pitch, areas: snore.areas.map((a) => ({ name: a.name, rating: a.rating, evidence: a.evidence })) },
+    breathing: { checkedNights: checked?.n ?? 0, nights: heard?.nights ?? 0, minutes: Math.round((heard?.seconds ?? 0) / 60) },
   };
 }

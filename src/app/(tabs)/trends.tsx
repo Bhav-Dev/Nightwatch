@@ -7,6 +7,9 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { enrichedHistory, movingAverage, nightsByDay, trendPoints, trendPointsBetween, type TrendPoint } from '../../data/historyRepo';
 import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
+import { loadSnoreProfile } from '../../data/snoreProfileRepo';
+import type { SnoreProfile } from '../../domain/snoreProfile';
+import { SnoreProfileCard } from '../../screens/SnoreProfileCard';
 import { localDateKey } from '../../domain/nightDate';
 import { AUTO_FACTOR_WORDS, type AutoFactor } from '../../domain/autoFactors';
 import { restedLabel } from '../../domain/checkIn';
@@ -90,6 +93,7 @@ export default function Trends() {
   const [picking, setPicking] = useState<'from' | 'to' | null>(null);
   const [found, setFound] = useState<Pattern[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
+  const [profile, setProfile] = useState<SnoreProfile | null>(null);
 
   // A Bee: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
@@ -107,6 +111,7 @@ export default function Trends() {
     setSnapshots(await listSnapshots(db));
     setFound(patterns(await enrichedHistory(db), new Set([WEATHER_KNOWN_ID])));
     setNames(new Map((await listActiveCatalogue(db)).map((c) => [c.id, c.name])));
+    setProfile(await loadSnoreProfile(db));
     // The latest night is picked to start with, so the line under the chart always says which night it is.
     setSelected(loaded.length ? loaded.length - 1 : null);
   }, [db, effectiveRange, paid, custom]);
@@ -270,6 +275,8 @@ export default function Trends() {
           ))
         )}
       </Card>
+
+      {profile ? <SnoreProfileCard profile={profile} /> : null}
 
       <Card>
         <H2>Snapshots</H2>

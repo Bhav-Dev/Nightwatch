@@ -342,6 +342,43 @@ const MIGRATIONS: string[] = [
   ALTER TABLE night ADD COLUMN rested INTEGER;
   ALTER TABLE night ADD COLUMN partner_slept INTEGER;
   `,
+  `
+  -- Heavy breathing (loud breathing that was not snoring) joins movement and phone use. SQLite
+  -- cannot change a CHECK constraint, so night_activity is rebuilt with its rows.
+  CREATE TABLE night_activity_v2 (
+    id TEXT PRIMARY KEY NOT NULL,
+    night_id TEXT NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('movement', 'phone', 'breathing')),
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    -- Loudness above the night's floor, for movement and heavy breathing.
+    peak_db REAL
+  );
+  INSERT INTO night_activity_v2 (id, night_id, kind, start_s, end_s, peak_db)
+    SELECT id, night_id, kind, start_s, end_s, peak_db FROM night_activity;
+  DROP TABLE night_activity;
+  ALTER TABLE night_activity_v2 RENAME TO night_activity;
+  CREATE INDEX night_activity_night ON night_activity(night_id);
+  -- 1 once heavy breathing was looked for. Older nights have none to show, which is not the
+  -- same as none happening.
+  ALTER TABLE night ADD COLUMN breathing_checked INTEGER;
+
+  -- Snore pitch: each second's strongest frequency while recording, then the median for each
+  -- stretch of snoring once the night is saved. Kept apart from event, which is rebuilt from the
+  -- user's answers; the stretches stay as the detector measured them. On this phone only.
+  ALTER TABLE session_frame ADD COLUMN peak_hz REAL;
+  CREATE TABLE snore_pitch (
+    night_id TEXT NOT NULL REFERENCES night(id) ON DELETE CASCADE,
+    start_s INTEGER NOT NULL,
+    end_s INTEGER NOT NULL,
+    hz REAL NOT NULL,
+    seconds INTEGER NOT NULL
+  );
+  CREATE INDEX snore_pitch_night ON snore_pitch(night_id);
+
+  -- Remedy tests started together as one guided test: 'type' for "Find your type".
+  ALTER TABLE experiment ADD COLUMN test_group TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

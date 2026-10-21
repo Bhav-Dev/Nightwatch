@@ -31,8 +31,10 @@ interface ExportNight {
   /** The user's "was this snoring?" answers; `events` and `score` already include them. */
   answers: { start_s: number; end_s: number; label: string }[];
   score_before_answers: number | null;
-  /** Movement heard in the audio, and when the phone was in use (estimates). */
+  /** Movement and heavy breathing heard in the audio, and when the phone was in use (estimates). */
   activity: { kind: string; start_s: number; end_s: number }[];
+  /** The pitch (strongest frequency, Hz) of each stretch of snoring the detector found (an estimate). */
+  snore_pitch: { start_s: number; end_s: number; hz: number }[];
 }
 
 /** Everything the user has, without audio: nights, logs, events, Health summaries, profile, experiments. */
@@ -47,6 +49,7 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
     const events = await db.getAllAsync<ExportNight['events'][number]>('SELECT start_s, end_s, peak_db, intensity FROM event WHERE night_id = ? ORDER BY start_s', [id]);
     const answers = await db.getAllAsync<ExportNight['answers'][number]>('SELECT start_s, end_s, label FROM sound_label WHERE night_id = ? ORDER BY created_at', [id]);
     const activity = await db.getAllAsync<ExportNight['activity'][number]>('SELECT kind, start_s, end_s FROM night_activity WHERE night_id = ? ORDER BY start_s', [id]);
+    const pitch = await db.getAllAsync<ExportNight['snore_pitch'][number]>('SELECT start_s, end_s, hz FROM snore_pitch WHERE night_id = ? ORDER BY start_s', [id]);
     out.push({
       id,
       date: n.date as string,
@@ -67,6 +70,7 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
       answers,
       score_before_answers: (n.detector_score as number | null) ?? null,
       activity,
+      snore_pitch: pitch.map((p) => ({ ...p, hz: Math.round(p.hz) })),
     });
   }
   const profile = await db.getFirstAsync<Record<string, unknown>>('SELECT * FROM profile WHERE id = 1', []);
@@ -92,7 +96,7 @@ export async function exportAll(db: Db): Promise<{ json: string; csv: string }> 
 export async function deleteAllLocalData(db: Db): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const t of [
-      'event', 'event_detected', 'sound_label', 'night_activity', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'pending_log', 'experiment', 'snapshot',
+      'event', 'event_detected', 'sound_label', 'night_activity', 'snore_pitch', 'bin', 'health_sample', 'health_summary', 'remedy_log', 'factor_log', 'pending_log', 'experiment', 'snapshot',
       'clip', 'sound_segment', 'night_weather', 'session_weather', 'session_frame', 'session_gap', 'session_mark', 'recording_session', 'sync_tombstone', 'cache', 'night', 'profile',
     ]) {
       await db.runAsync(`DELETE FROM ${t}`, []);

@@ -7,7 +7,7 @@ function render(show: ShownKind[], kinds: readonly ShownKind[] = SHOWN_KINDS) {
   const onChange = jest.fn();
   let tree!: ReturnType<typeof create>;
   act(() => {
-    tree = create(<MomentFilter kinds={kinds} show={new Set(show)} counts={{ snore: 3, move: 8, awake: 0, other: 3 }} onChange={onChange} />);
+    tree = create(<MomentFilter kinds={kinds} show={new Set(show)} counts={{ snore: 3, move: 8, awake: 0, other: 3, breathing: 2 }} onChange={onChange} />);
   });
   const chip = (label: string) =>
     tree.root.find((n: ReactTestInstance) => typeof n.props.onPress === 'function' && typeof n.props.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith(label));
@@ -19,7 +19,12 @@ describe('moment chips', () => {
     const { chip, onChange } = render([...SHOWN_KINDS]);
     expect(chip('Movement, 8').props.accessibilityState).toEqual({ checked: true });
     act(() => chip('Movement').props.onPress());
-    expect([...onChange.mock.calls[0][0]].sort()).toEqual(['awake', 'other', 'snore']);
+    expect([...onChange.mock.calls[0][0]].sort()).toEqual(['awake', 'breathing', 'other', 'snore']);
+  });
+
+  it('has a heavy breathing chip with its count', () => {
+    const { chip } = render([...SHOWN_KINDS]);
+    expect(chip('Heavy breathing, 2').props.accessibilityState).toEqual({ checked: true });
   });
 
   it('will not turn off the last kind shown', () => {

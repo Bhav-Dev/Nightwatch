@@ -5,6 +5,7 @@ import { attachClipsToNight, deleteClipRow, getClip, insertClip, markOtherClip, 
 import { saveNightActivity } from '../data/activityRepo';
 import { commitPendingLog } from '../data/logRepo';
 import { saveNight } from '../data/nightRepo';
+import { saveSnorePitch } from '../data/pitchRepo';
 import type { Db } from '../data/db';
 import { attachSoundToNight, deleteSoundSegmentRow, insertSoundSegment, sessionSoundSegments } from '../data/soundRepo';
 import { deleteSessionForecast, saveNightWeather, saveSessionForecast, sessionForecast } from '../data/weatherRepo';
@@ -28,6 +29,8 @@ import {
 } from '../data/sessionRepo';
 import { detectMovement, phoneUseInNight } from '../domain/activity';
 import { frameFeatures } from '../domain/audio/features';
+import { detectHeavyBreathing, withoutHeavyBreathing } from '../domain/breathing';
+import { stretchPitches } from '../domain/pitch';
 import { HEURISTIC_DETECTOR_ID, type OnlineSnoreScorer } from '../domain/detection/classifier';
 import { classifyNightHeuristic, HEURISTIC } from '../domain/detection/heuristic';
 import { analyseNight, type Sensitivity } from '../domain/scoring';
@@ -297,16 +300,22 @@ export async function finaliseSession(
     detector: modelCovered ? (session.detector ?? 'model') : HEURISTIC_DETECTOR_ID,
     sleepSound,
   });
-  // Tossing and turning heard in the audio, and when the phone was in use (docs/night-events-design.md).
+  // Tossing and turning and heavy breathing heard in the audio, and when the phone was in use
+  // (docs/night-events-design.md). A loud breath can sound like a rustle, so movement during
+  // heavy breathing is left out.
+  const breathing = detectHeavyBreathing(frames, scored, { durationS, maskedUntilS });
   await saveNightActivity(
     db,
     nightId,
     {
-      movement: detectMovement(frames, scored, { durationS, maskedUntilS }),
+      movement: withoutHeavyBreathing(detectMovement(frames, scored, { durationS, maskedUntilS }), breathing),
       phone: phoneUseInNight(await sessionPhoneUse(db, sessionId), durationS),
+      breathing,
     },
     opts.newId,
   );
+  // The pitch of each stretch of snoring, for the snore profile (the per-second features go below).
+  await saveSnorePitch(db, nightId, stretchPitches(frames, scored, analysis.events));
   await keepClipsForEvents(db, sessionId, nightId, analysis.events, opts.files ?? null);
   await attachSoundToNight(db, sessionId, nightId);
   const weather = await sessionForecast(db, sessionId);

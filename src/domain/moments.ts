@@ -2,18 +2,25 @@ import { clockTimeAt } from './interruption';
 
 /**
  * The night as a list of moments the morning screen can step through with previous and next:
- * each stretch of snoring, each loud sound that was not counted as snoring, each movement, each
- * time the person was possibly awake, and any other recorded sound in between. Quiet stretches
- * are skipped.
+ * each stretch of snoring, each loud sound that was not counted as snoring, each stretch of heavy
+ * breathing, each movement, each time the person was possibly awake, and any other recorded
+ * sound in between. Quiet stretches are skipped.
  */
-export type MomentKind = 'snore' | 'other' | 'move' | 'awake' | 'sound';
+export type MomentKind = 'snore' | 'other' | 'breathing' | 'move' | 'awake' | 'sound';
 
 /**
  * The kinds the morning screen colours, filters, lists and steps through. Recorded sound with
  * nothing else in it ('sound') is only on the timeline, where dragging plays it.
  */
 export type ShownKind = Exclude<MomentKind, 'sound'>;
-export const SHOWN_KINDS: readonly ShownKind[] = ['snore', 'move', 'awake', 'other'];
+export const SHOWN_KINDS: readonly ShownKind[] = ['snore', 'move', 'awake', 'other', 'breathing'];
+
+/**
+ * Which moments take the "was this snoring?" answer: snoring, loud sounds left out, heavy
+ * breathing (the stretches the detector is least sure about, so the answers that teach it most),
+ * and plain recorded sound. Saying heavy breathing was snoring adds it to the night's snoring.
+ */
+export const answerable = (kind: MomentKind): boolean => kind === 'snore' || kind === 'other' || kind === 'breathing' || kind === 'sound';
 
 export interface Moment {
   startS: number;
@@ -27,6 +34,8 @@ export interface Moment {
 
 /** Recorded sound shorter than this, once everything else is taken out, is not a moment. */
 export const MIN_SOUND_MOMENT_S = 5;
+/** Heavy breathing left shorter than this, once snoring and loud sounds are taken out, is dropped. */
+export const MIN_BREATHING_MOMENT_S = 10;
 
 interface Range {
   startS: number;
@@ -60,6 +69,12 @@ export function buildMoments(input: {
   answered: readonly Range[];
   /** Movement heard in the audio (left out on nights that were not checked for it). */
   movement?: readonly (Range & { peakDb?: number | null })[];
+  /**
+   * Heavy breathing heard in the audio (left out on nights that were not checked for it). Where
+   * it meets snoring (the user said part of it was snoring) or a loud sound kept with a clip,
+   * those win and the breathing is cut around them.
+   */
+  breathing?: readonly (Range & { peakDb?: number | null })[];
   /** When the person was possibly awake. These can run over other moments. */
   awake?: readonly Range[];
 }): Moment[] {
@@ -77,21 +92,24 @@ export function buildMoments(input: {
     } else otherMerged.push({ ...o });
   }
   const movement = (input.movement ?? []).map((m) => ({ startS: m.startS, endS: m.endS, peakDb: m.peakDb ?? null, kind: 'move' as const }));
+  const breathing = (input.breathing ?? []).flatMap((b) =>
+    subtract(b, [...snoring, ...otherMerged])
+      .filter((r) => r.endS - r.startS >= MIN_BREATHING_MOMENT_S)
+      .map((r) => ({ ...r, peakDb: b.peakDb ?? null, kind: 'breathing' as const })),
+  );
   const awake = (input.awake ?? []).map((a) => ({ startS: a.startS, endS: a.endS, peakDb: null, kind: 'awake' as const }));
-  const taken: Range[] = [...snoring, ...otherMerged, ...movement];
+  const taken: Range[] = [...snoring, ...otherMerged, ...movement, ...breathing];
   const sound = input.recorded
     .flatMap((r) => subtract(r, taken))
     .filter((r) => r.endS - r.startS >= MIN_SOUND_MOMENT_S)
     .map((r) => ({ ...r, kind: 'sound' as const, peakDb: null }));
-  // Only snoring and other sounds can be answered for.
-  const canAnswer = (kind: MomentKind) => kind === 'snore' || kind === 'other' || kind === 'sound';
-  return [...snoring, ...otherMerged, ...sound, ...movement, ...awake]
+  return [...snoring, ...otherMerged, ...breathing, ...sound, ...movement, ...awake]
     .map((m) => ({
       startS: m.startS,
       endS: m.endS,
       kind: m.kind,
       peakDb: m.peakDb,
-      answered: canAnswer(m.kind) && input.answered.some((a) => overlaps(a, m)),
+      answered: answerable(m.kind) && input.answered.some((a) => overlaps(a, m)),
     }))
     .sort((a, b) => a.startS - b.startS);
 }
@@ -103,7 +121,7 @@ export function shownMoments(moments: readonly Moment[], show: ReadonlySet<Shown
 
 /** How many moments of each kind the night has. */
 export function countByKind(moments: readonly Moment[]): Record<ShownKind, number> {
-  const counts: Record<ShownKind, number> = { snore: 0, move: 0, awake: 0, other: 0 };
+  const counts: Record<ShownKind, number> = { snore: 0, move: 0, awake: 0, other: 0, breathing: 0 };
   for (const m of moments) if (m.kind !== 'sound') counts[m.kind]++;
   return counts;
 }
