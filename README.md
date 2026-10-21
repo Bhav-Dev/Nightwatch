@@ -284,6 +284,11 @@ The heuristic (v0) labels nights at Stop. The trained model will plug in through
 
 ## Decisions taken where the spec was open
 
+- **Heavy breathing** takes the Snoring answer: "snoring" turns the stretch into snoring through the normal corrections; "not snoring" keeps it as heavy breathing.
+- **Snore pitch** is each second's strongest frequency between 70 Hz and 2 kHz, kept as a median per stretch in `snore_pitch` (apart from `event`, because answers rebuild events). The profile's cut-offs, 300 Hz and 800 Hz, follow published peak frequencies (soft palate around 140 Hz, tongue base over 1 kHz), and it says "often linked with", never a finding. The profile card sits on Trends.
+- **Find your type** runs up to three remedy tests together with crossed plans, so each verdict stands on its own.
+- **The website** is a static Astro site in `website/` with its own package; see `website/README.md` for running, adding articles and deploying on Vercel.
+
 - **Analytics:** anonymous PostHog counts over plain HTTP, with no SDK and a random install id that is never the account. On by default, with a switch in Settings.
 - **Apple sign-in tokens** are kept, sealed, only so they can be revoked when someone deletes their account.
 - **Alerts** are emails through the existing mailer to `ALERT_EMAIL`, at most one per kind per hour.

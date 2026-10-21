@@ -224,9 +224,13 @@ Raised during the build:
 | Nightly Postgres backup with a tested restore | 👤 | Supabase backups cover it; check the plan includes point-in-time recovery, and test a restore |
 | Analytics (10 events, no health values) | 🟡 | PostHog over plain HTTP (no SDK), EU host, a random install id, on by default with a Settings switch. Sends nothing until `EXPO_PUBLIC_POSTHOG_KEY` is set. The privacy policy must mention it, and PECR consent at onboarding is still to decide |
 | Store readiness: privacy labels, data-safety form, demo account | ⬜ | Phase 4 |
-| Legal: privacy policy, terms, affiliate disclosure, methods page | ⬜ / ✅ | Methods page written; the rest are Phase 4 |
+| Legal: privacy policy, terms, affiliate disclosure, methods page | ⬜ / ✅ | Methods page and affiliate disclosure are on the website; privacy and terms are stub pages until the real text is written (Phase 4) |
+| Marketing website | 🟡 | Built 21 October 2026 in `website/` (static Astro, deploys on Vercel with Root Directory `website`). App Store and Google Play badges with a "Coming soon" line until `stores.live` is set. Every community figure is a sample number (`website/src/data/community.ts`) until real aggregates exist. The `/auth` page hands email sign-in links to the app |
 
 ## Known gaps in what is built
+
+- **Heavy breathing** (built 21 October 2026, JS only): a conservative detector for loud, broadband, breath-rhythmic sound that is not snoring, saved at Stop and shown as its own moment kind. It takes the Snoring answer; movement inside it is left out. Older nights are not counted as having none (`breathing_checked`). Thresholds are only checked on synthetic audio so far.
+- **Snore profile** (built 21 October 2026, JS only): pitch per stretch of snoring from new nights on, a profile card on Trends and a full screen, "Find your type" (up to three crossed 14-night tests, open to a Bee with the verdicts locked), and a section in the doctor's report. Worded as clues, never findings. The pitch cut-offs (300 and 800 Hz) need checking on real nights. A Bee can start more than one test at once: the tiers table said one; to decide.
 
 - **Recording view:** no battery estimate.
 - **Snoring answers:** the loudness of a stretch the user adds as snoring is estimated (per-second levels are not kept), and the answers themselves are not synced. See [morning-review-plan.md](morning-review-plan.md).
