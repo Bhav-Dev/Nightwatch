@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 
 import { revokeAppleTokenFor } from '../auth/appleTokens.ts';
+import { hmacHex } from '../crypto.ts';
 import type { AppEnv, Deps } from '../deps.ts';
 
 export function accountRoutes(deps: Deps) {
-  const { sql, clock } = deps;
+  const { sql, clock, config } = deps;
   const r = new Hono<AppEnv>();
 
   /**
@@ -12,6 +13,8 @@ export function accountRoutes(deps: Deps) {
    * mirror, contribution rows, the kept Apple token) by cascade. Contributor ids go on the
    * exclusion list first; that list holds no user id, so it survives and the next aggregation
    * drops them. Published aggregates hold no per-person data, so nothing else needs removing.
+   * Remedy suggestions hold no user id either, so they are found by the keys catalogue.ts files
+   * them under: the contributor id, or the keyed hash of the user id.
    *
    * A Sign in with Apple account's token is revoked first, as Apple requires. That step never
    * blocks the deletion: a failure is logged and alerted.
@@ -20,7 +23,13 @@ export function accountRoutes(deps: Deps) {
     const userId = c.get('userId');
     await revokeAppleTokenFor(deps, userId);
     const now = clock.now().toISOString();
+    const hashedKey = `h:${await hmacHex(config.sessionSecret, `suggest:${userId}`)}`;
     await sql.transaction(async (tx) => {
+      await tx.query(
+        `DELETE FROM catalogue_suggestion
+         WHERE submitter_key = $2 OR submitter_key IN (SELECT 'c:' || contributor_id::text FROM contribution WHERE user_id = $1)`,
+        [userId, hashedKey],
+      );
       await tx.query(
         `INSERT INTO contributor_exclusion (contributor_id, reason, excluded_at)
          SELECT contributor_id, 'account_deleted', $2::timestamptz FROM contribution WHERE user_id = $1

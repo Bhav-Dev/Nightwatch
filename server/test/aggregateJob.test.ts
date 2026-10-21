@@ -186,9 +186,13 @@ describe('nightly aggregation on 500 synthetic contributors', () => {
       );
     await flip(-24);
     h.clock.advance(3600_000);
+    // A counter from two days ago: the cleanup still runs on a run that publishes nothing.
+    const stale = new Date(h.clock.now().getTime() - 2 * 86_400_000).toISOString();
+    await h.sql.query('INSERT INTO rate_limit (key, window_start, count) VALUES ($1, $2::timestamptz, 1)', ['weather:203.0.113.9', stale]);
     try {
       const result = await runAggregation(h.sql, h.clock);
       expect(result.ok).toBe(false);
+      expect(await h.sql.query(`SELECT 1 FROM rate_limit WHERE key = 'weather:203.0.113.9'`)).toEqual([]);
       expect(result.message).toMatch(/alcohol median delta .* is not positive/);
       const [log] = await h.sql.query<{ status: string; message: string }>(
         'SELECT status, message FROM aggregate_job_log WHERE id = $1',

@@ -1,19 +1,295 @@
 ---
-import { contactEmail } from '../config';
+import { contactEmail, legal } from '../config';
 import Doc from '../layouts/Doc.astro';
+
+/*
+ * Written from what the app and server actually do (an inventory of the code on 21 October 2026).
+ * When a data flow changes, change this page in the same commit, and keep the App Store privacy
+ * labels and the Play data safety form in step with it.
+ */
+const mail = `mailto:${contactEmail}`;
 ---
 
 <Doc
   title="Privacy policy"
-  description="SnoreHive's privacy policy will be published here before the app is released."
+  description="What SnoreHive keeps on your phone, what leaves it and why, who handles it, how long it is kept, and how to export or delete it."
   eyebrow="Privacy"
+  lede="SnoreHive listens to your snoring on your phone, and the recordings stay there. This page explains in plain words what does leave your phone, why, who handles it for us, how long it is kept and what you can do about it."
 >
+  <p><small>Last updated {legal.privacyUpdated}.</small></p>
+
+  <div class="note">
+    <strong>The short version</strong>
+    <ul>
+      <li>Recordings never leave your phone unless you share a clip yourself.</li>
+      <li>
+        With your permission, your account keeps a short summary of each night so your history survives a new phone. Because that
+        is health information, we only keep it with your explicit consent.
+      </li>
+      <li>Adding your nights to the community results is off unless you turn it on. Shared nights carry a random number, not your name.</li>
+      <li>We do not sell your data, use it for advertising, or put advertising code in the app.</li>
+      <li>Exporting your data is free, and you can delete your account in the app at any time.</li>
+    </ul>
+  </div>
+
+  <h2>Who we are</h2>
   <p>
-    The full privacy policy will be published here before SnoreHive is available in the App Store and Google Play.
+    SnoreHive is made by {legal.controller}, {legal.address}. We decide how your personal data is used, which makes us the
+    controller under UK data protection law. We are registered with the Information Commissioner’s Office, number {legal.icoNumber}.
+  </p>
+  <p>For anything about your data, write to <a href={mail}>{contactEmail}</a>.</p>
+
+  <h2>What stays on your phone</h2>
+  <p>Most of what SnoreHive does happens on your phone, and most of what it keeps stays there:</p>
+  <ul>
+    <li>
+      <strong>Sound.</strong> The app listens through the microphone while you record. If “Record sounds during the night” is on,
+      it keeps the parts of the night with sound in them, compressed, for 30 days. Silence is not kept. It also keeps a few short
+      clips of each night’s loudest moments, until you delete the data on your phone.
+    </li>
+    <li>
+      <strong>The detail of each night:</strong> the timeline, the moments it found, snoring pitch, your answers to “was this
+      snoring?”, and the morning check-in.
+    </li>
+    <li><strong>Raw watch readings</strong> copied from Apple Health or Health Connect, if you connect them.</li>
+    <li><strong>Your exact height and weight</strong>, if you enter them. Only the bands they fall in ever leave the phone.</li>
+    <li><strong>The weather notes</strong> for each night, if you turn weather on, and your 14-night tests and settings.</li>
+  </ul>
+  <p>
+    The only way audio leaves your phone is if you share a clip yourself, using your phone’s share sheet. The same goes for a
+    doctor’s report or a data export: the app makes them on your phone and you choose where they go.
   </p>
   <p>
-    Until then, <a href="/methods">How the community figures are made</a> explains what is shared when you turn on Contribute, and
-    what never leaves your phone.
+    <strong>Your phone’s own backups.</strong> On iPhone, sound recordings and clips are kept out of iCloud Backup. The rest of
+    the app’s data is part of your iPhone backup if you use iCloud Backup; that backup belongs to your Apple account and we cannot
+    see it. On Android, the app’s data is not included in Google backups.
   </p>
-  <p>Questions about your data: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+
+  <h2>What leaves your phone, and why</h2>
+
+  <h3>Your account</h3>
+  <p>
+    You sign in with Apple, Google or a link sent to your email. We keep your email address, the account identifier Apple or Google
+    gives us, which way you signed in, and when the account was made and last signed in to. For each phone you use, we keep a
+    random number the app makes for it and when it last synced. If you use Sign in with Apple and choose
+    to share your name, we keep that too; if you choose “Hide my email”, we only ever see Apple’s relay address.
+  </p>
+  <p>
+    If you sign in with Apple, we also keep a token Apple gives us, encrypted, so that when you delete your account we can tell
+    Apple to end SnoreHive’s access to your Apple ID.
+  </p>
+  <p>
+    Sign-in links are sent by email through Resend. A link works once and lasts 15 minutes. We store a one-way fingerprint of it,
+    not the link itself, and delete that a day after it expires. The link opens a page on this website, which hands it straight to
+    the app.
+  </p>
+  <p><em>Why:</em> to run your account. <em>Legal basis:</em> it is needed to provide the service you signed up for (contract).</p>
+
+  <h3>A summary of each night</h3>
+  <p>With your consent, your account keeps a copy of each night’s summary:</p>
+  <ul>
+    <li>
+      the date, time in bed, snore score, share of the night spent snoring, number of snoring episodes and loudest level, whether
+      the night was cut short or you marked it as not typical, and when you last changed it;
+    </li>
+    <li>
+      the remedies and factors you ticked that evening, such as mouth tape, a blocked nose, the alcohol band (1–2, 3–4 or 5+ units),
+      a sleep aid, or feeling unwell;
+    </li>
+    <li>
+      if you connected a watch, a nightly summary of it: lowest oxygen level, number of oxygen dips, average and highest heart rate,
+      heart rate variability, average breathing rate and sleep efficiency.
+    </li>
+  </ul>
+  <p>
+    It also keeps your profile in broad bands, if you fill it in: age band, sex, height, weight and BMI bands, usual sleep position,
+    and your answers to whether anyone has seen you stop breathing, whether you have diagnosed sleep apnoea and whether you use CPAP.
+  </p>
+  <p>
+    <em>Why:</em> so your history is safe if you lose or change your phone, and to work out your own results and the results for
+    people like you. <em>Legal basis:</em> this is health information, so we rely on your explicit consent, which we ask for when you
+    create your account. You can withdraw it at any time; see <a href="#choices">your choices</a>.
+  </p>
+  <p>
+    If you type your own remedy under “Other”, we keep the words you typed so we can add popular ones to the list. They are stored
+    without your account details, and deleted with your account.
+  </p>
+
+  <h3>The community results (optional)</h3>
+  <p>
+    If you turn on “Contribute”, the summaries in your account are also used to build the shared remedy results. Contributed nights
+    are stored against a random contributor number that is never shown with your account. The results use dates only, profile bands
+    only, and never your watch data. A remedy’s result is only shown once at least 10 people are behind it, and the same goes for
+    every group (an age band, say), so no slice is small enough to point at a person.
+    <a href="/methods">How the community figures are made</a> explains the details.
+  </p>
+  <p>
+    <em>Legal basis:</em> your explicit consent, which you give by turning it on. Turning it off, or deleting your account, removes
+    your nights from the results at the next nightly rebuild. We keep a list of the contributor numbers of people who have left, so
+    their nights are never counted again; that list holds nothing else.
+  </p>
+
+  <h3>Weather (optional)</h3>
+  <p>
+    If you turn on weather, the app sends your rough area to our server, rounded to about 11 km, and our server asks the Norwegian
+    Meteorological Institute (MET Norway) for that area’s forecast. MET Norway sees only the rounded area, never you. Our server
+    stores forecasts by area, with no link to who asked.
+  </p>
+  <p><em>Legal basis:</em> your consent, which you give by turning it on and allowing location. You can turn it off in Settings.</p>
+
+  <h3>Usage counts</h3>
+  <p>
+    To see which parts of the app are used and where people get stuck, the app sends simple counts to PostHog, in the EU: for
+    example that the app was opened, a recording started or finished (with its length rounded to a band), the morning screen was
+    viewed, or the Hive screen was shown. Each comes with your phone’s system and app version and a random number made on your phone.
+    That number is not linked to your account, your email or your nights, and it is deleted when you turn usage counts off. These
+    counts never include your scores, recordings, profile or watch readings. We do not record your location, and PostHog is set not
+    to store your IP address.
+  </p>
+  <p>
+    <em>Legal basis:</em> our legitimate interest in improving the app, and the UK rules that allow statistics about how an app is
+    used without asking first, as long as it is explained and easy to stop. Turn them off any time in Settings, under “Share
+    anonymous usage counts”. Counts are kept for up to 12 months.
+  </p>
+
+  <h3>Crash reports</h3>
+  <p>
+    When the app crashes or hits an error, it sends a report to Sentry: what the app was doing, the error, the app version, and your
+    phone’s model and system version. Before a report leaves your phone, the app removes email addresses, the details at the end of
+    web addresses, and your phone’s name. Reports never include recordings or health information, and are not linked to your account.
+  </p>
+  <p><em>Legal basis:</em> our legitimate interest in finding and fixing faults. Reports are kept for up to 90 days.</p>
+
+  <h3>The Hive membership</h3>
+  <p>
+    You pay through the App Store or Google Play; we never see your card details. RevenueCat keeps a record of your purchases
+    against your account’s random user number, so your membership works on every phone you sign in to, and tells our server whether
+    your membership is active.
+  </p>
+  <p><em>Legal basis:</em> it is needed to provide what you paid for (contract).</p>
+
+  <h3>App updates</h3>
+  <p>
+    When the app opens, it asks Expo, the service we use to deliver updates, whether a newer version is ready. That request includes
+    the app version, your phone’s platform and an anonymous install number.
+  </p>
+
+  <h3>Keeping the service safe</h3>
+  <p>
+    To stop abuse, such as someone requesting sign-in links for other people’s addresses, our server counts requests by email
+    address, account, device or IP address. These counts are deleted after a day. When something goes wrong on the server, it sends
+    us an alert with technical details of the error, never your nights or profile.
+  </p>
+  <p><em>Legal basis:</em> our legitimate interest in keeping the service secure and working.</p>
+
+  <h3>This website and shop links</h3>
+  <p>
+    This website has no analytics and sets no cookies. Vercel, which hosts it, keeps standard web logs, including IP addresses, for
+    a short time. Some remedies have a link to Amazon. The link carries our affiliate tag and nothing about you; once you are on
+    Amazon, Amazon’s own privacy notice applies. As an Amazon Associate we earn from qualifying purchases.
+  </p>
+
+  <h2>Health information</h2>
+  <p>
+    Snoring, your answers about breathing and apnoea, and watch readings are health information, which UK law protects more
+    strongly. We only keep it in your account with your explicit consent, and only for the reasons on this page.
+  </p>
+  <ul>
+    <li>SnoreHive only reads from Apple Health and Health Connect; it never writes to them.</li>
+    <li>Raw readings stay on your phone. Only the nightly summary described above goes to your account.</li>
+    <li>
+      Health information is never used for advertising, never sold, never sent to analytics or crash reports, and never used in the
+      community results.
+    </li>
+  </ul>
+  <p>SnoreHive is not a medical device. Its scores are patterns to discuss with your doctor, not a diagnosis.</p>
+
+  <h2>Who handles data for us</h2>
+  <p>
+    These companies process data on our behalf, under contracts that only let them use it to provide their service to us:
+  </p>
+  <table>
+    <thead><tr><th>Company</th><th>What for</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Supabase</td><td>Our database and server</td><td>Database in London; the server runs near you</td></tr>
+      <tr><td>Resend</td><td>Sending sign-in emails</td><td>United States</td></tr>
+      <tr><td>RevenueCat</td><td>Hive membership records</td><td>United States</td></tr>
+      <tr><td>PostHog</td><td>Usage counts</td><td>EU (Germany)</td></tr>
+      <tr><td>Sentry</td><td>Crash reports</td><td>EU (Germany)</td></tr>
+      <tr><td>Expo</td><td>Delivering app updates</td><td>United States</td></tr>
+      <tr><td>Vercel</td><td>Hosting this website</td><td>Worldwide network, based in the United States</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Apple and Google handle sign-in and payments under their own privacy policies. MET Norway receives only rounded areas from our
+    server, nothing about you.
+  </p>
+  <p>
+    Where data goes outside the UK, it goes either to a country the UK recognises as protecting it properly (the EU, or the United
+    States for companies certified under the UK–US data bridge), or under the ICO’s international data transfer agreement or
+    addendum.
+  </p>
+
+  <h2 id="choices">Your choices</h2>
+  <ul>
+    <li><strong>Export your data</strong> from Settings, as a spreadsheet file and a JSON file. It is free, whether or not you are in the Hive.</li>
+    <li><strong>Turn off</strong> contributing, usage counts, weather, night sounds or reading your watch, each in Settings.</li>
+    <li><strong>Delete sound recordings</strong> from Settings, keeping your scores and timelines.</li>
+    <li>
+      <strong>Delete your account</strong> in Settings. That removes your account and everything it keeps from our server straight
+      away, tells Apple to end SnoreHive’s access if you signed in with Apple, and deletes the app’s data on your phone. Your nights
+      leave the community results at the next nightly rebuild. Deleted data can remain in our database provider’s encrypted backups
+      for up to 14 days before they roll over. RevenueCat keeps its record of your purchases, which by then links to no account, and
+      Resend keeps its log of the emails it sent for its usual period.
+    </li>
+    <li><strong>Delete the data on this phone only</strong> from Settings, keeping your account.</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>Under UK data protection law you can ask us to:</p>
+  <ul>
+    <li>give you a copy of the personal data we hold about you, including what is kept in your account;</li>
+    <li>correct anything that is wrong;</li>
+    <li>delete your data;</li>
+    <li>limit how we use it, or stop using it where we rely on our legitimate interests;</li>
+    <li>give you your data in a form you can take to another service.</li>
+  </ul>
+  <p>
+    Where we rely on your consent, you can withdraw it at any time; that does not affect what we did before. Write to
+    <a href={mail}>{contactEmail}</a> and we will reply within one month. If you are unhappy with how we have handled your data, you
+    can complain to the Information Commissioner’s Office at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk</a> or on
+    0303 123 1113. We would like the chance to put things right first.
+  </p>
+
+  <h2>How long we keep things</h2>
+  <table>
+    <thead><tr><th>What</th><th>How long</th></tr></thead>
+    <tbody>
+      <tr><td>Your account, night summaries and profile</td><td>Until you delete your account</td></tr>
+      <tr><td>Whole-night sound, on your phone</td><td>30 days</td></tr>
+      <tr><td>Clips, on your phone</td><td>Until you delete the data on your phone or your account</td></tr>
+      <tr><td>Sign-in link fingerprints</td><td>A day after the link expires</td></tr>
+      <tr><td>Abuse-prevention counts (email, IP address)</td><td>A day</td></tr>
+      <tr><td>Community results</td><td>Rebuilt from scratch every night</td></tr>
+      <tr><td>Usage counts</td><td>Up to 12 months</td></tr>
+      <tr><td>Crash reports</td><td>Up to 90 days</td></tr>
+      <tr><td>Database backups</td><td>Up to 14 days</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Keeping it secure</h2>
+  <p>
+    Everything between the app and our server is encrypted in transit. Your sign-in is stored in your phone’s secure storage. The
+    Apple token is encrypted in our database, and sign-in links are only stored as fingerprints. Only the people who run SnoreHive
+    can reach the server’s data, and only to keep it running.
+  </p>
+
+  <h2>Age</h2>
+  <p>SnoreHive is for adults. You must be 18 or over to use it.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If we change how we use your data, we will update this page and its date. If a change matters, for example a new use of your
+    health information, we will tell you in the app first and ask again where your consent is needed.
+  </p>
 </Doc>

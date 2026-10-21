@@ -314,7 +314,7 @@ export default function SettingsScreen() {
             disabled={!soundRecordingAvailable}
             hint={
               soundRecordingAvailable
-                ? `Keeps the parts of each night with sound in them, compressed, so you can listen back from the timeline. Silence is not kept. Stays on this phone and is deleted after ${SOUND_KEEP_DAYS} nights.`
+                ? `Keeps the parts of each night with sound in them, compressed, so you can listen back from the timeline. Silence is not kept. Stays on this phone and is deleted after ${SOUND_KEEP_DAYS} days.`
                 : 'Not available on this phone yet.'
             }
           />

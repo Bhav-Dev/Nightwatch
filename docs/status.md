@@ -155,7 +155,7 @@ Acceptance criteria:
 | Store listings and screenshots that lead with the dashboard | ⬜ |
 | Site pages for the top snoring and apnoea questions; press note from the first findings | ⬜ |
 | Reviewer demo account seeded with 14 nights | ⬜ |
-| Privacy policy, terms, affiliate disclosure page | ⬜ |
+| Privacy policy, terms, affiliate disclosure page | 🟡 Privacy policy written 21 October 2026 (`website/src/pages/privacy.astro`) from an inventory of the code; it needs the controller name, address and ICO number (`website/src/config.ts` `legal`), and three things the app must do before it is true: ask for explicit consent before nights sync, keep PostHog's "Discard client IP data" on, and use Sentry's EU region. Terms are still a stub (Apple's standard EULA can cover the App Store) |
 | App Store privacy labels, Play data-safety form, background-audio justification | ⬜ (the justification text is drafted in the plan) |
 | **Gate:** zero crashes across the device matrix; reviewer demo path works end to end | ⬜ |
 
@@ -222,9 +222,9 @@ Raised during the build:
 | Crash reporting | 🟡 | Sentry built on branch `build-6-native` (native, so it waits for build 6). Starts only with `EXPO_PUBLIC_SENTRY_DSN`; no personal data, emails and URL query strings scrubbed |
 | API error-rate alert, aggregation-job alert | 🟡 | Built 21 October 2026: unexpected 500s, failed aggregation runs and failed Apple revocations email `ALERT_EMAIL`, one per kind per hour. Needs the server deploy and `NIGHTWATCH_ALERT_EMAIL` |
 | Nightly Postgres backup with a tested restore | 👤 | Supabase backups cover it; check the plan includes point-in-time recovery, and test a restore |
-| Analytics (10 events, no health values) | 🟡 | PostHog over plain HTTP (no SDK), EU host, a random install id, on by default with a Settings switch. Sends nothing until `EXPO_PUBLIC_POSTHOG_KEY` is set. The privacy policy must mention it, and PECR consent at onboarding is still to decide |
+| Analytics (10 events, no health values) | 🟡 | PostHog over plain HTTP (no SDK), EU host, a random install id, on by default with a Settings switch. Sends nothing until `EXPO_PUBLIC_POSTHOG_KEY` is set. The privacy policy describes it. Since 5 February 2026 PECR allows statistics about how a service is used without consent if it is explained and easy to refuse, so on by default with the Settings switch stands; PostHog must have "Discard client IP data" on and keep events at most 12 months, as the policy says |
 | Store readiness: privacy labels, data-safety form, demo account | ⬜ | Phase 4 |
-| Legal: privacy policy, terms, affiliate disclosure, methods page | ⬜ / ✅ | Methods page and affiliate disclosure are on the website; privacy and terms are stub pages until the real text is written (Phase 4) |
+| Legal: privacy policy, terms, affiliate disclosure, methods page | 🟡 / ✅ | Methods page, affiliate disclosure and the privacy policy are on the website (see Phase 4 for what the policy still needs). Account deletion now also removes the person's "Other" remedy suggestions, and the nightly cleanup of sign-in links and rate-limit counts runs even when a sanity check stops publishing, as the policy promises. Terms are a stub |
 | Marketing website | 🟡 | Built 21 October 2026 in `website/` (static Astro, deploys on Vercel with Root Directory `website`). App Store and Google Play badges with a "Coming soon" line until `stores.live` is set. Every community figure is a sample number (`website/src/data/community.ts`) until real aggregates exist. The `/auth` page hands email sign-in links to the app |
 
 ## Known gaps in what is built

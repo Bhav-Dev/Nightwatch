@@ -15,10 +15,14 @@ describe('account deletion', () => {
       token,
       body: { version: 1, age_band: '30-39', sex: null, height_band: null, weight_band: null, bmi_band: null, position: null, pauses_reported: null, apnoea_dx: null, cpap: null },
     });
+    // One suggestion filed under the hashed user id (not contributing yet), one under a contributor id.
+    await h.call('POST', '/v1/catalogue/suggest', { token, body: { text: 'Humidifier' } });
     await h.call('PUT', '/v1/contribution', { token, body: { opted_in: false } });
     await h.call('PUT', '/v1/contribution', { token, body: { opted_in: true } });
     await h.call('PUT', '/v1/contribution', { token, body: { opted_in: false } });
     await h.call('PUT', '/v1/contribution', { token, body: { opted_in: true } });
+    await h.call('POST', '/v1/catalogue/suggest', { token, body: { text: 'Chin strap' } });
+    await h.call('POST', '/v1/catalogue/suggest', { token: other.token, body: { text: 'Humidifier' } });
     const ids = (
       await h.sql.query<{ contributor_id: string }>('SELECT contributor_id::text AS contributor_id FROM contribution WHERE user_id = $1', [userId])
     ).map((r) => r.contributor_id);
@@ -38,6 +42,7 @@ describe('account deletion', () => {
     const [{ n }] = await h.sql.query<{ n: number }>('SELECT count(*)::int AS n FROM night_summary');
     expect(n).toBe(1); // only the other user's night
     expect(await h.sql.query(`SELECT 1 FROM magic_link WHERE email = 'leaving@example.com'`)).toEqual([]);
+    expect(await h.sql.query('SELECT text FROM catalogue_suggestion')).toEqual([{ text: 'Humidifier' }]); // the other user's
     const excluded = await h.sql.query<{ contributor_id: string; reason: string }>(
       'SELECT contributor_id::text AS contributor_id, reason FROM contributor_exclusion ORDER BY 1',
     );

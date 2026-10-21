@@ -449,6 +449,12 @@ export async function runAggregation(sql: Sql, clock: Clock, opts: AggregateJobO
   };
 
   try {
+    // Housekeeping for tables that only grow. It comes first so a run that publishes nothing
+    // still clears them: the privacy policy says these rows last about a day.
+    const dayAgo = new Date(started.getTime() - 86_400_000).toISOString();
+    await sql.query('DELETE FROM rate_limit WHERE window_start < $1::timestamptz', [dayAgo]);
+    await sql.query('DELETE FROM magic_link WHERE expires_at < $1::timestamptz', [dayAgo]);
+
     const remedyIds = (
       await sql.query<{ id: string }>(`SELECT id FROM catalogue WHERE type = 'remedy' AND active ORDER BY id`)
     ).map((r) => r.id);
@@ -502,10 +508,6 @@ export async function runAggregation(sql: Sql, clock: Clock, opts: AggregateJobO
       await finish('ok', null, tx);
     });
 
-    // Housekeeping for tables that only grow.
-    const dayAgo = new Date(started.getTime() - 86_400_000).toISOString();
-    await sql.query('DELETE FROM rate_limit WHERE window_start < $1::timestamptz', [dayAgo]);
-    await sql.query('DELETE FROM magic_link WHERE expires_at < $1::timestamptz', [dayAgo]);
     return result;
   } catch (err) {
     await finish('failed', err instanceof Error ? err.message : String(err)).catch(() => {});

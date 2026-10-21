@@ -6,7 +6,7 @@ import { Alert, ScrollView } from 'react-native';
 import type { ContributionSummary } from '../../../shared/api';
 import { track } from '../../analytics';
 import { getSetting, setSetting } from '../../data/settingsRepo';
-import { CONTRIBUTION_BODY, CONTRIBUTION_TITLE, WHAT_LEAVES, WHAT_NEVER_LEAVES } from '../../screens/contributionCopy';
+import { CONTRIBUTION_BODY, CONTRIBUTION_TITLE, WHAT_LEAVES, WHAT_LEAVES_NOTE, WHAT_NEVER_LEAVES } from '../../screens/contributionCopy';
 import { useApp } from '../../state/AppContext';
 import { Body, Card, H2, Small, ToggleRow } from '../../ui/kit';
 import { space } from '../../ui/theme';
@@ -67,6 +67,7 @@ export default function Sharing() {
         {WHAT_LEAVES.map((l) => (
           <Body key={l}>• {l}</Body>
         ))}
+        <Small style={{ marginTop: space(2) }}>{WHAT_LEAVES_NOTE}</Small>
       </Card>
       <Card>
         <H2>What never does</H2>

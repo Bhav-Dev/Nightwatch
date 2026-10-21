@@ -33,7 +33,7 @@ export default function AboutYou() {
       }
     >
       <Body muted style={{ marginBottom: space(5) }}>
-        This lets us show results from people like you. Everything is stored in broad bands.
+        This lets us show results from people like you. Only broad bands are kept, on this phone and in your account.
       </Body>
       <ProfileForm value={p} onChange={setP} />
     </Screen>

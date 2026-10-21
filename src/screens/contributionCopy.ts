@@ -8,12 +8,17 @@ export const WHAT_LEAVES = [
   'Which remedies and factors you ticked, and the alcohol band',
   'Your profile in bands: age, sex, height, weight and BMI bands, sleep position, breathing-pause and apnoea answers',
   'A nightly summary of your watch data if you connected Apple Health or Health Connect',
-  'Dates only, no times finer than the day',
+  'In the shared results, dates only: no times finer than the day',
 ];
+
+/** Under the list above: these leave the phone for your account whether or not you contribute. */
+export const WHAT_LEAVES_NOTE =
+  'These are kept in your account while you are signed in, so your nights survive a new phone. They are only added to the shared results while contributing is on.';
 
 export const WHAT_NEVER_LEAVES = [
   'Audio recordings and clips',
   'Raw watch data (individual heart-rate or oxygen readings)',
-  'Your name, email or precise location',
+  'Your precise location',
+  'Your name and email: they stay with your account and are never part of the shared results',
   'Exact height and weight',
 ];
