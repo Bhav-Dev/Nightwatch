@@ -11,7 +11,7 @@ import { APPLE_AUD, harness } from './helpers.ts';
 const now = () => Math.floor(Date.parse('2026-10-14T04:00:00Z') / 1000);
 
 /** A Sign in with Apple key generated for the test, with its public half for checking client secrets. */
-async function siwaKey(): Promise<{ key: AppleSignInKey; publicKey: CryptoKey }> {
+async function siwaKey(): Promise<{ key: AppleSignInKey; publicKey: Awaited<ReturnType<typeof generateKeyPair>>['publicKey'] }> {
   const { publicKey, privateKey } = await generateKeyPair('ES256', { extractable: true });
   return { key: { teamId: 'TEAM123456', keyId: 'KEY1234567', privateKey: await exportPKCS8(privateKey), clientId: APPLE_AUD }, publicKey };
 }

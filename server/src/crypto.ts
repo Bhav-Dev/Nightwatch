@@ -51,7 +51,9 @@ export function fromBase64url(text: string): Uint8Array<ArrayBuffer> {
  * An AES-256-GCM key derived from `secret` with HKDF. `purpose` gives each use its own key, so
  * a value sealed for one purpose cannot be opened as another.
  */
-async function sealingKey(secret: string, purpose: string): Promise<CryptoKey> {
+// The return type is left to inference: naming the global CryptoKey only typechecks when some
+// other package happens to declare it, which CI's server-only install does not.
+async function sealingKey(secret: string, purpose: string) {
   const base = await crypto.subtle.importKey('raw', encoder.encode(secret), 'HKDF', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('nightwatch-seal'), info: encoder.encode(purpose) },
