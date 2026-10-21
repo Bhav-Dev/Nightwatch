@@ -25,7 +25,8 @@ import { ChangeBar, Sparkline } from '../../ui/charts';
 import { Chip } from '../../ui/Chip';
 import { HiveIcon } from '../../ui/Hive';
 import { iconFor, type IconName } from '../../ui/remedyIcons';
-import { Body, Button, Card, ErrorNote, GearLink, H2, Loading, Screen, Segmented, Small } from '../../ui/kit';
+import { BlurredBar, BlurredText, openHivePaywall, placeholderFigures } from '../../ui/Blurred';
+import { Body, Button, Card, ErrorNote, GearLink, H2, Loading, Locked, Screen, Segmented, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
 
 type Tab = 'mine' | 'everyone';
@@ -34,12 +35,63 @@ type Kind = 'all' | 'device' | 'habit';
 export const DATA_NOTE = 'Self-reported results from app users, not medical evidence.';
 
 export default function Remedies() {
+  const { paid } = useApp();
   const [tab, setTab] = useState<Tab>('mine');
   return (
     <Screen sky="plain" eyebrow="Remedies" title={tab === 'mine' ? 'What you’ve tried' : 'What works for others'} right={<GearLink />}>
-      <Segmented<Tab> value={tab} onChange={setTab} options={[{ value: 'mine', label: 'Mine' }, { value: 'everyone', label: 'Everyone' }]} />
-      {tab === 'mine' ? <Mine /> : <Everyone />}
+      <Segmented<Tab> value={tab} onChange={setTab} options={[{ value: 'mine', label: 'Mine' }, { value: 'everyone', label: 'Everyone', locked: !paid }]} />
+      {tab === 'mine' ? <Mine /> : paid ? <Everyone /> : <HivePreview />}
     </Screen>
+  );
+}
+
+/**
+ * What a Bee sees on Everyone: the remedy names in honeycomb cells and the results blurred.
+ * Nothing is fetched from the hive; the figures are made up and never readable.
+ */
+function HivePreview() {
+  const db = useSQLiteContext();
+  const [items, setItems] = useState<CatalogueItem[] | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void listActiveCatalogue(db).then((all) => setItems(all.filter((c) => c.type === 'remedy').slice(0, 8)));
+    }, [db]),
+  );
+
+  const join = () => openHivePaywall('remedies');
+  if (items === null) return <Loading />;
+  return (
+    <View>
+      <Card>
+        <H2>What worked for people like you</H2>
+        <Body muted>Every remedy, ranked by real nights from the people who tested it. Join the hive to see what worked for people like you.</Body>
+        <Button label="Join the Hive" onPress={join} style={{ marginTop: space(3) }} />
+      </Card>
+      {items.map((c, i) => {
+        const f = placeholderFigures(i);
+        return (
+          <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={`${c.name}. Results are part of the Hive.`} onPress={join} style={[styles.card, styles.withIcon]}>
+            <HiveIcon icon={iconFor(c)} kind="remedy" size={34} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name} numberOfLines={1}>
+                {c.name}
+              </Text>
+              <View style={styles.rowTop}>
+                <BlurredText style={styles.delta} color={colors.good}>
+                  {f.delta}
+                </BlurredText>
+                <BlurredBar seed={i} />
+              </View>
+              <BlurredText style={styles.blurredSmall} color={colors.textMuted}>
+                {f.people}
+              </BlurredText>
+            </View>
+          </Pressable>
+        );
+      })}
+      <Small>{DATA_NOTE}</Small>
+    </View>
   );
 }
 
@@ -88,22 +140,19 @@ function Mine() {
               {r.avgWithout !== null ? ` (average ${Math.round(r.avgWithout)})` : ''}
             </Small>
             {r.everyNight ? <Small style={{ color: colors.accent, marginTop: space(1) }}>You’ve used this every night. Try some nights without it to see if it helps.</Small> : null}
-            {x ? (
+            {x && x.p.verdict && !paid ? (
+              // A Bee runs the test and logs it; the verdict is what the Hive adds.
+              <Locked label="Your test is done. See its verdict" trigger="verdict" />
+            ) : x ? (
               <Small style={{ marginTop: space(1), color: colors.text }}>
                 {x.p.verdict ? verdictText(x.p.verdict, name(r.remedyId).toLowerCase()) : `Test running: night ${x.p.day} of 14`}
               </Small>
             ) : null}
-            {!x || x.e.status !== 'running' ? (
-              <Button
-                kind="link"
-                label={paid ? 'Start a 14-night test' : 'Start a 14-night test 🔒'}
-                onPress={() => router.push(paid ? `/experiment/${r.remedyId}` : { pathname: '/paywall', params: { trigger: 'experiment' } })}
-              />
-            ) : null}
+            {!x || x.e.status !== 'running' ? <Button kind="link" label="Start a 14-night test" onPress={() => router.push(`/experiment/${r.remedyId}`)} /> : null}
           </Card>
         );
       })}
-      <Button kind="secondary" label="Test a new remedy" onPress={() => router.push(paid ? '/experiment/new' : { pathname: '/paywall', params: { trigger: 'experiment' } })} />
+      <Button kind="secondary" label="Test a new remedy" onPress={() => router.push('/experiment/new')} />
     </View>
   );
 }
@@ -292,5 +341,6 @@ const styles = StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(3), marginBottom: space(1) },
   name: { color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 },
   delta: { fontSize: 18, fontWeight: '800' },
+  blurredSmall: { fontSize: 13, lineHeight: 18 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2), marginBottom: space(4) },
 });

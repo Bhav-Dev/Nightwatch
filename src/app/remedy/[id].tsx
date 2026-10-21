@@ -14,6 +14,7 @@ import { getCatalogueItem } from '../../data/catalogueRepo';
 import { nightSummaries } from '../../data/historyRepo';
 import type { CatalogueItem } from '../../domain/catalogue';
 import { useApp } from '../../state/AppContext';
+import { BlurredBar, BlurredText, placeholderFigures } from '../../ui/Blurred';
 import { ChangeBar, Histogram } from '../../ui/charts';
 import { Body, Button, Card, H2, Loading, Locked, Screen, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
@@ -58,7 +59,19 @@ export default function RemedyDetail() {
     <Screen sky="plain" title={item?.name ?? ''} eyebrow={item?.category}>
       <Stack.Screen options={{ title: '' }} />
       {detail === undefined ? <Loading /> : null}
-      {all && all.status !== 'hidden' ? (
+      {!paid ? (
+        // A Bee sees that there are results, never what they are.
+        <Card>
+          <H2>What worked for people like you</H2>
+          <View style={styles.big}>
+            <BlurredText style={styles.delta} color={colors.good}>
+              {placeholderFigures(3).delta}
+            </BlurredText>
+            <BlurredBar seed={3} width={140} />
+          </View>
+          <Locked label="Join the hive to see what worked for people like you" trigger="remedies" />
+        </Card>
+      ) : all && all.status !== 'hidden' ? (
         <Card>
           <H2>Everyone who tested it</H2>
           <View style={styles.big}>
@@ -104,10 +117,10 @@ export default function RemedyDetail() {
         ) : (
           <Locked label="Compare your result with everyone else’s" trigger="your_result" />
         )}
-        <Button kind="link" label="Run a 14-night test" onPress={() => router.push(paid ? `/experiment/${id}` : { pathname: '/paywall', params: { trigger: 'experiment' } })} />
+        <Button kind="link" label="Run a 14-night test" onPress={() => router.push(`/experiment/${id}`)} />
       </Card>
 
-      {detail?.by_segment_locked ? (
+      {!paid ? null : detail?.by_segment_locked ? (
         <Locked label="See results by age, BMI and sleep position" trigger="people_like_you" />
       ) : detail?.by_segment.length ? (
         <Card>

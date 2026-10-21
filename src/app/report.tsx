@@ -6,7 +6,8 @@ import { Alert } from 'react-native';
 
 import { buildReportData } from '../report/buildReport';
 import { REPORT_HEADER, reportHtml } from '../report/reportHtml';
-import { Body, Button, Card, H2, Screen, Segmented, Small } from '../ui/kit';
+import { useApp } from '../state/AppContext';
+import { Body, Button, Card, H2, Locked, Screen, Segmented, Small } from '../ui/kit';
 import { space } from '../ui/theme';
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -14,6 +15,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 /** Doctor's report: generated on the phone as a PDF and shared from here. */
 export default function Report() {
   const db = useSQLiteContext();
+  const { paid } = useApp();
   const [days, setDays] = useState<'14' | '30'>('30');
   const [busy, setBusy] = useState(false);
 
@@ -35,6 +37,15 @@ export default function Report() {
       setBusy(false);
     }
   };
+
+  // The report is part of the Hive; Trends opens the paywall instead, so this only guards a stray link.
+  if (!paid) {
+    return (
+      <Screen sky="plain">
+        <Locked label="Make a report to share with your doctor" trigger="report" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen sky="plain" footer={<Button label="Create PDF" onPress={generate} busy={busy} />}>

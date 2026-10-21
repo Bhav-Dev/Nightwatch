@@ -9,6 +9,7 @@ import { startExperiment } from '../../data/experimentRepo';
 import type { CatalogueItem } from '../../domain/catalogue';
 import { createPattern } from '../../domain/experiment';
 import { localDateKey } from '../../domain/nightDate';
+import { useApp } from '../../state/AppContext';
 import { Chip } from '../../ui/Chip';
 import { Body, Button, Card, H2, Screen, Small } from '../../ui/kit';
 import { colors, space } from '../../ui/theme';
@@ -20,6 +21,7 @@ import { colors, space } from '../../ui/theme';
 export default function StartExperiment() {
   const { remedyId } = useLocalSearchParams<{ remedyId: string }>();
   const db = useSQLiteContext();
+  const { paid } = useApp();
   const [remedies, setRemedies] = useState<CatalogueItem[]>([]);
   const [chosen, setChosen] = useState<string | null>(remedyId === 'new' ? null : remedyId);
   const [pattern] = useState(() => createPattern(Math.floor(Math.random() * 2 ** 31)));
@@ -51,7 +53,10 @@ export default function StartExperiment() {
         <H2>How the test works</H2>
         <Body>
           For 14 nights the app tells you each evening whether to use {name ? name.toLowerCase() : 'the remedy'} or not: 7 nights with, 7 without, in a mixed order so that a
-          good or bad week doesn’t decide the result. At the end you get a verdict and how confident it is.
+          good or bad week doesn’t decide the result.{' '}
+          {paid
+            ? 'At the end you get a verdict and how confident it is.'
+            : 'At the end there is a verdict and how confident it is; seeing it is part of the Hive, and you can join any time before then.'}
         </Body>
         <View style={styles.pattern} accessibilityLabel="Your 14-night plan">
           {pattern.map((on, i) => (

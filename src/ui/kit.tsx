@@ -218,7 +218,7 @@ export function Locked({ label, trigger }: { label: string; trigger: string }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}. Part of the paid plan.`}
+      accessibilityLabel={`${label}. Part of the Hive.`}
       onPress={() => router.push({ pathname: '/paywall', params: { trigger } })}
       style={styles.locked}
     >

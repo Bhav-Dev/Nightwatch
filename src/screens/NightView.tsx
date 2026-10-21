@@ -118,6 +118,8 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   /** The recorded-sound segment playing (null when a clip, or nothing, is playing). */
   const [playingSegId, setPlayingSegId] = useState<string | null>(null);
+  /** A Bee picked a stretch with no clip on a night with recorded sound: offer the Hive. */
+  const [playbackLocked, setPlaybackLocked] = useState(false);
 
   // When a stretch of sound ends, carry on with the next one, so the night plays through.
   useEffect(() => {
@@ -318,11 +320,15 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
     return inMoment ?? binClip(Math.floor(atS / 300));
   };
 
+  /** The whole night to play back from any second is part of the Hive; a Bee hears the kept clips. */
+  const wholeNight = paid && sounds.length > 0;
+
   /** Picks a second of the night and plays from it. */
   const playAt = (atS: number) => {
     setCursorS(atS);
     engagement.current.plays++;
-    if (sounds.length > 0) {
+    setPlaybackLocked(false);
+    if (wholeNight) {
       // Nights with recorded sound: play the night from that moment.
       const seg = soundAt(atS);
       if (seg) {
@@ -334,11 +340,15 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       }
       return;
     }
-    // Older nights: the clip there; a stretch with no clip stops playback.
+    // Older nights, and a Bee: the clip there; a stretch with no clip stops playback.
     setPlayingSegId(null);
     const c = clipAt(atS);
     if (c) play(c.path, Math.max(0, atS - c.start_s));
-    else stop();
+    else {
+      stop();
+      // The sound is there, but hearing any second of it is part of the Hive.
+      if (sounds.length > 0) setPlaybackLocked(true);
+    }
   };
   const onSelectTime = (_i: number, atS: number) => playAt(atS);
   const playingSeg = playingUri && playingSegId ? (sounds.find((s) => s.id === playingSegId && s.path === playingUri) ?? null) : null;
@@ -650,6 +660,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
                   : 'A quiet night: nothing loud enough to keep.'}
             </Small>
           ) : null}
+          {playbackLocked && !paid ? <Locked label="Play back the whole night from any second" trigger="playback" /> : null}
           {hasHealth && !paid ? <Locked label="See oxygen and heart rate on the same timeline" trigger="overlay" /> : null}
         </Card>
       ) : night.source === 'remote' ? (
@@ -670,13 +681,16 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
       {shown.length > 0 && night.source === 'local' && (
         <Card>
           <H2 right={<Small>{shown.length} shown</Small>}>Moments</H2>
-          <Small>{kinds.length > 2 ? 'Snoring, movement, possibly awake and other loud sounds' : 'Snoring and other loud sounds'}, in order. Quiet stretches are on the timeline: drag along it to hear them.</Small>
+          <Small>
+            {kinds.length > 2 ? 'Snoring, movement, possibly awake and other loud sounds' : 'Snoring and other loud sounds'}, in order.
+            {wholeNight ? ' Quiet stretches are on the timeline: drag along it to hear them.' : ''}
+          </Small>
           <MomentList
             startedAtS={night.started_at}
             moments={shown}
             clipFor={clipFor}
-            // Movement and waking can only be heard on nights with sound recording on.
-            playable={(m) => sounds.length > 0 || m.kind === 'snore' || m.kind === 'other'}
+            // Movement and waking can only be heard from the whole night's sound (recorded, and in the Hive).
+            playable={(m) => wholeNight || m.kind === 'snore' || m.kind === 'other'}
             playingKey={playingSeg || playingClip ? playingKey : null}
             pending={pending}
             busy={answering}

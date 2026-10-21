@@ -11,6 +11,27 @@ import { useApp } from '../state/AppContext';
 import { Body, Button, Loading, Screen, Small } from '../ui/kit';
 import { colors, radius, space } from '../ui/theme';
 
+/** The line under the title: what the lock that opened the paywall was about. */
+const WHY: Record<string, string> = {
+  remedies: 'See what worked for people like you.',
+  people_like_you: 'See what worked for people like you.',
+  your_result: 'See how your result compares with everyone who tested it.',
+  verdict: 'Your test is done. Join the Hive to see its verdict.',
+  playback: 'Play back the whole night from any second.',
+  history: 'Keep every night, with 30 and 90-night trends.',
+  snapshot: 'Save any stretch of nights to compare later.',
+  report: 'Make a report to share with your doctor.',
+  summary: 'See the full morning summary with your watch data.',
+  overlay: 'See your watch data on the same timeline as your snoring.',
+};
+
+const BULLETS = [
+  'What worked for people like you: every remedy, ranked by real nights',
+  'The verdict at the end of each 14-night test',
+  'The whole night to play back, your watch data on the timeline and the full morning summary',
+  'Every night kept, 30 and 90-night trends, and a report to share with your doctor',
+];
+
 /** Opened from any lock. Dismissable; nothing is lost by closing it. */
 export default function Paywall() {
   const { trigger } = useLocalSearchParams<{ trigger?: string }>();
@@ -66,7 +87,9 @@ export default function Paywall() {
 
   return (
     <Screen
-      title="See what actually helps"
+      eyebrow="SnoreHive"
+      title="Join the Hive"
+      subtitle={WHY[trigger ?? ''] ?? 'See what actually helps, for people like you and for you.'}
       right={
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close" hitSlop={12}>
           <Text style={{ color: colors.textMuted, fontSize: 22 }}>✕</Text>
@@ -75,7 +98,7 @@ export default function Paywall() {
       footer={
         <>
           {billingAvailable() ? (
-            <Button label={choice === 'yearly' ? 'Start free trial' : 'Subscribe'} onPress={buy} busy={busy} disabled={!plans || !(choice === 'yearly' ? plans.yearly : plans.monthly)} />
+            <Button label={choice === 'yearly' ? 'Start 7 days free' : 'Join the Hive'} onPress={buy} busy={busy} disabled={!plans || !(choice === 'yearly' ? plans.yearly : plans.monthly)} />
           ) : (
             <>
               <Small>Subscriptions are not set up in this build.</Small>
@@ -99,16 +122,13 @@ export default function Paywall() {
         </>
       }
     >
-      {[
-        'Your watch data on the timeline, and the full morning summary',
-        'Results from people like you, and guided 14-night remedy tests',
-        'A doctor’s report and unlimited history',
-      ].map((b) => (
+      {BULLETS.map((b) => (
         <View key={b} style={styles.bullet}>
           <Text style={styles.tick}>✓</Text>
           <Body style={{ flex: 1 }}>{b}</Body>
         </View>
       ))}
+      <Small>Recording stays free every night as a Bee, with your score, clips and the last 7 nights.</Small>
       {plans === null ? (
         <Loading />
       ) : (

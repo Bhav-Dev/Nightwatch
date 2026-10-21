@@ -91,7 +91,7 @@ export default function Trends() {
   const [found, setFound] = useState<Pattern[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
 
-  // Free plan: 7 nights of history.
+  // A Bee: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
   /** The dates the chart covers, which a snapshot saves. */
   const shown = effectiveRange === 'custom' ? custom : { from: daysAgo(Number(effectiveRange) - 1), to: daysAgo(0) };
@@ -101,7 +101,7 @@ export default function Trends() {
   const load = useCallback(async () => {
     const loaded = effectiveRange === 'custom' ? await trendPointsBetween(db, custom.from, custom.to) : await trendPoints(db, Number(effectiveRange));
     setPoints(loaded);
-    // The free plan keeps 7 nights of history, so its hive is one week; Insight shows four.
+    // A Bee keeps 7 nights of history, so its hive is one week; the Hive shows four.
     const hiveDays = paid ? 28 : 7;
     setHive(nightsByDay(await trendPoints(db, hiveDays), hiveDays));
     setSnapshots(await listSnapshots(db));

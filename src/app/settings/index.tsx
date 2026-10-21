@@ -247,11 +247,15 @@ export default function SettingsScreen() {
 
         <Card>
           <H2>Subscription</H2>
-          <Body muted>{paid ? 'Your paid plan is active.' : 'Free plan: recording, scores, clips, 7 nights of history and the community ranking.'}</Body>
-          {!paid ? <Button kind="secondary" label="See the paid plan" onPress={() => router.push({ pathname: '/paywall', params: { trigger: 'settings' } })} style={{ marginTop: space(3) }} /> : null}
+          <Body muted>
+            {paid
+              ? 'You’re in the Hive: what worked for people like you, test verdicts, the whole night to play back and every night kept.'
+              : 'You’re a Bee: recording every night, your score, clips and the last 7 nights, free.'}
+          </Body>
+          {!paid ? <Button kind="secondary" label="Join the Hive" onPress={() => router.push({ pathname: '/paywall', params: { trigger: 'settings' } })} style={{ marginTop: space(3) }} /> : null}
           {config.internalTools ? (
             <ToggleRow
-              label="Development: unlock paid features"
+              label="Development: unlock the Hive"
               value={devPaid}
               onChange={async (v) => {
                 await setSetting(db, 'dev_paid', v ? '1' : '0');
