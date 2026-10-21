@@ -1,4 +1,12 @@
-import { getSdkStatus, initialize, readRecords, requestPermission, SdkAvailabilityStatus, SleepStageType } from 'react-native-health-connect';
+import {
+  getSdkStatus,
+  initialize,
+  openHealthConnectSettings,
+  readRecords,
+  requestPermission,
+  SdkAvailabilityStatus,
+  SleepStageType,
+} from 'react-native-health-connect';
 
 import type { HealthSampleInput, SleepStage } from '../domain/health';
 import type { HealthSource } from './source';
@@ -29,6 +37,7 @@ export const healthConnect: HealthSource = {
     const granted = await requestPermission(RECORDS.map((recordType) => ({ accessType: 'read' as const, recordType })));
     return granted.some((g) => 'recordType' in g && (g.recordType === 'HeartRate' || g.recordType === 'SleepSession'));
   },
+  openSettings: () => openHealthConnectSettings(),
   async read(start, end) {
     if (!(await ready())) return [];
     const timeRangeFilter = { operator: 'between' as const, startTime: start.toISOString(), endTime: end.toISOString() };

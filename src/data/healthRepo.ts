@@ -37,6 +37,15 @@ export async function healthSamples(db: Db, nightId: string): Promise<AlignedSam
   return rows.map((r) => ({ kind: r.kind, startS: r.start_s, endS: r.end_s, value: r.value, stage: r.stage }));
 }
 
+/** When the latest night with any watch data ended (epoch seconds), or null if none has any. */
+export async function lastNightWithHealth(db: Db): Promise<number | null> {
+  const row = await db.getFirstAsync<{ t: number | null }>(
+    'SELECT MAX(n.ended_at) AS t FROM night n WHERE EXISTS (SELECT 1 FROM health_sample s WHERE s.night_id = n.id)',
+    [],
+  );
+  return row?.t ?? null;
+}
+
 export async function healthSummary(db: Db, nightId: string): Promise<HealthSummaryDto | null> {
   return db.getFirstAsync<HealthSummaryDto>(
     'SELECT sleep_efficiency, spo2_min, spo2_dips, hr_mean, hr_max, hrv_mean, resp_mean FROM health_summary WHERE night_id = ?',

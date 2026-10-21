@@ -18,7 +18,9 @@ import { DEFAULT_RECAP_TIME, parseRecapTime, type RecapTime } from '../../domain
 import { cancelBedtimeNudge, cancelRecap, requestNotificationPermission, scheduleBedtimeNudge } from '../../notifications';
 import { SOUND_KEEP_DAYS } from '../../recording/soundRecorder';
 import { removeClipFile } from '../../screens/NightView';
+import { WatchCard } from '../../screens/WatchCard';
 import { useApp } from '../../state/AppContext';
+import { setUsageAnalytics, usageAnalyticsOn } from '../../usageAnalytics';
 import { Body, Button, Card, H2, Row, Segmented, Small, ToggleRow } from '../../ui/kit';
 import { NightSky } from '../../ui/NightSky';
 import { askForLocation, locationPermission, weatherConfigured } from '../../weather/weatherClient';
@@ -54,6 +56,7 @@ export default function SettingsScreen() {
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [playLog, setPlayLog] = useState<readonly string[]>([]);
+  const [usageOn, setUsageOn] = useState(true);
 
   const load = useCallback(async () => {
     setSensitivity((await getSetting(db, 'sensitivity')) ?? 'normal');
@@ -67,6 +70,7 @@ export default function SettingsScreen() {
     setDevPaid((await getSetting(db, 'dev_paid')) === '1');
     setLabellingOn((await getSetting(db, 'labelling_mode')) === '1');
     setPlayLog(playbackLog());
+    setUsageOn(await usageAnalyticsOn(db));
   }, [db]);
 
   useFocusEffect(
@@ -272,7 +276,18 @@ export default function SettingsScreen() {
           <Row label="Contribute to community results" onPress={() => router.push('/settings/sharing')} />
           <Row label="Export my data (CSV and JSON)" onPress={doExport} />
           <Row label="Delete all data on this phone" onPress={deleteLocal} />
+          <ToggleRow
+            label="Share anonymous usage counts"
+            value={usageOn}
+            onChange={async (v) => {
+              await setUsageAnalytics(db, v);
+              await load();
+            }}
+            hint="Counts such as “opened the app” and “finished a recording”, under a random id that is not your account. Never sounds, scores, health data or which remedies you try."
+          />
         </Card>
+
+        <WatchCard />
 
         <Card>
           <H2>Recording</H2>
