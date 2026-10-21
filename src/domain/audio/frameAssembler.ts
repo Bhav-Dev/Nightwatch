@@ -110,9 +110,9 @@ function isDigitalSilence(frame: Float32Array): boolean {
   return true;
 }
 
-/** Converts little-endian int16 PCM to floats in [-1, 1). */
-export function int16ToFloat32(data: ArrayBuffer): Float32Array {
-  const ints = new Int16Array(data);
+/** Converts little-endian int16 PCM (the first `byteLength` bytes of `data`) to floats in [-1, 1). */
+export function int16ToFloat32(data: ArrayBuffer, byteLength = data.byteLength): Float32Array {
+  const ints = new Int16Array(data, 0, byteLength >> 1);
   const out = new Float32Array(ints.length);
   for (let i = 0; i < ints.length; i++) out[i] = ints[i] / 32768;
   return out;

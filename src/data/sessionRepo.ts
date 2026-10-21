@@ -1,5 +1,5 @@
 import type { FrameFeatures } from '../domain/audio/features';
-import type { Db } from './db';
+import type { Db, SQLValue } from './db';
 
 export type InterruptCause = 'stalled' | 'microphone_taken' | 'app_closed';
 
@@ -49,7 +49,14 @@ export interface StoredFrame {
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
-/** Appends a batch of per-second features (a few dozen at a time, so a kill loses little). */
+/** Rows per INSERT: 7 values each stays well under SQLite's oldest limit of 999 per statement. */
+const FRAMES_PER_INSERT = 100;
+
+/**
+ * Appends a batch of per-second features (a minute or so at a time, so a kill loses little).
+ * Each batch is one transaction of a few statements: every call into SQLite and every commit
+ * costs battery overnight.
+ */
 export async function appendFrames(
   db: Db,
   sessionId: string,
@@ -58,10 +65,11 @@ export async function appendFrames(
 ): Promise<void> {
   if (frames.length === 0) return;
   await db.withTransactionAsync(async () => {
-    for (const { t, features, snoreProb } of frames) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO session_frame (session_id, t, level_db, centroid_hz, envelope, snore_prob, peak_hz) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
+    for (let from = 0; from < frames.length; from += FRAMES_PER_INSERT) {
+      const rows = frames.slice(from, from + FRAMES_PER_INSERT);
+      const params: SQLValue[] = [];
+      for (const { t, features, snoreProb } of rows) {
+        params.push(
           sessionId,
           t,
           features.levelDb,
@@ -69,11 +77,15 @@ export async function appendFrames(
           JSON.stringify(features.envelopeDb.map(round1)),
           snoreProb ?? null,
           features.peakHz !== undefined ? round1(features.peakHz) : null,
-        ],
+        );
+      }
+      await db.runAsync(
+        `INSERT OR REPLACE INTO session_frame (session_id, t, level_db, centroid_hz, envelope, snore_prob, peak_hz) VALUES ${rows.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ')}`,
+        params,
       );
     }
     await db.runAsync('UPDATE recording_session SET last_frame_t = MAX(COALESCE(last_frame_t, 0), ?), updated_at = ? WHERE id = ?', [
-      Math.max(...frames.map((f) => f.t)),
+      frames.reduce((m, f) => Math.max(m, f.t), -Infinity),
       Math.floor(now.getTime() / 1000),
       sessionId,
     ]);

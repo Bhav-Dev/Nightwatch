@@ -4,7 +4,7 @@ import { openSessions, sessionFrames } from '../src/data/sessionRepo';
 import { setPendingTick } from '../src/data/logRepo';
 import type { AudioCapture, CaptureListener } from '../src/native/audioCapture';
 import { CAPTURE_SAMPLE_RATE, synthesiseNightAudio } from '../src/native/audioCapture';
-import { finaliseSession, recoverAbandonedSessions, RecordingSession } from '../src/recording/recordingSession';
+import { finaliseSession, PERSIST_EVERY_S, recoverAbandonedSessions, RecordingSession } from '../src/recording/recordingSession';
 import { openTestDb } from './helpers/nodeDb';
 
 let n = 0;
@@ -94,7 +94,7 @@ describe('RecordingSession', () => {
 describe('recovery at launch', () => {
   it('turns a session the app never stopped into a partial night', async () => {
     const { db, capture } = await setup();
-    capture.feed(0, 90);
+    capture.feed(0, 2 * PERSIST_EVERY_S + 30);
     await new Promise((r) => setTimeout(r, 10));
 
     // Simulate a fresh launch: the module-level live id would be null, so finalise directly.
@@ -103,7 +103,9 @@ describe('recovery at launch', () => {
     const result = await finaliseSession(db, sessions[0].id, { newId, abandoned: true });
     expect(result?.partial).toBe(true);
     const night = await latestNight(db);
-    expect(night).toMatchObject({ interrupt_cause: 'app_closed', interrupted_at_s: 90, duration_s: 90 });
+    // The seconds since the last batch went with the app.
+    const saved = 2 * PERSIST_EVERY_S;
+    expect(night).toMatchObject({ interrupt_cause: 'app_closed', interrupted_at_s: saved, duration_s: saved });
   });
 
   it('leaves the live session alone and drops empty abandoned ones', async () => {

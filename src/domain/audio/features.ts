@@ -1,4 +1,4 @@
-import { fft } from './fft';
+import { RealPowerSpectrum } from './fft';
 
 export const SAMPLE_RATE = 16_000;
 /** Sub-blocks per frame for the loudness envelope (100 ms each at 1-second frames). */
@@ -77,34 +77,40 @@ function strongestFrequency(spectrum: Float64Array, sampleRate: number): number 
   return (best + shift) * binHz;
 }
 
+/**
+ * Scales |X[k]|² of a Hann-windowed block to a one-sided power spectrum whose sum over k is the
+ * mean-square of the block.
+ */
+const powerScale = (() => {
+  const g = new Float64Array(FFT_SIZE / 2 + 1);
+  for (let k = 1; k <= FFT_SIZE / 2; k++) g[k] = (k === FFT_SIZE / 2 ? 1 : 2) / (FFT_SIZE * FFT_SIZE * hannPower);
+  return g;
+})();
+
+// Every second of the night goes through here, so the FFT plan and the spectrum are made once
+// and reused (frameFeatures is synchronous, so one set is enough).
+const spectrumPlan = new RealPowerSpectrum(FFT_SIZE);
+const spectrum = new Float64Array(FFT_SIZE / 2 + 1);
+
 /** Features for one frame of mono PCM in [-1, 1]. Typically 1 second (16,000 samples). */
 export function frameFeatures(samples: Float32Array, sampleRate = SAMPLE_RATE): FrameFeatures {
   const weights = aWeights(sampleRate);
-  const re = new Float64Array(FFT_SIZE);
-  const im = new Float64Array(FFT_SIZE);
-  const spectrum = new Float64Array(FFT_SIZE / 2 + 1);
-
+  spectrum.fill(0);
+  let blocks = 0;
+  for (let off = 0; off + FFT_SIZE <= samples.length; off += FFT_SIZE) {
+    spectrumPlan.accumulate(samples, off, hann, powerScale, spectrum);
+    blocks++;
+  }
+  // Level and centroid are sums over the blocks' spectra, so they are taken once from the total.
   let weightedPower = 0;
   let centroidNum = 0;
   let centroidDen = 0;
-  let blocks = 0;
-  for (let off = 0; off + FFT_SIZE <= samples.length; off += FFT_SIZE) {
-    for (let i = 0; i < FFT_SIZE; i++) {
-      re[i] = samples[off + i] * hann[i];
-      im[i] = 0;
-    }
-    fft(re, im);
-    for (let k = 1; k <= FFT_SIZE / 2; k++) {
-      // One-sided power spectrum scaled so that sum over k equals the mean-square of the block.
-      const scale = k === FFT_SIZE / 2 ? 1 : 2;
-      const p = (scale * (re[k] * re[k] + im[k] * im[k])) / (FFT_SIZE * FFT_SIZE * hannPower);
-      weightedPower += p * weights[k];
-      const hz = (k * sampleRate) / FFT_SIZE;
-      centroidNum += p * hz;
-      centroidDen += p;
-      spectrum[k] += p;
-    }
-    blocks++;
+  const binHz = sampleRate / FFT_SIZE;
+  for (let k = 1; k <= FFT_SIZE / 2; k++) {
+    const p = spectrum[k];
+    weightedPower += p * weights[k];
+    centroidNum += p * k * binHz;
+    centroidDen += p;
   }
 
   const sub = Math.floor(samples.length / ENVELOPE_RATE_HZ);

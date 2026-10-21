@@ -101,8 +101,8 @@ export class ExpoAudioCapture implements AudioCapture {
   private onBuffer(buffer: AudioStreamBuffer): void {
     if (!this.assembler) return;
     this.lastBufferAtMs = Date.now();
-    const usable = buffer.data.byteLength - (buffer.data.byteLength % 2);
-    let samples = int16ToFloat32(buffer.data.slice(0, usable));
+    // Read in place rather than copying the buffer first: this runs ten times a second all night.
+    let samples = int16ToFloat32(buffer.data, buffer.data.byteLength - (buffer.data.byteLength % 2));
     if (buffer.channels > 1) samples = samples.filter((_, i) => i % buffer.channels === 0);
     this.assembler.push(samples, buffer.sampleRate, this.streamBaseS + buffer.timestamp);
   }

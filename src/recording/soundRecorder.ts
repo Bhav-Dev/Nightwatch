@@ -46,15 +46,19 @@ export interface SoundSegment {
 export function toPcm16(samples: Float32Array): Int16Array {
   const out = new Int16Array(samples.length);
   for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    out[i] = Math.round(s * 32767);
+    const x = samples[i];
+    out[i] = Math.round((x > 1 ? 1 : x < -1 ? -1 : x) * 32767);
   }
   return out;
 }
 
 export class SoundRecorder {
   private quietDb: number | null = null;
-  private preRoll: { t: number; pcm: Int16Array }[] = [];
+  /**
+   * The last few quiet seconds, kept as float audio and only turned into 16-bit when a segment
+   * starts: most of the night is quiet and never written, so it is never converted.
+   */
+  private preRoll: { t: number; samples: Float32Array }[] = [];
   private open: { id: string; startS: number; nextT: number; lastLoudT: number } | null = null;
   /** Set when a segment hit the length cap mid-sound, so the next second starts a new one. */
   private carry: { nextT: number; lastLoudT: number } | null = null;
@@ -70,7 +74,7 @@ export class SoundRecorder {
 
   /** Feed one whole second of audio and its level (dB). */
   addSecond(t: number, samples: Float32Array, sampleRate: number, levelDb: number): void {
-    const pcm = toPcm16(samples.subarray(0, sampleRate));
+    const second = samples.subarray(0, sampleRate);
     const finite = Number.isFinite(levelDb);
     if (finite) this.quietDb = nextQuietLevel(this.quietDb, levelDb);
     const loud = finite && this.quietDb !== null && levelDb - this.quietDb >= SOUND_ABOVE_QUIET_DB;
@@ -83,25 +87,28 @@ export class SoundRecorder {
 
     if (!this.open) {
       if (!keep && !this.carry) {
-        this.preRoll.push({ t, pcm });
-        if (this.preRoll.length > SOUND_PRE_ROLL_S) this.preRoll.shift();
+        // A copy, as the caller may reuse its buffer; the oldest second's buffer takes it.
+        const oldest = this.preRoll.length >= SOUND_PRE_ROLL_S ? this.preRoll.shift()! : null;
+        const copy = oldest?.samples.length === second.length ? oldest.samples : new Float32Array(second.length);
+        copy.set(second);
+        this.preRoll.push({ t, samples: copy });
         return;
       }
       // Lead in with the seconds just before, as long as they run straight up to this one.
-      const lead: { t: number; pcm: Int16Array }[] = [];
+      const lead: { t: number; samples: Float32Array }[] = [];
       if (!this.carry) {
         for (let i = this.preRoll.length - 1; i >= 0 && this.preRoll[i].t === t - lead.length - 1; i--) lead.unshift(this.preRoll[i]);
       }
       const id = this.newId();
       this.writer.begin(id, sampleRate);
-      for (const p of lead) this.writer.write(p.pcm);
+      for (const p of lead) this.writer.write(toPcm16(p.samples));
       this.open = { id, startS: lead[0]?.t ?? t, nextT: t, lastLoudT: this.carry?.lastLoudT ?? t };
       this.carry = null;
       this.preRoll = [];
     }
 
     const open = this.open;
-    this.writer.write(pcm);
+    this.writer.write(toPcm16(second));
     open.nextT = t + 1;
     if (keep) open.lastLoudT = t;
     if (t - open.lastLoudT >= SOUND_HANGOVER_S) {

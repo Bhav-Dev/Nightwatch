@@ -113,7 +113,9 @@ export default function Recording() {
     })();
 
     const tick = setInterval(() => {
-      if (!session.current) return;
+      // With the screen off nobody sees the clock, and redrawing it every second costs battery
+      // all night; it catches up within a second of coming back.
+      if (!session.current || AppState.currentState !== 'active') return;
       setElapsedS(session.current.elapsedS);
       setLevelDb(session.current.lastLevelDb);
       // The timer ran out (it stops itself natively).
@@ -180,9 +182,13 @@ export default function Recording() {
       const s = session.current;
       if (!s) return;
       if (state === 'active') since = s.elapsedS;
-      else if (since !== null) {
-        s.markPhoneUse(since, s.elapsedS);
-        since = null;
+      else {
+        // The app may be closed from here, so save what has been recorded so far.
+        s.persistNow();
+        if (since !== null) {
+          s.markPhoneUse(since, s.elapsedS);
+          since = null;
+        }
       }
     });
     return () => sub.remove();

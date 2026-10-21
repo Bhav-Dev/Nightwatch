@@ -117,7 +117,7 @@ expo-audio AudioStream (16 kHz mono int16, ~100 ms buffers)
   → RecordingSession        per-second features (level, centroid, 10 Hz envelope) and an optional model score;
                             loud seconds feed the clip collector; seconds with sound feed the sound recorder
   → SoundRecorder           stretches of sound (lead-in, quiet tail, 5-minute cap) → native AAC .m4a segments
-  → SQLite session_frame    written every 30 s, so a killed app loses at most 30 s
+  → SQLite session_frame    one transaction a minute (and when the app leaves the screen), so a killed app loses at most a minute
   → at Stop or auto-stop    detector → analyseNight → night, events, bins, clips, sound segments, tonight's log
 ```
 

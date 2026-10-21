@@ -37,8 +37,11 @@ import { analyseNight, type Sensitivity } from '../domain/scoring';
 import type { AudioCapture } from '../native/audioCapture';
 import { type SegmentWriter, SoundRecorder } from './soundRecorder';
 
-/** Features are written to SQLite in batches this size, so a killed app loses at most this many seconds. */
-export const PERSIST_EVERY_S = 30;
+/**
+ * Features are written to SQLite in batches this size, so a killed app loses at most this many
+ * seconds. Each batch is a commit (a flush to storage), so fewer, larger batches save battery.
+ */
+export const PERSIST_EVERY_S = 60;
 
 /** Id of the session this JS runtime is recording; any other open session was abandoned. */
 let liveSessionId: string | null = null;
@@ -193,6 +196,14 @@ export class RecordingSession {
   /** Notes a stretch (seconds from the start) when the phone was picked up and used. */
   markPhoneUse(startS: number, endS: number): void {
     if (endS > startS) this.enqueue(() => addPhoneUse(this.db, this.id, startS, endS));
+  }
+
+  /**
+   * Writes the seconds not yet saved straight away rather than at the next batch: call it when
+   * the app leaves the screen, as that is when it may be closed.
+   */
+  persistNow(): void {
+    this.flush();
   }
 
   /** Keeps the forecast fetched for tonight; the night's weather is worked out from it at Stop. */
