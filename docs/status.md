@@ -111,7 +111,7 @@ Acceptance criteria:
 | Morning summary | ✅ | Template rules, 20 fixture nights |
 | 14-night experiments | ✅ | Plan, progress and verdict with confidence |
 | Doctor's report PDF | ✅ / 🟡 | Content and compliance header tested; the PDF render on a phone is not checked |
-| Paywall and subscription | 🟡 / 👤 | Built on RevenueCat, with locks throughout. Needs a RevenueCat project and store products: yearly £29.99 with a 7-day free trial, monthly £4.99 with no trial (decided 20 October 2026) |
+| Paywall and subscription | 🟡 / 👤 | Built on RevenueCat, with locks throughout. Plans: yearly £29.99 and monthly £4.99, no free trial (trial dropped 21 October 2026). App Store side and RevenueCat project are set up; first TestFlight sandbox test is under way |
 | **Gate:** 20 testers, half import Health, a GP or sleep clinician reviews the report wording | 👤 | |
 
 Acceptance criteria:
@@ -122,7 +122,7 @@ Acceptance criteria:
 | Summary follows the template exactly for 20 fixture nights | ✅ | |
 | Experiment gives the right with/without medians, and "not enough nights" below 5 a side | ✅ | |
 | Report PDF has the header, date range, counts, chart and factor table; a clinician has reviewed the wording | ✅ / 👤 | Clinician review outstanding |
-| Trial starts, status mirrors to the server within 5 minutes, features unlock, restore works on a second device | 🟡 | The server's webhook mirror is tested; the store flow is not |
+| Purchase works, status mirrors to the server within 5 minutes, features unlock, restore works on a second device | 🟡 | The server's webhook mirror is tested; the store flow is not |
 
 ### Phase 3: Community layer
 

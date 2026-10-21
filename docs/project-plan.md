@@ -32,7 +32,7 @@ Oct 14, 2026 · @Someone
 | App framework | Cross-platform UI with native modules for audio capture and Health access | Shared stack with the rest of the roster |
 | Backend | Postgres on the existing VPS behind a thin API, nightly aggregation job | Small data volumes per user; the dashboard is a batch product |
 | Detection | On-device classifier | Audio never needs to leave the phone |
-| Pricing | £29.99 a year (7-day trial) or £4.99 a month (no trial); the year may rise to £34.99 later | Updated 20 October 2026. The monthly price makes the year half price, which steers people to it: snorers often find a fix and cancel, so a year paid upfront matters. Annual is the default |
+| Pricing | £29.99 a year or £4.99 a month, neither with a free trial; the year may rise to £34.99 later | Updated 20 October 2026. The monthly price makes the year half price, which steers people to it: snorers often find a fix and cancel, so a year paid upfront matters. Annual is the default |
 | Launch market | UK first, English-speaking markets second | Remedy availability and affiliate programmes differ by country |
 
 ## Feature set
@@ -131,7 +131,7 @@ Two lines: a subscription for the insight features, and affiliate commission on 
 
 **Free vs paid**
 
-| Free | Paid (annual, 7-day trial) |
+| Free | Paid (annual or monthly, no trial) |
 | --- | --- |
 | Record, detect, score, clips, 7 nights of history | Unlimited history and snapshots |
 | Log remedies and factors; your own before and after | Guided 14-night experiments with verdicts |
@@ -139,7 +139,7 @@ Two lines: a subscription for the insight features, and affiliate commission on 
 | Contribute to the dataset (always free, never gated) | Wearable correlation and the morning summary |
 | Expert articles | Doctor's report, partner mode |
 
-Price £29.99 a year or £4.99 a month (decided 20 October 2026; the year is half the monthly price). Launch at £29.99 a year while the community results are thin, then test £34.99 with RevenueCat once there are reviews and enough data; existing subscribers keep their price. Paywall moments: the first time a user taps a "people like you" slice, the first doctor's report, and the first correlation view after a Health import.
+Price £29.99 a year or £4.99 a month (decided 20 October 2026; the year is half the monthly price). Launch at £29.99 a year while the community results are thin, then test £34.99 with RevenueCat once there are reviews and enough data; existing subscribers keep their price. There is no free trial (decided 21 October 2026): the free tier already lets people record every night, and a trial would hand the community results to anyone for a week. If conversion is low, a 7-day trial can be added in App Store Connect later without a new build. Paywall moments: the first time a user taps a "people like you" slice, the first doctor's report, and the first correlation view after a Health import.
 
 **Affiliate links**
 
@@ -308,7 +308,7 @@ The community dashboard is the marketing. A public, methods-backed answer to "wh
 | Second-night recording rate | 60%+ | The first night is curiosity; the second is a habit |
 | Contribution opt-in | 50%+ of active users | The dataset is the moat |
 | Nights logged with at least one remedy or factor | 40%+ | Logging is what makes the dashboard real |
-| Trial start / trial to paid | 15% / 30% | Standard health-app funnel |
+| Install to paid subscriber | 3 to 5% | No free trial, so the funnel is install to purchase. This is the rate behind the 60 to 100 new annual subscribers at 2,000 installs a month in the revenue shape below |
 | Day-30 retention | 20%+ | People stop once they've found a remedy; that's fine if they've paid annually |
 | Remedies past the 30-user threshold | 10 by month 3, 25 by month 6 | The dashboard's usefulness in one number |
 | Affiliate click-through on remedy pages | 8%+ | Confirms the links are placed where intent is |
@@ -363,7 +363,7 @@ Five tabs plus three flows that sit on top of them.
 | Flow | Purpose | Trigger |
 | --- | --- | --- |
 | Onboarding | Permissions (mic, notifications, Health), profile bands, contribution opt-in | First launch; re-entered from Settings |
-| Paywall | Trial start and plan choice | First lock tap; first doctor's report; first "people like you" slice |
+| Paywall | Plan choice and purchase | First lock tap; first doctor's report; first "people like you" slice |
 | Settings | Account, data and contribution, export, delete, support, legal | Gear icon on every tab |
 
 **Navigation rules**
@@ -430,7 +430,7 @@ Five tabs plus three flows that sit on top of them.
 
 ### Paywall sheet
 
-- Title: "See what actually helps". Three bullets: wearable overlay and morning summary; people-like-you results and experiments; doctor's report and unlimited history. Plan toggle: Yearly £29.99 (badge: 7 days free, then £2.50 a month) / Monthly £4.99. Primary: Start free trial (yearly) or Subscribe (monthly, which has no trial). Small: Restore purchases, Terms, Privacy. The sheet is dismissable; nothing is lost by dismissing it.
+- Title: "See what actually helps". Three bullets: wearable overlay and morning summary; people-like-you results and experiments; doctor's report and unlimited history. Plan toggle: Yearly £29.99 (badge: works out at £2.50 a month) / Monthly £4.99. Primary: Join the Hive, with the price and renewal terms under it (neither plan has a trial; decided 21 October 2026). Small: Restore purchases, Terms, Privacy. The sheet is dismissable; nothing is lost by dismissing it.
 
 ### Settings
 
@@ -700,7 +700,7 @@ Forty-two entries at launch. `id` is stable and never reused; `link` says whethe
 - [ ] Summary text follows the template rules exactly for 20 fixture nights (snapshot tests).
 - [ ] A 14-night experiment produces a verdict with the correct with/without medians on a fixture sequence, and "not enough nights" when a side has fewer than 5.
 - [ ] Doctor's report PDF renders with the compliance header, date range, counts, trend chart and factor table; a clinician has reviewed the wording.
-- [ ] Paywall: trial starts, subscription status mirrors to the server within 5 minutes, locked features unlock, restore purchases works on a second device.
+- [ ] Paywall: purchase works in the sandbox, subscription status mirrors to the server within 5 minutes, locked features unlock, restore purchases works on a second device.
 
 **Phase 3**
 
@@ -712,7 +712,7 @@ Forty-two entries at launch. `id` is stable and never reused; `link` says whethe
 
 ### Analytics events (10, no health values)
 
-`app_open`, `onboarding_complete` (with permission flags), `recording_start`, `recording_complete` (duration band, partial flag), `morning_viewed`, `log_saved` (count of remedies, count of factors), `contribution_toggled` (on/off), `paywall_shown` (trigger), `trial_started`, `subscription_converted`.
+`app_open`, `onboarding_complete` (with permission flags), `recording_start`, `recording_complete` (duration band, partial flag), `morning_viewed`, `log_saved` (count of remedies, count of factors), `contribution_toggled` (on/off), `paywall_shown` (trigger), `subscription_converted`.
 
 ### Operational checklist
 

@@ -7,7 +7,7 @@ import { config } from '../config';
 /**
  * Subscriptions through RevenueCat (App Store and Google Play). RevenueCat's app user id is
  * our user id, so its webhook can mirror the status to our server, which gates the paid
- * community slices. Products: an annual plan (default, 7-day trial) and a monthly plan.
+ * community slices. Products: an annual plan (default) and a monthly plan, neither with a trial.
  */
 export interface Plans {
   yearly: { pkg: PurchasesPackage; price: string; perMonth: string | null } | null;

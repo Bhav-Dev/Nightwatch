@@ -44,6 +44,7 @@
     },
     "testflight": {
       "extends": "production",
+      "environment": "production",
       "env": {
         "EXPO_PUBLIC_INTERNAL_BUILD": "1",
         "EXPO_PUBLIC_WEATHER_URL": "https://zezujcujwvnmzxvbchmy.supabase.co/functions/v1/nightwatch-api"

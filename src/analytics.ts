@@ -14,7 +14,6 @@ export type AnalyticsEvent =
   | { name: 'log_saved'; remedies: number; factors: number }
   | { name: 'contribution_toggled'; on: boolean }
   | { name: 'paywall_shown'; trigger: string }
-  | { name: 'trial_started'; plan: 'yearly' | 'monthly' }
   | { name: 'subscription_converted'; plan: 'yearly' | 'monthly' }
   | { name: 'snoring_answered'; snoring: boolean; source: 'clip' | 'moment' }
   | { name: 'recap_opened' }

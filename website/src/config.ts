@@ -36,6 +36,5 @@ export const legal = {
 export const pricing = {
   yearly: 29.99,
   monthly: 4.99,
-  trialDays: 7,
   currency: 'GBP',
 };

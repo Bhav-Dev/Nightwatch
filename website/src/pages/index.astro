@@ -80,7 +80,7 @@ const hive = [
         <StoreBadges id="get" />
         <p class="hero__promise">
           <Icon name="lock" size={16} color="#5FD8B0" />
-          Audio stays on your phone. Free to record every night; try the Hive free for {pricing.trialDays} days.
+          Audio stays on your phone. Free to record every night, with the Hive when you want more.
         </p>
       </div>
       <div class="hero__phone">
@@ -246,7 +246,6 @@ const hive = [
       <div class="card plan plan--hive">
         <div class="plan__top">
           <h3 class="plan__name">Hive</h3>
-          <span class="pill">{pricing.trialDays} days free</span>
         </div>
         <div>
           <p><span class="plan__price">{price(pricing.yearly)}</span><span class="plan__per"> a year</span></p>
@@ -262,7 +261,7 @@ const hive = [
             ))
           }
         </ul>
-        <GetApp label={`Join the Hive free for ${pricing.trialDays} days`} class="plan__cta" />
+        <GetApp label="Join the Hive" class="plan__cta" />
       </div>
     </div>
   </section>
@@ -482,15 +481,6 @@ const hive = [
   .plan :global(.plan__cta) {
     align-self: flex-start;
   }
-  .pill {
-    background: var(--honey);
-    color: var(--on-honey);
-    font-weight: 800;
-    font-size: 13px;
-    padding: 6px 12px;
-    border-radius: 999px;
-  }
-
   .band--top {
     border-bottom: 0;
   }

@@ -8,7 +8,7 @@ import { billingAvailable, loadPlans, type Plans, purchase, restore } from '../b
 import { config } from '../config';
 import { setSetting } from '../data/settingsRepo';
 import { useApp } from '../state/AppContext';
-import { Body, Button, Loading, Screen, Small } from '../ui/kit';
+import { Body, Button, ErrorNote, Loading, Screen, Small } from '../ui/kit';
 import { colors, radius, space } from '../ui/theme';
 
 /** The line under the title: what the lock that opened the paywall was about. */
@@ -41,12 +41,16 @@ export default function Paywall() {
   const [choice, setChoice] = useState<'yearly' | 'monthly'>('yearly');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    void setSetting(db, 'paywall_seen_for', trigger ?? 'lock');
-    track({ name: 'paywall_shown', trigger: trigger ?? 'lock' });
+  const load = () => {
     void loadPlans()
       .then(setPlans)
       .catch(() => setPlans({ yearly: null, monthly: null }));
+  };
+
+  useEffect(() => {
+    void setSetting(db, 'paywall_seen_for', trigger ?? 'lock');
+    track({ name: 'paywall_shown', trigger: trigger ?? 'lock' });
+    load();
   }, [db, trigger]);
 
   const done = async () => {
@@ -54,14 +58,16 @@ export default function Paywall() {
     router.back();
   };
 
+  // Fall back to the other plan if the chosen one did not load.
+  const plan = choice === 'yearly' && plans?.yearly ? 'yearly' : plans?.monthly ? 'monthly' : choice;
+  const chosen = plan === 'yearly' ? plans?.yearly : plans?.monthly;
+
   const buy = async () => {
-    const pkg = choice === 'yearly' ? plans?.yearly?.pkg : plans?.monthly?.pkg;
-    if (!pkg) return;
+    if (!chosen) return;
     setBusy(true);
     try {
-      if (await purchase(pkg)) {
-        // The yearly plan carries the free trial; monthly converts straight away.
-        track(choice === 'yearly' ? { name: 'trial_started', plan: 'yearly' } : { name: 'subscription_converted', plan: 'monthly' });
+      if (await purchase(chosen.pkg)) {
+        track({ name: 'subscription_converted', plan });
         await done();
       }
     } catch (e) {
@@ -81,9 +87,7 @@ export default function Paywall() {
     }
   };
 
-  const yearlyPrice = plans?.yearly?.price ?? '£29.99';
-  const perMonth = plans?.yearly?.perMonth ?? '£2.50';
-  const monthlyPrice = plans?.monthly?.price ?? '£4.99';
+  const failed = plans !== null && !plans.yearly && !plans.monthly;
 
   return (
     <Screen
@@ -98,7 +102,14 @@ export default function Paywall() {
       footer={
         <>
           {billingAvailable() ? (
-            <Button label={choice === 'yearly' ? 'Start 7 days free' : 'Join the Hive'} onPress={buy} busy={busy} disabled={!plans || !(choice === 'yearly' ? plans.yearly : plans.monthly)} />
+            <>
+              <Button label="Join the Hive" onPress={buy} busy={busy} disabled={!chosen} />
+              {chosen ? (
+                <Small style={styles.terms}>
+                  {chosen.price} {plan === 'yearly' ? 'a year' : 'a month'}. Renews until you cancel, which you can do any time in your Apple account settings.
+                </Small>
+              ) : null}
+            </>
           ) : (
             <>
               <Small>Subscriptions are not set up in this build.</Small>
@@ -115,9 +126,11 @@ export default function Paywall() {
             </>
           )}
           <View style={styles.links}>
-            <Button kind="link" label="Restore purchases" onPress={doRestore} />
-            <Button kind="link" label="Terms" onPress={() => Linking.openURL(`${config.siteUrl}/terms`)} />
-            <Button kind="link" label="Privacy" onPress={() => Linking.openURL(`${config.siteUrl}/privacy`)} />
+            <FooterLink label="Restore purchases" onPress={doRestore} />
+            <Text style={styles.dot}>·</Text>
+            <FooterLink label="Terms" onPress={() => Linking.openURL(`${config.siteUrl}/terms`)} />
+            <Text style={styles.dot}>·</Text>
+            <FooterLink label="Privacy" onPress={() => Linking.openURL(`${config.siteUrl}/privacy`)} />
           </View>
         </>
       }
@@ -131,13 +144,35 @@ export default function Paywall() {
       <Small>Recording stays free every night as a Bee, with your score, clips and the last 7 nights.</Small>
       {plans === null ? (
         <Loading />
+      ) : failed ? (
+        <View style={{ marginTop: space(5) }}>
+          <ErrorNote message="The plans could not be loaded. Check your connection and try again." onRetry={() => {
+              setPlans(null);
+              load();
+            }} />
+        </View>
       ) : (
         <View style={{ marginTop: space(5), gap: space(3) }}>
-          <Plan selected={choice === 'yearly'} onPress={() => setChoice('yearly')} title={`Yearly ${yearlyPrice}`} badge={`7 days free, then ${perMonth} a month`} />
-          <Plan selected={choice === 'monthly'} onPress={() => setChoice('monthly')} title={`Monthly ${monthlyPrice}`} />
+          {plans.yearly ? (
+            <Plan
+              selected={plan === 'yearly'}
+              onPress={() => setChoice('yearly')}
+              title={`Yearly ${plans.yearly.price}`}
+              badge={plans.yearly.perMonth ? `Works out at ${plans.yearly.perMonth} a month` : undefined}
+            />
+          ) : null}
+          {plans.monthly ? <Plan selected={plan === 'monthly'} onPress={() => setChoice('monthly')} title={`Monthly ${plans.monthly.price}`} /> : null}
         </View>
       )}
     </Screen>
+  );
+}
+
+function FooterLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link" hitSlop={8}>
+      <Text style={styles.footerLink}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -157,5 +192,8 @@ const styles = StyleSheet.create({
   planOn: { borderColor: colors.accent, backgroundColor: colors.surface },
   planTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
   badge: { color: colors.accent, marginTop: space(1) },
-  links: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space(2) },
+  terms: { textAlign: 'center' },
+  links: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space(3), marginTop: space(2), paddingVertical: space(2) },
+  footerLink: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  dot: { color: colors.textFaint, fontSize: 14 },
 });
