@@ -18,7 +18,8 @@ export const config = {
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   revenueCatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
   revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
-  siteUrl: (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://nightwatch.app').replace(/\/$/, ''),
+  // The Vercel address keeps working after a custom domain is added; switch to the domain then.
+  siteUrl: (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://nightwatch-website-ten.vercel.app').replace(/\/$/, ''),
   /**
    * PostHog project API key (phc_…) for anonymous usage counts; empty sends nothing. Write-only,
    * so it is fine in the app. EU Cloud unless EXPO_PUBLIC_POSTHOG_HOST says otherwise.
