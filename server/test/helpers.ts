@@ -60,6 +60,7 @@ export const testConfig = (overrides: Partial<Config> = {}): Config => ({
   appLinkBase: 'nightwatch:/',
   magicLinkTtlMinutes: 15,
   appleAudiences: [APPLE_AUD],
+  appleSignIn: null,
   googleAudiences: [GOOGLE_AUD],
   amazonTags: { GB: 'nightwatch-21' },
   revenueCatWebhookAuth: WEBHOOK_AUTH,

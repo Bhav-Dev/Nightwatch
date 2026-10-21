@@ -39,3 +39,46 @@ export function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
   return diff === 0;
 }
+
+export function fromBase64url(text: string): Uint8Array<ArrayBuffer> {
+  const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * An AES-256-GCM key derived from `secret` with HKDF. `purpose` gives each use its own key, so
+ * a value sealed for one purpose cannot be opened as another.
+ */
+async function sealingKey(secret: string, purpose: string): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey('raw', encoder.encode(secret), 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('nightwatch-seal'), info: encoder.encode(purpose) },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+/** Encrypts text for storage: "v1." then base64url of the 12-byte IV and the ciphertext. */
+export async function seal(secret: string, purpose: string, text: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await sealingKey(secret, purpose);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(text)));
+  const out = new Uint8Array(iv.length + cipher.length);
+  out.set(iv);
+  out.set(cipher, iv.length);
+  return `v1.${base64url(out)}`;
+}
+
+/** Reverses seal. Throws if the value was changed, sealed for another purpose, or with another secret. */
+export async function unseal(secret: string, purpose: string, sealed: string): Promise<string> {
+  const [version, body] = sealed.split('.');
+  if (version !== 'v1' || !body) throw new Error('Unknown sealed value format');
+  const bytes = fromBase64url(body);
+  const key = await sealingKey(secret, purpose);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.subarray(0, 12) }, key, bytes.subarray(12));
+  return new TextDecoder().decode(plain);
+}

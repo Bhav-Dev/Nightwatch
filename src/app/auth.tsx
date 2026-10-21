@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react';
 import { useApp } from '../state/AppContext';
 import { Body, Button, Card, Loading, Screen } from '../ui/kit';
 
-/** Opened from the magic-link email: nightwatch://auth?token=… */
+/**
+ * Opened from the magic-link email: nightwatch://auth?token=…, either straight from the email or
+ * from the website's /auth page (https://<site>/auth?token=…), which forwards to the app because
+ * many mail apps will not open a nightwatch:// link. The same route would serve the https link
+ * itself if universal links are added later.
+ */
 export default function AuthCallback() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { api, signIn } = useApp();

@@ -23,6 +23,7 @@ export const exchangeBody = z.object({
   provider: z.enum(['apple', 'google', 'email']),
   token: z.string().min(1).max(8192),
   name: z.string().max(200).nullish(),
+  authorization_code: z.string().min(1).max(4096).nullish(),
 });
 
 export const suggestBody = z.object({ text: z.string().trim().min(1).max(200) });

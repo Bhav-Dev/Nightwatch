@@ -1,5 +1,6 @@
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { routePath } from 'hono/route';
 
 import { verifySession } from './auth/session.ts';
 import type { AppEnv, Deps } from './deps.ts';
@@ -66,12 +67,28 @@ export function createApp(deps: Deps) {
   root.route(`${deps.config.basePath}/v1`, v1);
 
   root.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found.' } }, 404));
-  root.onError((err, c) => {
+  root.onError(async (err, c) => {
     if (err instanceof HttpError) {
       return c.json({ error: { code: err.code, message: err.message } }, err.status, err.headers);
     }
     logError(err);
+    // Awaited, because an Edge function may stop once the response is sent.
+    await deps.alerts?.report(`api ${c.req.method} ${routeOf(c)}`, err, 'An API request ended in an unexpected error (500).');
     return c.json({ error: { code: 'internal', message: 'Something went wrong. Try again later.' } }, 500);
   });
   return root;
+}
+
+/** The route pattern (/v1/sync/nights/:id), so repeats of one failure share an alert kind whatever the ids. */
+function routeOf(c: Context): string {
+  try {
+    const pattern = routePath(c, -1);
+    if (pattern && !pattern.endsWith('*')) return pattern;
+  } catch {
+    // Fall back to the path below.
+  }
+  return c.req.path
+    .split('/')
+    .map((part) => (/\d/.test(part) && !/^v\d+$/.test(part) ? ':id' : part))
+    .join('/');
 }

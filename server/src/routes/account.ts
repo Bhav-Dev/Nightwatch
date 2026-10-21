@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 
+import { revokeAppleTokenFor } from '../auth/appleTokens.ts';
 import type { AppEnv, Deps } from '../deps.ts';
 
 export function accountRoutes(deps: Deps) {
@@ -8,12 +9,16 @@ export function accountRoutes(deps: Deps) {
 
   /**
    * Deletes the account and everything synced (nights, logs, devices, profile, subscription
-   * mirror, contribution rows) by cascade. Contributor ids go on the exclusion list first;
-   * that list holds no user id, so it survives and the next aggregation drops them.
-   * Published aggregates hold no per-person data, so nothing else needs removing.
+   * mirror, contribution rows, the kept Apple token) by cascade. Contributor ids go on the
+   * exclusion list first; that list holds no user id, so it survives and the next aggregation
+   * drops them. Published aggregates hold no per-person data, so nothing else needs removing.
+   *
+   * A Sign in with Apple account's token is revoked first, as Apple requires. That step never
+   * blocks the deletion: a failure is logged and alerted.
    */
   r.delete('/account', async (c) => {
     const userId = c.get('userId');
+    await revokeAppleTokenFor(deps, userId);
     const now = clock.now().toISOString();
     await sql.transaction(async (tx) => {
       await tx.query(

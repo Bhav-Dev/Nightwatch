@@ -31,8 +31,8 @@ export default function SignIn() {
     if (Platform.OS === 'ios') void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
   }, []);
 
-  const exchange = async (provider: AuthProvider, token: string, name?: string | null) => {
-    const res = await api.exchange({ provider, token, name });
+  const exchange = async (provider: AuthProvider, token: string, name?: string | null, authorizationCode?: string | null) => {
+    const res = await api.exchange({ provider, token, name, authorization_code: authorizationCode ?? undefined });
     await signIn({ token: res.session_token, userId: res.user_id, expiresAt: res.expires_at, provider, email: null });
     router.replace('/onboarding/microphone');
   };
@@ -57,7 +57,8 @@ export default function SignIn() {
       });
       if (!cred.identityToken) throw new Error('Apple did not return a sign-in token.');
       const name = cred.fullName ? AppleAuthentication.formatFullName(cred.fullName) || null : null;
-      await exchange('apple', cred.identityToken, name);
+      // The code lets the server revoke Sign in with Apple if the account is ever deleted.
+      await exchange('apple', cred.identityToken, name, cred.authorizationCode);
     });
 
   const sendLink = () =>

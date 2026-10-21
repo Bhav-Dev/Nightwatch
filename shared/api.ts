@@ -26,6 +26,11 @@ export interface AuthExchangeRequest {
   token: string;
   /** Apple only: the user's name on first sign-in (Apple sends it once). */
   name?: string | null;
+  /**
+   * Apple only: the authorization code from the same sign-in. The server swaps it for a refresh
+   * token so it can revoke Sign in with Apple when the account is deleted, as Apple requires.
+   */
+  authorization_code?: string | null;
 }
 
 export interface AuthExchangeResponse {

@@ -1,3 +1,4 @@
+import type { Alerts } from './alerts.ts';
 import type { JwksSet } from './auth/providers.ts';
 import type { Clock } from './clock.ts';
 import type { Config } from './config.ts';
@@ -15,6 +16,10 @@ export interface Deps {
   jwks: JwksSet;
   /** Where unexpected errors are reported. Defaults to console.error. */
   logError?: (err: unknown) => void;
+  /** Where notes worth a log line go (a step skipped for missing configuration). Defaults to console.log. */
+  logInfo?: (message: string) => void;
+  /** Failure alerts by email (ALERT_EMAIL). None when absent. */
+  alerts?: Alerts;
   /** HTTP for upstream services (MET Norway's forecast). Defaults to the global fetch. */
   fetch?: typeof fetch;
 }

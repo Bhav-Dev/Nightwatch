@@ -5,6 +5,7 @@
  *
  * Not run in this repo's CI (no Deno there).
  */
+import { alertsFromEnv } from '../../../server/src/alerts.ts';
 import { systemClock } from '../../../server/src/clock.ts';
 import { postgresSql } from '../../../server/src/db/postgres.ts';
 import { assertSchema, schemaFromEnv } from '../../../server/src/db/schema.ts';
@@ -18,4 +19,6 @@ if (!env.DATABASE_URL) throw new Error('NIGHTWATCH_DATABASE_URL must be set (the
 const sql = postgresSql(env.DATABASE_URL, { max: 1, prepare: false });
 await assertSchema(sql, schemaFromEnv(env));
 
-Deno.serve(createAggregateHandler({ sql, clock: systemClock, secret: env.AGGREGATE_SECRET || null }));
+Deno.serve(
+  createAggregateHandler({ sql, clock: systemClock, secret: env.AGGREGATE_SECRET || null, alerts: alertsFromEnv(env, sql, systemClock) }),
+);

@@ -35,6 +35,8 @@ The server does not render PDF reports. The app renders them on the device from 
   - Apple and Google ID tokens, verified with `jose` against their JWKS;
   - an HS256 session JWT that lasts 90 days.
 
+  Apple requires apps with Sign in with Apple to revoke the person's tokens when they delete their account. The app sends the authorization code with the Apple ID token; the server swaps it at `appleid.apple.com/auth/token` for a refresh token, keeps it in `apple_token` sealed with AES-GCM (a key derived from `SESSION_SECRET`), and revokes it at `appleid.apple.com/auth/revoke` before deleting the account (`src/auth/appleTokens.ts`). Neither step can fail a sign-in or a deletion: without the key, or when Apple is unreachable, they log (and alert) and carry on. Changing `SESSION_SECRET` makes the kept tokens unreadable, so those accounts are deleted without revoking until they sign in again.
+
   Users are keyed by `(auth_provider, auth_subject)`. For email, the subject is the lowercased address. Every route except auth, the RevenueCat webhook and `/v1/health` needs `Authorization: Bearer <session>`.
 - **Rate limits** use fixed-window counters in the `rate_limit` table, so they hold on stateless Edge functions:
   - sync: 60 per hour per device (pulls: 60 per hour per user);
@@ -90,9 +92,12 @@ On Supabase every variable below is set as a function secret **with a `NIGHTWATC
 | `DATABASE_SCHEMA` | both | `nightwatch` | The schema the connection must resolve to (for example `nightwatch_staging` for a second environment in the same project, with its own role) |
 | `SESSION_SECRET` | both | (required, at least 32 characters) | HS256 key for session tokens. Changing it signs everyone out |
 | `APPLE_AUDIENCES` | both | none | Comma-separated: the iOS bundle id, plus a Services ID for web sign-in. Empty turns off Apple sign-in |
+| `APPLE_TEAM_ID`, `APPLE_SIWA_KEY_ID`, `APPLE_SIWA_PRIVATE_KEY` | both | none | A Sign in with Apple key (Certificates, Identifiers & Profiles, Keys, with Sign in with Apple ticked): the team id, the key id, and the `.p8` file's contents (real newlines, or `\n` escapes on one line). Needed to revoke Apple tokens when an account is deleted, which Apple requires. Without them sign-in still works and nothing is revoked |
+| `APPLE_CLIENT_ID` | both | the first `APPLE_AUDIENCES` entry | The bundle id the Apple tokens were issued to (`com.threeft2.nightwatch`) |
 | `GOOGLE_AUDIENCES` | both | none | Comma-separated OAuth client ids (iOS, Android, web). Empty turns off Google sign-in |
-| `APP_LINK_BASE` | both | `nightwatch:/` | Magic links go to `${APP_LINK_BASE}/auth?token=...` |
+| `APP_LINK_BASE` | both | `nightwatch://` | Magic links go to `${APP_LINK_BASE}/auth?token=...`. Set it to the website, for example `https://snorehive.app`, whose `/auth` page opens the app: many mail apps will not open a `nightwatch://` link. Unset, links go straight to `nightwatch://auth?token=...` |
 | `RESEND_API_KEY`, `MAIL_FROM` | both | none | Without both, sign-in emails are only printed to the log. Never run production like that |
+| `ALERT_EMAIL` | both | none (no alerts) | Where failure alerts go, through the same mailer: unexpected API errors (500s, grouped by route), failed nightly aggregations, and Apple token revocations that did not go through. The first alert of each kind in an hour is emailed; the rest only reach the logs |
 | `AMAZON_TAGS` | both | `{}` | JSON, for example `{"GB":"nightwatch-21","US":"nightwatch-20"}`, served with the catalogue |
 | `REVENUECAT_WEBHOOK_AUTH` | both | none (webhook refuses everything) | Must equal the Authorization header set in the RevenueCat dashboard, for example `Bearer <random>` |
 | `API_BASE_PATH` | both | empty (Supabase entry: `/nightwatch-api`) | Prefix before `/v1` |
@@ -131,6 +136,8 @@ Tests run against PGlite, a real Postgres compiled to WASM, so no database is ne
 
 - the migrations, `sql/setup.sql` in a database that already belongs to another app (the role cannot read or create anything in `public`, Supabase's API roles cannot read Nightwatch's schema, the other app's tables are untouched), and refusal to run on a connection resolving to another schema;
 - auth: the magic link end to end with the console mailer; Apple and Google with a locally generated RSA JWKS; wrong audience, issuer or key; expiry;
+- Sign in with Apple revocation against a stand-in for Apple's endpoints: the client secret JWT, the sealed token, revocation at deletion, and deletion going ahead when Apple refuses, when the key is not set, or when the token cannot be opened;
+- alerts: one email per kind per hour (also when the database is down), none without `ALERT_EMAIL`, 500s grouped by route pattern, and failed aggregation runs;
 - sync: idempotency, ownership and validation;
 - profile versioning;
 - contribution opt-in, opt-out and exclusion, and suggestions;
@@ -194,7 +201,7 @@ These steps assume Ubuntu 24.04 with Node 22, Postgres 16 and Caddy.
    ```
    0 4 * * * cd /srv/nightwatch/server && set -a && . /etc/nightwatch.env && node dist/aggregate.js >> /var/log/nightwatch-aggregate.log 2>&1
    ```
-   A non-zero exit means nothing was published. Alert on it, then read `aggregate_job_log`. To drop a bad day of data, run `node dist/aggregate.js --exclude-date 2026-10-14`.
+   A non-zero exit means nothing was published. With `ALERT_EMAIL` set, the job emails you when that happens; then read `aggregate_job_log`. To drop a bad day of data, run `node dist/aggregate.js --exclude-date 2026-10-14`.
 6. **Backups.** Run a nightly `pg_dump -Fc --schema=nightwatch nightwatch > /var/backups/nightwatch-$(date +%F).dump` from cron, and copy the dump off the machine (for example with restic or rclone to object storage). Keep 30 days and test a restore regularly. The aggregate tables can be rebuilt by rerunning the job. The user tables cannot.
 7. **Updates.**
    ```bash
@@ -226,9 +233,12 @@ Nightwatch adds one schema, one role, two functions, a handful of prefixed secre
      NIGHTWATCH_APPLE_AUDIENCES=... NIGHTWATCH_GOOGLE_AUDIENCES=... \
      NIGHTWATCH_RESEND_API_KEY=... NIGHTWATCH_MAIL_FROM='Nightwatch <hello@...>' \
      NIGHTWATCH_AMAZON_TAGS='{"GB":"..."}' NIGHTWATCH_REVENUECAT_WEBHOOK_AUTH='Bearer ...' \
-     NIGHTWATCH_AGGREGATE_SECRET=$(openssl rand -hex 32)
+     NIGHTWATCH_AGGREGATE_SECRET=$(openssl rand -hex 32) \
+     NIGHTWATCH_APP_LINK_BASE=https://snorehive.app NIGHTWATCH_ALERT_EMAIL=you@example.com \
+     NIGHTWATCH_APPLE_TEAM_ID=... NIGHTWATCH_APPLE_SIWA_KEY_ID=... \
+     NIGHTWATCH_APPLE_SIWA_PRIVATE_KEY="$(cat AuthKey_XXXXXXXXXX.p8)"
    ```
-   Keep a copy of the aggregate secret for step 6.
+   Keep a copy of the aggregate secret for step 6. Set `NIGHTWATCH_APP_LINK_BASE` only once the website's `/auth` page is live.
 5. **Functions,** from the repo root (`supabase/config.toml` turns off Supabase JWT checks for both, because the app sends our own session token; no `supabase link` is needed):
    ```bash
    npx supabase@latest functions deploy nightwatch-api --project-ref <ref> --use-api

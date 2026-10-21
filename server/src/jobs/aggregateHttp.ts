@@ -2,6 +2,7 @@
  * The nightly job behind an HTTP endpoint, for Supabase where pg_cron + pg_net call an Edge
  * function. Protected by a shared secret header, since the function is reachable publicly.
  */
+import { type Alerts, noAlerts, reportAggregationFailure } from '../alerts.ts';
 import type { Clock } from '../clock.ts';
 import { timingSafeEqual } from '../crypto.ts';
 import type { Sql } from '../db/sql.ts';
@@ -9,7 +10,8 @@ import { runAggregation } from './aggregateJob.ts';
 
 export const AGGREGATE_SECRET_HEADER = 'x-aggregate-secret';
 
-export function createAggregateHandler(deps: { sql: Sql; clock: Clock; secret: string | null }) {
+export function createAggregateHandler(deps: { sql: Sql; clock: Clock; secret: string | null; alerts?: Alerts }) {
+  const alerts = deps.alerts ?? noAlerts;
   return async (req: Request): Promise<Response> => {
     const error = (status: number, code: string, message: string) =>
       Response.json({ error: { code, message } }, { status });
@@ -34,9 +36,11 @@ export function createAggregateHandler(deps: { sql: Sql; clock: Clock; secret: s
     }
     try {
       const result = await runAggregation(deps.sql, deps.clock, { excludeDates });
+      if (!result.ok) await reportAggregationFailure(alerts, result.message ?? 'The run did not publish.');
       return Response.json(result, { status: result.ok ? 200 : 500 });
     } catch (err) {
       console.error(err);
+      await reportAggregationFailure(alerts, err);
       return error(500, 'internal', err instanceof Error ? err.message : 'Aggregation failed.');
     }
   };

@@ -5,6 +5,7 @@
  *
  * Exits non-zero when the run fails, including a failed sanity check (nothing is published).
  */
+import { alertsFromEnv, reportAggregationFailure } from '../alerts.ts';
 import { systemClock } from '../clock.ts';
 import { postgresSql } from '../db/postgres.ts';
 import { assertSchema, schemaFromEnv } from '../db/schema.ts';
@@ -30,14 +31,19 @@ if (!url) {
   process.exit(1);
 }
 const sql = postgresSql(url, { max: 1, prepare: process.env.DATABASE_PREPARE !== 'false' });
+const alerts = alertsFromEnv(process.env, sql, systemClock);
 try {
   await assertSchema(sql, schemaFromEnv(process.env));
   const result = await runAggregation(sql, systemClock, parseArgs(process.argv.slice(2)));
   console.log(JSON.stringify(result));
-  if (!result.ok) process.exitCode = 1;
+  if (!result.ok) {
+    process.exitCode = 1;
+    await reportAggregationFailure(alerts, result.message ?? 'The run did not publish.');
+  }
 } catch (err) {
   console.error(err);
   process.exitCode = 1;
+  await reportAggregationFailure(alerts, err);
 } finally {
   await sql.close();
 }

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 
 import type { AuthExchangeResponse } from '../../../shared/api.ts';
+import { keepAppleToken } from '../auth/appleTokens.ts';
 import { verifyApple, verifyGoogle, type VerifiedIdentity } from '../auth/providers.ts';
 import { signSession } from '../auth/session.ts';
 import { randomId, randomToken, sha256Hex } from '../crypto.ts';
@@ -75,6 +76,8 @@ export function authRoutes(deps: Deps) {
        RETURNING id::text AS id`,
       [randomId(), body.provider, identity.subject, identity.email, body.name ?? null, now.toISOString()],
     );
+    // So the Apple token can be revoked if the account is deleted. Never fails the sign-in.
+    if (body.provider === 'apple' && body.authorization_code) await keepAppleToken(deps, user.id, body.authorization_code);
     const session = await signSession(user.id, config.sessionSecret, now, config.sessionTtlDays);
     const res: AuthExchangeResponse = {
       session_token: session.token,
