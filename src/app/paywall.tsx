@@ -23,6 +23,7 @@ const WHY: Record<string, string> = {
   report: 'Make a report to share with your doctor.',
   summary: 'See the full morning summary with your watch data.',
   overlay: 'See your watch data on the same timeline as your snoring.',
+  share_month: 'Share your whole month, and keep every night.',
 };
 
 const BULLETS = [

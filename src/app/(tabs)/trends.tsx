@@ -9,6 +9,7 @@ import { enrichedHistory, movingAverage, nightsByDay, trendPoints, trendPointsBe
 import { deleteSnapshot, listSnapshots, saveSnapshot, type Snapshot } from '../../data/snapshotRepo';
 import { loadSnoreProfile } from '../../data/snoreProfileRepo';
 import type { SnoreProfile } from '../../domain/snoreProfile';
+import { ShareSheet } from '../../screens/ShareSheet';
 import { SnoreProfileCard } from '../../screens/SnoreProfileCard';
 import { finishDueExperiments } from '../../experiments/progress';
 import { localDateKey } from '../../domain/nightDate';
@@ -25,6 +26,7 @@ import { Body, Button, Card, GearLink, H2, Locked, Screen, Segmented, Small } fr
 import { colors, space } from '../../ui/theme';
 
 type Range = '7' | '30' | '90' | 'custom';
+const SHARE_KINDS = ['week', 'month'] as const;
 
 // Dates follow the phone's own language and region settings.
 const dateOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)));
@@ -95,6 +97,7 @@ export default function Trends() {
   const [found, setFound] = useState<Pattern[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [profile, setProfile] = useState<SnoreProfile | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   // A Bee: 7 nights of history.
   const effectiveRange: Range = paid ? range : '7';
@@ -146,7 +149,7 @@ export default function Trends() {
   return (
     <Screen sky="plain" eyebrow="Trends" title="Your nights" right={<GearLink />}>
       <Card>
-        <H2>Your hive of nights</H2>
+        <H2 right={<Button kind="link" label="Share" onPress={() => setSharing(true)} />}>Your hive of nights</H2>
         <Small style={{ marginBottom: space(3) }}>One cell a day, a week to a row. Brighter means louder; today is outlined. Tap a night to open it.</Small>
         <NightsHive days={hive} onOpen={(id) => router.push(`/night/${id}`)} />
         <View style={styles.hiveLegend}>
@@ -314,6 +317,7 @@ export default function Trends() {
         <Small>A summary of 14 to 30 nights to take to your GP. It is a consumer app summary, not a clinical test.</Small>
         <Button kind="secondary" label={paid ? 'Create a report' : 'Create a report 🔒'} onPress={() => router.push(paid ? '/report' : { pathname: '/paywall', params: { trigger: 'report' } })} style={{ marginTop: space(3) }} />
       </Card>
+      <ShareSheet visible={sharing} onClose={() => setSharing(false)} kinds={SHARE_KINDS} />
     </Screen>
   );
 }

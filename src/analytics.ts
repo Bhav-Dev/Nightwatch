@@ -1,5 +1,5 @@
 /**
- * The 10 analytics events from the spec, plus three for the morning review flow. Counts and flags only: no health values, no scores,
+ * The 10 analytics events from the spec, plus three for the morning review flow and one for share cards. Counts and flags only: no health values, no scores,
  * no remedy names, nothing that could identify a night. The sink is pluggable: release builds
  * with EXPO_PUBLIC_POSTHOG_KEY send to PostHog, anonymously, unless the person turns usage
  * counts off in Settings (usageAnalytics.ts); otherwise events go nowhere (or the console in
@@ -17,7 +17,8 @@ export type AnalyticsEvent =
   | { name: 'subscription_converted'; plan: 'yearly' | 'monthly' }
   | { name: 'snoring_answered'; snoring: boolean; source: 'clip' | 'moment' }
   | { name: 'recap_opened' }
-  | { name: 'review_asked' };
+  | { name: 'review_asked' }
+  | { name: 'card_shared'; kind: 'night' | 'week' | 'month' };
 
 export type AnalyticsSink = (event: AnalyticsEvent) => void;
 

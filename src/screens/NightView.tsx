@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { router, useFocusEffect } from 'expo-router';
@@ -65,6 +66,7 @@ import { MomentList, momentKey } from './MomentList';
 import { MomentPanel } from './MomentPanel';
 import { maybeAskForReview, type Engagement } from './reviewAsk';
 import { cancelRecap } from '../notifications';
+import { ShareSheet } from './ShareSheet';
 import { useClipPlayer } from './useClipPlayer';
 
 interface Loaded {
@@ -127,6 +129,7 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
   const [overlay, setOverlay] = useState(false);
   const [showPrevent, setShowPrevent] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const advance = useRef<(uri: string) => void>(() => undefined);
   /** The morning weather refresh runs at most once per visit. */
   const weatherRefreshed = useRef(false);
@@ -578,6 +581,10 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
               </Text>
             ) : null}
           </View>
+          <Pressable onPress={() => setSharing(true)} accessibilityRole="button" accessibilityLabel="Share this night" hitSlop={8} style={styles.shareButton}>
+            <Ionicons name="share-outline" size={18} color={colors.text} />
+            <Text style={styles.shareLabel}>Share</Text>
+          </Pressable>
         </View>
         <View style={styles.stats}>
           <Stat label="Time snoring" value={`${Math.round(night.pct_snoring * 100)}%`} />
@@ -756,6 +763,19 @@ export function NightView({ nightId, fromRecap = false }: { nightId?: string; fr
         ) : null}
         {!editable ? <Small style={{ marginTop: space(2) }}>The log can be edited until noon the next day.</Small> : null}
       </Card>
+      <ShareSheet
+        visible={sharing}
+        onClose={() => setSharing(false)}
+        kinds={['night', 'week', 'month']}
+        night={{
+          row: night,
+          bins,
+          average7: avg7,
+          tried: log.remedies
+            .map((id) => (id.startsWith('other:') ? id.slice('other:'.length) : catalogue.get(id)?.name))
+            .filter((n): n is string => !!n),
+        }}
+      />
       <LogPicker
         visible={editing}
         title="Last night’s log"
@@ -798,6 +818,18 @@ const styles = StyleSheet.create({
   label: { color: colors.accent, fontSize: 22, fontFamily: fonts.heading },
   delta: { color: colors.accent, fontSize: 15, fontWeight: '700' },
   stats: { flexDirection: 'row' },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(1.5),
+    alignSelf: 'flex-start',
+    paddingHorizontal: space(3),
+    paddingVertical: space(2),
+    borderRadius: radius.chip,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  shareLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
   statValue: { color: colors.text, fontSize: 18, fontWeight: '700', textTransform: 'capitalize' },
   hive: { gap: space(2), marginTop: space(1) },
   names: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },

@@ -77,7 +77,8 @@ Acceptance criteria:
 | Detection | ✅ / ⬜ | The heuristic (v0) is in place, as decided. The model is not trained yet; it plugs in through `OnlineSnoreScorer` |
 | Score, timeline, clips, remedy and factor logging, 7-night history | 🟡 | All built and logic-tested; UI not seen on a phone |
 | Tonight and This Morning screens | 🟡 | Built from the mockups |
-| Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Up to 5 snoring clips plus the 3 loudest "other sounds" a night. Share gives the audio file only; no card image yet |
+| Clips | 🟡 | WAV, with groundwork for Opus (codec registry and transcoding, tested). Up to 5 snoring clips plus the 3 loudest "other sounds" a night. Share gives the audio file only (share cards, below, are images of the figures) |
+| Share cards: a night, week or month as an image with the logo, for r/snoring and social posts | 🟡 | Beyond the plan, 26 October 2026. Night and week for everyone, month for the Hive. Tested in code (headlines and summaries); the card itself not yet seen on a phone. Needs a new build (`react-native-view-shot`) |
 | Sleep sounds (white, pink, brown noise with a fade-out timer) | 🟡 | Beyond the plan, decided 16 October 2026. Generated natively, steady sounds only; snoring under them is measured against the sound. Tested in code; not yet heard on a phone. iOS implemented 17 October 2026 (compiles on EAS), not yet run on an iPhone |
 | Wake-up alarm (the phone's own alarm; recording stops just before it) | 🟡 | Beyond the plan, decided 16 October 2026. Uses the phone's existing alarm, or adds one to the Clock app if there is none. Seen working with Samsung Clock on the S24; first overnight use pending. Android only (iPhone would need AlarmKit) |
 | Night-sky look (theme, moon, sunrise morning, Nunito, icons) | 🟡 | 16 October 2026; seen on the S24 (the morning was reworked from dusk to a sunrise) |
